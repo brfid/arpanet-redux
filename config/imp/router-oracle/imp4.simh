@@ -1,0 +1,10 @@
+set debug stdout
+
+do impconfig.simh
+set imp num=4
+do impcode.simh
+
+attach mi1 4441::4432
+
+set throttle 400K
+go

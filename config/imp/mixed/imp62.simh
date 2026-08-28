@@ -1,0 +1,16 @@
+set debug stdout
+
+do impconfig.simh
+set imp num=62
+do impcode.simh
+
+set mi1 enabled
+attach -u mi1 13162::13106
+
+set hi1 enabled
+set hi1 debug
+attach -u hi1 23001:127.0.0.1:23002
+set hi2 disabled
+
+set throttle 400K
+go

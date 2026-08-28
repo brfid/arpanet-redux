@@ -260,6 +260,16 @@ class UtilityTests(unittest.TestCase):
             (repository / "rp03.0").write_bytes(b"small but external\n")
             (repository / "impcode.simh").write_bytes(b"synthetic firmware\n")
             (repository / "BOOT.RIM").write_bytes(b"synthetic loader\n")
+            (repository / "snapshot.tape").write_bytes(b"synthetic tape\n")
+            (repository / "upstream.tar.gz").write_bytes(b"synthetic archive\n")
+            (repository / "microcode.rom").write_bytes(b"synthetic rom\n")
+            (repository / "bootstrap.bin").write_bytes(b"synthetic firmware\n")
+            (repository / "external.txt").write_bytes(
+                b"version https://git-lfs.github.com/spec/v1\n"
+                b"oid sha256:"
+                + b"0" * 64
+                + b"\nsize 1234567\n"
+            )
             run(
                 "git",
                 "add",
@@ -267,6 +277,11 @@ class UtilityTests(unittest.TestCase):
                 "rp03.0",
                 "impcode.simh",
                 "BOOT.RIM",
+                "snapshot.tape",
+                "upstream.tar.gz",
+                "microcode.rom",
+                "bootstrap.bin",
+                "external.txt",
                 cwd=repository,
             )
             failing = run(
@@ -282,6 +297,95 @@ class UtilityTests(unittest.TestCase):
             self.assertIn("rp03.0: vintage machine media", failing.stderr)
             self.assertIn("impcode.simh: vintage machine media", failing.stderr)
             self.assertIn("BOOT.RIM: vintage machine media", failing.stderr)
+            self.assertIn("snapshot.tape: vintage machine media", failing.stderr)
+            self.assertIn("upstream.tar.gz: vintage machine media", failing.stderr)
+            self.assertIn("microcode.rom: vintage machine media", failing.stderr)
+            self.assertIn("bootstrap.bin: vintage machine media", failing.stderr)
+            self.assertIn("external.txt: Git LFS pointers are not permitted", failing.stderr)
+
+    def test_source_guard_checks_every_blob_reachable_from_history_tip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            repository = Path(directory_name)
+            self.assertEqual(run("git", "init", "-q", repository).returncode, 0)
+            run("git", "config", "user.name", "Harness Test", cwd=repository)
+            run("git", "config", "user.email", "test@example.invalid", cwd=repository)
+            manifest = repository / "synthetic-assets.sha256"
+            manifest.write_text(
+                f"{hashlib.sha256(b'known external asset').hexdigest()}  known.img\n",
+                encoding="ascii",
+            )
+            (repository / "source.txt").write_text("source\n", encoding="ascii")
+            run("git", "add", "source.txt", cwd=repository)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "source", cwd=repository).returncode,
+                0,
+            )
+
+            (repository / "retired.dat").write_bytes(b"x" * 257)
+            (repository / "retired.tape").write_bytes(b"synthetic tape\n")
+            (repository / "concealed.txt").write_bytes(b"known external asset")
+            (repository / "renamed-pointer.txt").write_bytes(
+                b"version https://git-lfs.github.com/spec/v1\n"
+                b"oid sha256:"
+                + b"a" * 64
+                + b"\nsize 9000000\n"
+            )
+            run(
+                "git",
+                "add",
+                "retired.dat",
+                "retired.tape",
+                "concealed.txt",
+                "renamed-pointer.txt",
+                cwd=repository,
+            )
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "unsafe", cwd=repository).returncode,
+                0,
+            )
+            (repository / "retired.dat").unlink()
+            (repository / "retired.tape").unlink()
+            (repository / "concealed.txt").unlink()
+            (repository / "renamed-pointer.txt").unlink()
+            run("git", "add", "-u", cwd=repository)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "remove", cwd=repository).returncode,
+                0,
+            )
+
+            current = run(
+                sys.executable,
+                SCRIPTS / "check-source-only.py",
+                "--limit-bytes",
+                "256",
+                "--asset-manifest",
+                manifest,
+                cwd=repository,
+            )
+            self.assertEqual(current.returncode, 0, current.stderr)
+            history = run(
+                sys.executable,
+                SCRIPTS / "check-source-only.py",
+                "--history",
+                "HEAD",
+                "--limit-bytes",
+                "256",
+                "--asset-manifest",
+                manifest,
+                cwd=repository,
+            )
+            self.assertNotEqual(history.returncode, 0)
+            self.assertIn("retired.dat: historical blob is 257 bytes", history.stderr)
+            self.assertIn("retired.tape: vintage machine media", history.stderr)
+            self.assertIn(
+                "concealed.txt: content matches a known external vintage asset",
+                history.stderr,
+            )
+            self.assertIn(
+                "renamed-pointer.txt: Git LFS pointers are not permitted",
+                history.stderr,
+            )
+            self.assertIn("[historical blob ", history.stderr)
 
     def test_source_guard_rejects_renamed_known_digest(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
@@ -350,6 +454,98 @@ class UtilityTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("asset digest denylist may not shrink", result.stderr)
+
+    def test_source_guard_rejects_committed_denylist_shrinkage_in_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            repository = Path(directory_name)
+            self.assertEqual(run("git", "init", "-q", repository).returncode, 0)
+            run("git", "config", "user.name", "Harness Test", cwd=repository)
+            run("git", "config", "user.email", "test@example.invalid", cwd=repository)
+            pins = repository / "pins"
+            pins.mkdir()
+            first = hashlib.sha256(b"first asset\n").hexdigest()
+            second = hashlib.sha256(b"second asset\n").hexdigest()
+            manifest = pins / "arpanet-assets.sha256"
+            manifest.write_text(
+                f"{first}  upstream/first.img\n{second}  upstream/second.img\n",
+                encoding="ascii",
+            )
+            run("git", "add", "pins/arpanet-assets.sha256", cwd=repository)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "baseline", cwd=repository).returncode,
+                0,
+            )
+            manifest.write_text(
+                f"{first}  upstream/first.img\n",
+                encoding="ascii",
+            )
+            run("git", "add", "pins/arpanet-assets.sha256", cwd=repository)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "shrink", cwd=repository).returncode,
+                0,
+            )
+            result = run(
+                sys.executable,
+                SCRIPTS / "check-source-only.py",
+                "--history",
+                "HEAD",
+                cwd=repository,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "asset digest denylist may not shrink across scanned history",
+                result.stderr,
+            )
+            self.assertIn(second, result.stderr)
+
+    def test_source_guard_history_fails_closed_in_shallow_clone(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            origin = directory / "origin"
+            shallow = directory / "shallow"
+            self.assertEqual(run("git", "init", "-q", origin).returncode, 0)
+            run("git", "config", "user.name", "Harness Test", cwd=origin)
+            run("git", "config", "user.email", "test@example.invalid", cwd=origin)
+            pins = origin / "pins"
+            pins.mkdir()
+            digest = hashlib.sha256(b"external asset\n").hexdigest()
+            (pins / "arpanet-assets.sha256").write_text(
+                f"{digest}  upstream/external.img\n",
+                encoding="ascii",
+            )
+            run("git", "add", "pins/arpanet-assets.sha256", cwd=origin)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "first", cwd=origin).returncode,
+                0,
+            )
+            (origin / "source.txt").write_text("source\n", encoding="ascii")
+            run("git", "add", "source.txt", cwd=origin)
+            self.assertEqual(
+                run("git", "commit", "-q", "-m", "second", cwd=origin).returncode,
+                0,
+            )
+            clone = run(
+                "git",
+                "clone",
+                "-q",
+                "--depth",
+                "1",
+                f"file://{origin}",
+                shallow,
+            )
+            self.assertEqual(clone.returncode, 0, clone.stderr)
+            result = run(
+                sys.executable,
+                SCRIPTS / "check-source-only.py",
+                "--history",
+                "HEAD",
+                cwd=shallow,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "history scan requires a complete, non-shallow clone",
+                result.stderr,
+            )
 
     def test_real_asset_manifest_has_nine_unique_sha256_digests(self) -> None:
         manifest = ROOT / "pins" / "arpanet-assets.sha256"

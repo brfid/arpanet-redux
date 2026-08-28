@@ -1,13 +1,16 @@
+# Compose IMP 3 from the external generic setup and recovered firmware.
 set debug stdout
-set hi1 debug
-
 do impconfig.simh
 set imp num=3
 do impcode.simh
 
+set mi1 enabled
 attach mi1 %BRFID_IMP3_MI1_PORT%:127.0.0.1:%BRFID_IMP2_MI1_PORT%
 set mi2 enabled
 attach mi2 %BRFID_IMP3_MI2_PORT%:127.0.0.1:%BRFID_IMP4_MI1_PORT%
+
+set hi1 enabled
+set hi1 debug
 attach hi1 %BRFID_IMP3_HI_PORT%:127.0.0.1:%BRFID_NCP3_IMP_PORT%
 
 set throttle 400K

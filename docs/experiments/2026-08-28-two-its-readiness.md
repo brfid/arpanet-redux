@@ -1,38 +1,41 @@
 # Two-ITS readiness findings
 
-**Status:** Topology and failure modes characterized; guest-to-guest application pass pending
+- **Observed:** 2026-08-28
+- **Outcome:** Topology and failure modes characterized; guest-to-guest application proof not yet achieved
 
-The target topology is KA10/ITS host `106` on H316 IMP 6 connected by one simulated modem line to H316 IMP 62 and KA10/ITS host `176`. Both host interfaces use HI2 with long/short leader conversion. The committed configurations encode that wiring with per-run ports, but this note does not claim the end-to-end gate has passed.
+This dated note explains why the normative two-ITS gate has its current readiness conditions. The gate itself lives in the [test plan](../test-plan.md).
 
-## What the failed trials established
+## Topology under test
 
-The first ITS-originated TELNET trial was invalid because host `106` had been left at a SIMH command prompt. Host `176` sent its reset through IMP 62 and IMP 6, and IMP 6 delivered it to host `106`, but a paused KA10 could not generate the reply. A live PID and bound UDP socket are therefore insufficient guest-liveness evidence.
+KA10/ITS host `106` attached to H316 IMP 6, one simulated modem link to H316 IMP 62, and KA10/ITS host `176` attached to IMP 62. Both guest links used HI2 with long/short leader conversion and independent guest-media copies.
 
-The next controlled trial proved both guests locally with ITS `:TIME`, but it opened TELNET at only five seconds of guest uptime. IMP 62 returned a type-7 control message with subtype 0. The recovered H316 listing distinguishes subtype 0, destination IMP dead, from subtype 1, destination host dead. The console client's generic “Host dead due to random network lossage” text concealed that distinction.
+## Trial 1: paused destination
 
-The router response was historically correct. A newly discovered route remains in the firmware's `RUTCMU` coming-up hold-down: the route begins at octal `0340`, loses octal `0040` every tenth slow tick, and needs about 44.7 seconds to become eligible. A 60-second margin after both modem links come up is the initial portable readiness rule.
+The first ITS-originated TELNET trial was invalid because host `106` remained at a SIMH command prompt. Host `176` sent its reset through IMP 62 and IMP 6, and IMP 6 delivered it to host `106`, but the paused KA10 could not answer.
 
-A later trial showed why `IMP: Interface-reset msg` must remain telemetry rather than a gate. Both H316s sent the reset and completed their host-side NOP exchanges, but only one ITS console printed the informational note. The ITS monitor prints and discards this message; absence of the line is not evidence that the host interface failed.
+This ruled out a live PID or bound UDP socket as guest-liveness evidence. Controller state and a current guest command response are required.
 
-## Acceptance predicate for the next run
+## Trial 2: route hold-down
 
-Before host `176` opens TELNET to host `106`, the controller must require all of the following:
+The next controlled trial proved both guests locally with ITS `:TIME` but opened TELNET after only five seconds. IMP 62 returned a type-7 control message with subtype 0. The recovered H316 listing identifies subtype 0 as destination IMP dead, distinct from subtype 1 destination host dead; the console client's generic failure text obscured that distinction.
 
-- Both H316 logs have reported watchdog lights `077400`, indicating the modem path is up.
-- Both H316 logs have later reported watchdog lights `075400`, indicating the attached HI2 host link is up.
-- At least 60 seconds have elapsed since the later modem-up observation, covering the firmware's peer-route hold-down.
-- Both ITS consoles have printed `SYSTEM JOB USING THIS CONSOLE`, not merely the earlier `IN OPERATION` substring.
-- Each guest has entered DDT with Control-Z, completed local `:TIME`, printed `The time is`, `Today is`, and its uptime, and returned to the DDT prompt.
-- Both controller state variables are `RUNNING`; neither simulator is at `sim>`.
+The response was historically correct. A newly discovered route remains in the firmware's `RUTCMU` coming-up hold-down. It begins at octal `0340`, loses octal `0040` every tenth slow tick, and needs roughly 44.7 seconds to become eligible. The test plan therefore requires a 60-second margin after both modem links report up.
 
-The application pass then requires host `176` to run `:NCPTN 106`, report `Open`, send `:TIME` over that connection, and receive the remote time/date/uptime transcript. Both IMP traces must show the regular traffic and the required leader conversions, and all owned processes and ports must be released after the run.
+## Trial 3: unreliable console telemetry
 
-The clean host-`176` source build must identify itself as `IMPUS=176` in its boot transcript. A debugger deposit into a copied host-`106` monitor remains useful diagnostic evidence but is not an image-promotion candidate.
+A later trial showed that `IMP: Interface-reset msg` cannot be a gate. Both H316s sent resets and completed their host-side NOP exchanges, but only one ITS console printed the informational line. The monitor prints and discards this message, so its absence does not prove interface failure.
 
-## Harness consequences
+The trial ran concurrently with a full historical ITS source build. CPU contention stretched a normally short cold boot into several minutes and caused a readiness deadline without exposing a network defect. Image building and network acceptance must therefore be serialized on the tested host.
 
-The build and acceptance smoke should be serialized. Running a full historical ITS build alongside two throttled KA10 guests stretched a normally seconds-long cold boot into several minutes and caused a readiness deadline to expire without exposing a network defect.
+## Consequences
 
-The controller must drain both KA consoles concurrently, record sent characters as well as received output, and maintain explicit `BOOTING`, `RUNNING`, and `PROMPT` states. Cleanup may send the WRU character only to a `RUNNING` simulator; a child already at `PROMPT` must receive `quit` directly.
+- Observe both H316 modem-up and host-link watchdog transitions, then apply the route-settle interval.
+- Require complete ITS system-console banners plus successful local commands on both guests.
+- Track explicit simulator states and never send WRU to a child already at the simulator prompt.
+- Drain both consoles concurrently and retain sent-character evidence.
+- Capture IMP log offsets immediately before the application probe so startup traffic cannot satisfy it.
+- Require remote application identity and time output, not merely an open connection.
 
-Until the application transcript passes, these configurations and findings are an in-progress experiment rather than a promoted smoke target.
+## Subsequent image-build observation
+
+Later on 2026-08-28, the clean generic KA/ITS source target completed and shut down normally after its final filesystem integrity check. That completion is not yet an image-promotion result: clean-tree and recursive-submodule state, a no-op rebuild, output hashes, a provenance receipt, and an independent host-`176` boot remain required before the media enters an acceptance run.

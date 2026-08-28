@@ -1,35 +1,51 @@
-# Portable per-run harness
+# Harness design
 
-The harness replaces fixed UDP ports and shared NCP daemon socket names with a per-run namespace. It is deliberately source-only: it contains no simulator executable, firmware, disk image, or captured result.
+## Responsibility
 
-The shell layer targets `/bin/sh` on macOS and Linux. The Python helpers require Python 3.11 or newer and use only the standard library, so no virtual environment is needed.
+The harness supplies isolated resources, exact process ownership, source and executable identity, bounded observation, and durable evidence. The [test plan](test-plan.md) decides what constitutes a pass; the [runbook](runbook.md) explains how to invoke the implemented targets.
 
-## Lifecycle
+The shell layer targets `/bin/sh` on macOS and Linux. Committed Python helpers require Python 3.11 or newer and currently use only the standard library.
 
-1. Atomically create a new run-directory leaf and a mode-0700 NCP daemon socket directory. An existing leaf is an error rather than an overwrite opportunity.
-2. Start `reserve-udp-ports.py`, which asks the operating system for six ephemeral ports and holds simultaneous IPv4 and IPv6 UDP sockets on every selected port. It falls back to IPv4 on hosts where IPv6 is unavailable; `--require-ipv6` turns that into a hard failure.
-3. Export the six values under their topology-specific `BRFID_*_PORT` names. SIMH performs the final command-file expansion through its native `%NAME%` syntax, so no generated configuration file is required.
-4. Send `USR1` to the reservation helper immediately before launching the simulators. This releases its sockets but keeps the helper and per-port locks alive until cleanup, preventing cooperating runs from selecting the same ports during the small bind handoff window.
-5. Launch every process directly, capture its exact child PID, and stop only those PIDs. Cleanup sends `TERM`, waits for a bounded interval, then sends `KILL` only to survivors. NCP application probes have their own deadlines, so a blocking client cannot hold a run indefinitely.
-6. Force-rebuild the diagnostic NCP executables after source verification and write an external build receipt. One shared Make prerequisite prevents duplicate builds within an invocation, and the build holds an atomic external lease while it replaces the in-place executables. A smoke reacquires that lease before receipt verification and holds it through cleanup, so a cooperative build cannot replace an executable while the smoke uses it. Make serializes smoke goals that share the checkout; a separate contending process fails closed. A smoke run refuses executables whose hashes or source revision no longer match that receipt; the simulator version checks independently require the pinned embedded commit IDs.
-7. Write a run manifest containing the repository and source revisions, tracked-dirty flags, executable and configuration hashes, allocated ports, platform, timestamps, outcome, and exit status.
+## Per-run namespace
 
-Six distinct UDP ports cover a two-host, two-IMP topology: two inter-IMP endpoints and two endpoints for each host/IMP link. The router oracle uses ten because it has two NCP endpoints, three IMPs, and one intentionally dead modem peer. The command files use only the required UDP listeners, and every peer address is explicitly loopback. Each NCP daemon uses a private Unix-domain control socket under a short temporary path rather than a fixed socket in an upstream checkout.
+Each run atomically creates a unique result-directory leaf and a mode-0700 NCP control-socket directory. An existing leaf is an error, never an overwrite target.
 
-The pinned `linux-ncp` client library still creates its short-lived reply socket as `/tmp/client.PID`. The bounded client launcher records that exact PID, removes its socket after normal completion or timeout, and also retains it for trap cleanup during interruption. Moving client sockets into the private directory would require a pinned upstream patch; the current harness documents the limitation instead of describing every NCP socket as private.
+`reserve-udp-ports.py` asks the operating system for ephemeral ports and holds IPv4 plus, when available, IPv6 wildcard UDP sockets on every selected number. Six ports cover two inter-IMP endpoints and two endpoints for each host link. The router oracle uses ten for its two hosts, three IMPs, and deliberately unreachable peer.
 
-The H316 UDP adapter accepts a local port but not a local bind address, so its required listeners bind the wildcard address even though every configured peer is explicitly loopback. The reservation helper checks the same wildcard scope; it does not introduce any additional TCP or UDP service. The private NCP daemon socket is used only for local application control.
+Topology-specific environment variables carry the allocated values into the SIMH command files through native `%NAME%` expansion. This avoids mutating tracked configurations or interpolating them with a shell.
 
-There is an unavoidable gap between releasing a UDP reservation and the simulator binding it because SIMH cannot inherit pre-bound file descriptors. Per-port locks under a shared, user-specific temporary directory close the race between cooperating harness runs. A non-cooperating local process could still claim a port during that short interval, so the production launcher should detect an early bind failure and retry the entire run with a new allocation.
+Immediately before simulator launch, the harness asks the reservation helper to release its sockets while retaining per-user cooperative locks. SIMH cannot inherit pre-bound descriptors, so a short bind handoff remains unavoidable. A noncooperating local process can win that race; an early bind failure must reject the run rather than reuse partial state.
+
+## Process ownership
+
+Every daemon, simulator, and bounded client is launched as a direct child and registered by exact PID. Cleanup is idempotent: it sends `TERM`, waits for a bounded interval, sends `KILL` only to a surviving owned child, removes known client sockets, releases locks, and finalizes the manifest.
+
+Process names and global kill patterns are never lifecycle authority. Startup, application probes, cleanup, and manifest finalization all have explicit deadlines so a blocked console or NCP client cannot retain a run indefinitely.
+
+The pinned `linux-ncp` client creates a short-lived `/tmp/client.PID` reply socket. The harness records the exact client PID and removes only that path after normal completion, timeout, or interruption. Moving it into the private socket directory would require a pinned upstream change.
+
+## Build and executable identity
+
+After source verification, the diagnostic NCP tools are force-rebuilt under an external atomic lease. A receipt binds source revision and executable hashes. Smoke runs reacquire the same lease, verify the receipt, and hold it through cleanup so a cooperating build cannot replace a running input.
+
+Simulator checks independently require embedded source revisions. Per-run manifests then hash the exact executables, configurations, firmware, base configuration, and receipt used by the launch.
+
+The clean ITS image workflow must apply the same principle: bind clean source and recursive submodule states to every promoted disk, tape, and bootstrap output, then give each guest a distinct copied workspace. A stamp alone is not a sufficient receipt.
+
+## Controller states
+
+A two-ITS controller must distinguish at least `BOOTING`, `RUNNING`, `PROMPT`, and `STOPPED` for each KA10. Console streams must be drained concurrently, and sent control characters must be logged separately from received output.
+
+Cleanup may send the WRU character only to a simulator known to be running. A simulator already at `PROMPT` receives `quit`; a stopped child receives neither. A PID that exists without current guest-level evidence remains unready.
+
+## Evidence
+
+The manifest records repository and source revisions, tracked-dirty flags, executable and configuration hashes, ports, platform, timestamps, outcome, and exit status. Application assertions capture relevant log offsets immediately before the probe so startup traffic cannot satisfy a later gate.
+
+Full console and protocol logs remain outside Git. Only minimal synthetic fixtures belong in the repository, and they must include negative cases for tempting false positives such as partial banners, preexisting IMP traffic, or a connection that opens and then closes before remote proof.
 
 ## Repository guard
 
-`check-source-only.py` rejects indexed files larger than 1 MiB, known vintage-media filenames such as `rp03.*`, `*.rim`, `impcode.simh`, tape, disk, and VM image formats, and any indexed blob whose content matches a digest in `pins/arpanet-assets.sha256`. The digest rule catches an exact upstream asset even after it is renamed. With `--staged`, both candidate blobs and the manifest come from the index, and the staged denylist may add entries but may not remove a digest already in `HEAD`.
+`check-source-only.py` rejects large indexed blobs, known media names and formats, and content matching the external-asset digest denylist. Its staged mode reads both candidate blobs and the candidate manifest from the index while preventing silent shrinkage relative to `HEAD`.
 
-To enable the included hook in a repository, run `git config core.hooksPath hooks`. CI should also invoke `python3 scripts/check-source-only.py` because local hooks are optional.
-
-`sha256-file.sh` normalizes the output of `sha256sum`, `shasum`, or OpenSSL to the manifest form `HEX  PATH`.
-
-## Tests
-
-Run `python3 -m unittest discover -s tests -v` and `tests/test_runtime.sh`. The tests exercise source-policy failures, denylist shrinkage, the cross-process build lock, ordered log evidence, atomic result creation, bounded child cleanup, failed manifest hashing, nonzero outcome coercion, private paths containing spaces, and operating-system-selected ephemeral UDP ports, but do not launch SIMH, KA10, an IMP, or NCP. Run `tests/test-simh-env.sh H316_BIN PDP10_KA_BIN` to prove that both pinned simulator forks expand the native variables; the probe exits before booting a simulated machine.
+The repository policy and contributor checks are documented in [`CONTRIBUTING.md`](../CONTRIBUTING.md). The broader provenance and redistribution boundary is documented only in [`NOTICE.md`](../NOTICE.md).

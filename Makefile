@@ -1,4 +1,4 @@
-LAB_ROOT ?= ../brfid-vintage-network-lab
+LAB_ROOT ?= ../arpanet-redux-lab
 ARPANET_ROOT ?= $(LAB_ROOT)/work/arpanet
 LINUX_NCP_ROOT ?= $(ARPANET_ROOT)/src/linux-ncp
 H316_BIN ?= $(LINUX_NCP_ROOT)/test/simh/BIN/h316
@@ -9,10 +9,13 @@ RUN_ID ?= $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source build-ncp verify verify-router verify-mixed smoke-router smoke-mixed
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source build-ncp verify verify-router verify-mixed smoke-router smoke-mixed
 
 check-source-only:
 	./scripts/check-source-only.py
+
+check-source-history:
+	./scripts/check-source-only.py --history HEAD
 
 test: check-source-only
 	python3 -m unittest discover -s tests -v

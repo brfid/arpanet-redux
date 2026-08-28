@@ -1,5 +1,5 @@
+# Compose IMP 62 from the external generic setup and recovered firmware.
 set debug stdout
-
 do impconfig.simh
 set imp num=62
 do impcode.simh
@@ -10,7 +10,6 @@ attach -u mi1 %BRFID_IMP62_MI_PORT%:127.0.0.1:%BRFID_IMP6_MI_PORT%
 set hi1 enabled
 set hi1 debug
 attach -u hi1 %BRFID_IMP62_HI_PORT%:127.0.0.1:%BRFID_HOST_B_IMP_PORT%
-set hi2 disabled
 
 set throttle 400K
 go

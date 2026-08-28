@@ -1,57 +1,60 @@
-# brfid-vintage-network
+# ARPANET Redux
 
-This repository is the source-only laboratory for replacing the `brfid.gitlab.io` vintage host-spool pipeline with a real host–IMP–IMP–host path. It keeps orchestration, SIMH machine configurations, source pins, checksums, research, and acceptance tests under version control while keeping third-party firmware, disk images, binaries, build trees, and raw logs outside Git.
+ARPANET Redux is a source-only laboratory for running real host applications through two simulated ARPANET IMPs. The first production-shaped target joins two KA10/PDP-10 hosts running ITS through recovered 1973 H316 IMP software.
 
-The first production-shaped target is two KA10/PDP-10 hosts running ITS, with host `106` octal attached to H316 IMP 6 and host `176` octal attached to H316 IMP 62. The first two proven gates are retained as diagnostic tests: Linux NCP through two recovered 1973 IMPs, and a KA10/ITS guest exchanging NCP echo traffic with Linux NCP through exactly two IMPs.
+```text
+KA10 / ITS 106 ↔ H316 IMP 6 ↔ H316 IMP 62 ↔ KA10 / ITS 176
+```
 
-No file in the `brfid.gitlab.io` sister checkout is read or modified by the smoke-test scripts.
+The repository contains orchestration, project-authored SIMH configurations, source pins, checksums, documentation, and acceptance tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and run logs remain in a separate local laboratory.
 
 ## Current status
 
-| Gate | Result | Meaning |
-|---|---|---|
-| Linux NCP → IMP 2 → IMP 3 → Linux NCP | Pass | Recovered routing firmware, modem path, host interfaces, echo reply, and host-dead reply work |
-| KA10/ITS host `106` → IMP 6 → IMP 62 → Linux NCP host `076` | Pass | Native ITS NCP and the KA10 long-leader 1822 interface interoperate with the two-IMP path |
-| KA10/ITS host `106` → IMP 6 → IMP 62 → KA10/ITS host `176` | In progress | Requires a clean second monitor/image and application-level guest-to-guest transcript |
-| Bio payload through both vintage guests | Not started | Begins only after the two-host application test passes |
+| Gate | Result |
+|---|---|
+| Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | In progress; the clean ITS source build completed, while image receipt and guest-to-guest application proof remain |
+| Application payload through both vintage guests | Not started |
 
-## Repository and lab layout
+`linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 
-The default paths assume these sister directories:
+## Five-minute local check
 
-```text
-~/src/brfid-vintage-network/       # this Git repository
-~/src/brfid-vintage-network-lab/   # ignored third-party sources, disks, builds, and results
-~/src/brfid.gitlab.io/              # existing site; untouched during this phase
-```
-
-The lab currently uses native arm64 builds on macOS and requires Python 3.11 or newer. Nothing is installed into system Python or system directories. The smoke scripts accept every external root or binary path explicitly so another checkout can use a different lab location.
-
-## Reproduce the passing gates
-
-The commands below assume the external lab has already been populated and built at the pinned revisions in [`pins/sources.lock.toml`](pins/sources.lock.toml).
+The source-only checks need Python 3.11 or newer, POSIX shell tools, Git, and Make. They do not download or boot historical software.
 
 ```sh
+git clone https://gitlab.com/brfid/arpanet-redux.git
+cd arpanet-redux
 make test
-make test-simh-env
-make verify
-make smoke-router
-make smoke-mixed
 ```
 
-`make verify` checks the pinned source heads and external assets, force-rebuilds the diagnostic NCP daemon and client from the verified source, and confirms that the H316 and KA10 executables embed the pinned simulator commits. The narrower smoke targets verify only the sources and assets they actually use.
+The integration smokes require separately obtained and locally built historical assets. The [existing-laboratory runbook](docs/runbook.md) explains the expected layout and commands without pretending to grant or automate access to those materials.
 
-Each smoke target atomically creates a new timestamped directory under the external lab's `results/` tree and refuses a collision. It asks the operating system for an isolated UDP port set, keeps cooperative locks through the run, gives each NCP daemon a private control socket, tracks child processes by exact PID, bounds every NCP application call, and performs bounded cleanup after success or error. Each result contains a run manifest with source revisions, executable and configuration hashes, allocated ports, platform, timestamps, and final status.
+## Project boundaries
 
-## Design boundary
-
-The host operating system must originate and consume the application payload through its own NCP and simulated 1822 interface. Loopback UDP is permitted only as the cable between simulator devices. A host-side copy between guest disk directories is not a network test and is intentionally outside the acceptance contract.
-
-The eventual integration seam begins after `generate_vintage_yaml()` and ends before the existing output validation and publication tail. The replacement must preserve `brad.bio.txt`, `build.log.html`, `pipeline-status.json`, semantic validation, exact source identity, provenance, reuse fingerprints, and fail-closed publication behavior.
+- Loopback UDP represents point-to-point simulator cabling; it must not carry the application payload around a guest NCP.
+- Each run owns its ports, processes, media copies, logs, and result directory.
+- Generated and third-party artifacts stay outside Git and are checked against the source-only policy.
+- The existing `brfid.gitlab.io` pipeline is an eventual integration consumer, not a runtime dependency of this laboratory.
 
 ## Documentation
 
-- [`docs/adr/0001-two-imp-baseline.md`](docs/adr/0001-two-imp-baseline.md) records the background research, alternatives, evidence, and decision.
-- [`docs/test-plan.md`](docs/test-plan.md) defines the layered smoke and acceptance gates.
-- [`docs/harness.md`](docs/harness.md) describes port isolation, lifecycle ownership, simulator configuration expansion, and the source-only guard.
-- [`NOTICE.md`](NOTICE.md) explains why upstream assets are not committed.
+Start with the shortest document that answers the question:
+
+- **Run source checks or an existing laboratory:** [existing-laboratory runbook](docs/runbook.md)
+- **Understand the system boundary:** [architecture](docs/architecture.md)
+- **Evaluate a result:** [test plan](docs/test-plan.md)
+- **Understand orchestration internals:** [harness design](docs/harness.md)
+- **Understand why this topology was chosen:** [ADR-001](docs/adr/0001-two-imp-baseline.md)
+- **Review the original feasibility evidence:** [phase-one feasibility report](docs/research/2026-08-28-phase-one-feasibility.md)
+- **Review the current two-ITS failure analysis:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
+- **Explore the heterogeneous follow-up:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
+- **Contribute safely:** [contributor guide](CONTRIBUTING.md)
+- **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)
+
+Active source revisions and asset hashes live only in [`pins/`](pins/); dated reports describe what was observed at those pins without acting as a second lock file.
+
+## License status
+
+No license has yet been granted for the original work in this repository. Public visibility permits reading and GitLab's normal fork behavior but does not grant broader reuse rights. Third-party assets are excluded and retain their own terms; see [`NOTICE.md`](NOTICE.md).

@@ -1,5 +1,5 @@
+# Compose IMP 6 from the external generic setup and recovered firmware.
 set debug stdout
-
 do impconfig.simh
 set imp num=6
 do impcode.simh

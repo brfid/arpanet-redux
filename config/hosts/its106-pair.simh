@@ -1,0 +1,42 @@
+expect -p "DSKDMP" send "L\e2\eNITS\rIMPUS=\eG\r" ; continue
+
+set console wru=034
+set cpu its
+set cpu 1024k
+set cpu idle
+set cpu mpx
+set rpa disabled
+set rpb disabled
+set tua disabled
+set fha disabled
+set dpb disabled
+set lpt disabled
+set cr disabled
+set dc disabled
+set dtc disabled
+set dk disabled
+set pd enabled
+set pd on
+set tk disabled
+set dpk disabled
+set mty disabled
+
+set imp enabled
+set imp ncp
+attach -u imp %BRFID_HOST_A_IMP_PORT%:127.0.0.1:%BRFID_IMP6_HI_PORT%
+
+set ch disabled
+attach ptr ./dskdmp.rim
+attach dpa0 ./rp03.2
+attach dpa1 ./rp03.3
+attach dpa2 ./rp03.0
+attach dpa3 ./rp03.1
+set mta mpx=7
+set mta type=b
+set dt mpx=6
+set imp mpx=4
+set dpa noheaders
+set imx disabled
+
+set throttle 35%
+boot ptr

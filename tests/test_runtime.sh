@@ -18,7 +18,7 @@ case $BRFID_NCP_SOCKET in
     ;;
 esac
 
-socket_mode=$(stat -f '%Lp' "$BRFID_SOCKET_DIR" 2>/dev/null || stat -c '%a' "$BRFID_SOCKET_DIR")
+socket_mode=$(python3 -c 'import os, stat, sys; print(f"{stat.S_IMODE(os.stat(sys.argv[1]).st_mode):o}")' "$BRFID_SOCKET_DIR")
 if [ "$socket_mode" != 700 ]; then
   echo "private NCP socket directory mode is $socket_mode, expected 700" >&2
   exit 1

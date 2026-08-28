@@ -1,0 +1,41 @@
+version = 1
+
+[[source]]
+name = "arpanet-in-a-box"
+url = "https://github.com/obsolescence/arpanet.git"
+revision = "78123c77b20dadd9b5967b184dbcb4195185eea6"
+checkout = "work/arpanet"
+purpose = "Prepared IMP firmware/configuration and private ITS evidence assets"
+redistribution = "unresolved-bundle-wide"
+
+[[source]]
+name = "linux-ncp"
+url = "https://github.com/larsbrinkhoff/linux-ncp.git"
+revision = "f76665b3b9aeadd1906c118477727230db3bb8bd"
+checkout = "work/arpanet/src/linux-ncp"
+purpose = "Diagnostic NCP daemon and applications"
+redistribution = "unresolved-root-license"
+
+[[source]]
+name = "h316-simh"
+url = "https://github.com/larsbrinkhoff/simh.git"
+revision = "2ccfed85acad83b254a6ed5fdd1c342bcdf3a3dd"
+checkout = "work/arpanet/src/linux-ncp/test/simh"
+purpose = "H316 simulator with working IMP host interface"
+redistribution = "review-upstream-notices"
+
+[[source]]
+name = "ka10-simh"
+url = "https://github.com/larsbrinkhoff/ka10-simh.git"
+revision = "b45fedc048c4a064aae6f771156349e78b3c21e8"
+checkout = "work/ka10-simh"
+purpose = "KA10 simulator with NCP-mode IMP device"
+redistribution = "review-file-scoped-notices"
+
+[[source]]
+name = "pdp10-its"
+url = "https://github.com/PDP-10/its.git"
+revision = "0f7d67997f9f5d30208e117e73272031e74f16b9"
+checkout = "work/its-readdress-src"
+purpose = "Reproducible ITS monitor and disk build for generic KA host 176"
+redistribution = "mixed-file-scoped"

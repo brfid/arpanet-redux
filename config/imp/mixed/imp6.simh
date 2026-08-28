@@ -5,12 +5,12 @@ set imp num=6
 do impcode.simh
 
 set mi1 enabled
-attach -u mi1 13106::13162
+attach -u mi1 %BRFID_IMP6_MI_PORT%:127.0.0.1:%BRFID_IMP62_MI_PORT%
 
 set hi1 disabled
 set hi2 enabled
 set hi2 debug
-attach -u hi2 24061:127.0.0.1:24062
+attach -u hi2 %BRFID_IMP6_HI_PORT%:127.0.0.1:%BRFID_HOST_A_IMP_PORT%
 set hi2 convert
 
 set throttle 400K

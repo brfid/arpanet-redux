@@ -6,7 +6,17 @@ PDP10_KA_BIN ?= $(LAB_ROOT)/work/ka10-simh/BIN/pdp10-ka
 RESULTS_ROOT ?= $(LAB_ROOT)/results
 RUN_ID ?= $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + str(uuid.uuid4()))')
 
-.PHONY: verify-assets verify-sources verify smoke-router smoke-mixed
+.PHONY: check-source-only test test-simh-env verify-assets verify-sources verify smoke-router smoke-mixed
+
+check-source-only:
+	./scripts/check-source-only.py
+
+test: check-source-only
+	python3 -m unittest discover -s tests -v
+	./tests/test_runtime.sh
+
+test-simh-env:
+	./tests/test-simh-env.sh "$(H316_BIN)" "$(PDP10_KA_BIN)"
 
 verify-assets:
 	./scripts/verify-assets.sh "$(ARPANET_ROOT)"

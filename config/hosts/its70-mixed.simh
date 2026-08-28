@@ -25,7 +25,7 @@ set mty disabled
 
 set imp enabled
 set imp ncp
-attach -u imp 24062:127.0.0.1:24061
+attach -u imp %BRFID_HOST_A_IMP_PORT%:127.0.0.1:%BRFID_IMP6_HI_PORT%
 
 set ch disabled
 attach ptr ./dskdmp.rim

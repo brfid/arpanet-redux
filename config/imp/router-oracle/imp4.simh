@@ -4,7 +4,10 @@ do impconfig.simh
 set imp num=4
 do impcode.simh
 
-attach mi1 4441::4432
+attach mi1 %BRFID_IMP4_MI1_PORT%:127.0.0.1:%BRFID_IMP3_MI2_PORT%
+
+set hi1 disabled
+set hi2 disabled
 
 set throttle 400K
 go

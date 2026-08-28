@@ -1,0 +1,2 @@
+echo BRFID_ENV_PROBE=%BRFID_ENV_PROBE%
+exit

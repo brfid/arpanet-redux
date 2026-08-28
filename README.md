@@ -32,12 +32,14 @@ The lab currently uses native arm64 builds on macOS. Nothing is installed into s
 The commands below assume the external lab has already been populated and built at the pinned revisions in [`pins/sources.lock.toml`](pins/sources.lock.toml).
 
 ```sh
+make test
+make test-simh-env
 make verify-assets
 make smoke-router
 make smoke-mixed
 ```
 
-Each target creates a new timestamped directory under the external lab's `results/` tree and fails instead of overwriting an earlier run. The simulator processes are tracked by exact PID and cleaned up after success, failure, interruption, or timeout.
+Each smoke target creates a new timestamped directory under the external lab's `results/` tree and fails instead of overwriting an earlier run. It asks the operating system for an isolated UDP port set, keeps cooperative locks through the run, uses private NCP sockets, tracks simulator processes by exact PID, and performs bounded cleanup after success, failure, interruption, or timeout.
 
 ## Design boundary
 
@@ -49,4 +51,5 @@ The eventual integration seam begins after `generate_vintage_yaml()` and ends be
 
 - [`docs/adr/0001-two-imp-baseline.md`](docs/adr/0001-two-imp-baseline.md) records the background research, alternatives, evidence, and decision.
 - [`docs/test-plan.md`](docs/test-plan.md) defines the layered smoke and acceptance gates.
+- [`docs/harness.md`](docs/harness.md) describes port isolation, lifecycle ownership, simulator configuration expansion, and the source-only guard.
 - [`NOTICE.md`](NOTICE.md) explains why upstream assets are not committed.

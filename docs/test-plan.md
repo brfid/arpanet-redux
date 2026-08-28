@@ -38,7 +38,7 @@ Generate a per-run printable-ASCII sentinel, inject it only through host A's con
 
 ### Lifecycle and cleanup
 
-Every process must be started as a child whose exact PID is recorded. Cleanup must be idempotent and run after success, command failure, timeout, and interruption. Before a test starts, it must refuse to replace a pre-existing NCP socket or results directory. A later portability pass should allocate a per-run port block instead of relying on the current fixed, non-overlapping laboratory ports.
+Every process must be started as a child whose exact PID is recorded. Cleanup must be idempotent and run after success, command failure, timeout, and interruption. Before a test starts, it must refuse to replace a results directory. Each run must allocate its own UDP ports, retain cooperative per-user locks until cleanup, and use private Unix-domain NCP sockets.
 
 ## Coverage gaps before site integration
 

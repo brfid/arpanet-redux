@@ -4,9 +4,12 @@ LINUX_NCP_ROOT ?= $(ARPANET_ROOT)/src/linux-ncp
 H316_BIN ?= $(LINUX_NCP_ROOT)/test/simh/BIN/h316
 PDP10_KA_BIN ?= $(LAB_ROOT)/work/ka10-simh/BIN/pdp10-ka
 RESULTS_ROOT ?= $(LAB_ROOT)/results
+NCP_BUILD_RECEIPT ?= $(LINUX_NCP_ROOT)/.brfid-build-receipt.json
 RUN_ID ?= $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + str(uuid.uuid4()))')
 
-.PHONY: check-source-only test test-simh-env verify-assets verify-sources verify smoke-router smoke-mixed
+.NOTPARALLEL:
+
+.PHONY: check-source-only test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source build-ncp verify verify-router verify-mixed smoke-router smoke-mixed
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -19,15 +22,37 @@ test-simh-env:
 	./tests/test-simh-env.sh "$(H316_BIN)" "$(PDP10_KA_BIN)"
 
 verify-assets:
-	./scripts/verify-assets.sh "$(ARPANET_ROOT)"
+	./scripts/verify-assets.sh all "$(ARPANET_ROOT)"
 
 verify-sources:
 	./scripts/verify-sources.py "$(LAB_ROOT)"
 
-verify: verify-sources verify-assets
+verify-binaries:
+	./scripts/verify-simulator-binaries.py --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)"
 
-smoke-router: verify
-	./scripts/smoke-router-oracle.sh "$(LINUX_NCP_ROOT)" "$(RESULTS_ROOT)/router-oracle-$(RUN_ID)"
+verify-ncp-source:
+	./scripts/verify-sources.py "$(LAB_ROOT)" --name linux-ncp
 
-smoke-mixed: verify
-	./scripts/smoke-its-linux.sh "$(ARPANET_ROOT)" "$(LINUX_NCP_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(RESULTS_ROOT)/its-linux-$(RUN_ID)"
+build-ncp: verify-ncp-source
+	./scripts/build-ncp.sh "$(LINUX_NCP_ROOT)" "$(NCP_BUILD_RECEIPT)"
+
+verify: build-ncp
+	./scripts/verify-sources.py "$(LAB_ROOT)"
+	./scripts/verify-assets.sh all "$(ARPANET_ROOT)"
+	./scripts/verify-simulator-binaries.py --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)"
+
+verify-router: build-ncp
+	./scripts/verify-sources.py "$(LAB_ROOT)" --name h316-simh
+	./scripts/verify-assets.sh router "$(ARPANET_ROOT)"
+	./scripts/verify-simulator-binaries.py --h316 "$(H316_BIN)"
+
+verify-mixed: build-ncp
+	./scripts/verify-sources.py "$(LAB_ROOT)" --name arpanet-in-a-box --name h316-simh --name ka10-simh
+	./scripts/verify-assets.sh mixed "$(ARPANET_ROOT)"
+	./scripts/verify-simulator-binaries.py --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)"
+
+smoke-router: verify-router
+	./scripts/smoke-router-oracle.sh "$(LINUX_NCP_ROOT)" "$(H316_BIN)" "$(NCP_BUILD_RECEIPT)" "$(RESULTS_ROOT)/router-oracle-$(RUN_ID)"
+
+smoke-mixed: verify-mixed
+	./scripts/smoke-its-linux.sh "$(ARPANET_ROOT)" "$(LINUX_NCP_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(NCP_BUILD_RECEIPT)" "$(RESULTS_ROOT)/its-linux-$(RUN_ID)"

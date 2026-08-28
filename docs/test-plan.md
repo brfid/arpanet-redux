@@ -8,13 +8,13 @@ The tests must distinguish a genuinely networked vintage pipeline from four simu
 
 | Layer | Test type | Required evidence | Current state |
 |---|---|---|---|
-| Source and asset identity | Fast static check | Exact Git revisions and SHA-256 checksums | Implemented for five source heads and both tested asset sets |
+| Source, asset, and executable identity | Fast static/build check | Exact Git revisions, external-asset SHA-256 checksums, forced NCP rebuild, embedded simulator revisions, and per-run executable/configuration hashes | Implemented for the retained router and mixed-host gates |
 | IMP routing oracle | Integration smoke | Three echo replies through two IMPs and a type-7 host-dead outcome | Passing |
 | Vintage host interoperability | Integration smoke | ITS operational banner, both IMP host-link traces, three NCP echo replies | Passing against Linux NCP |
 | Two vintage hosts | End-to-end smoke | Both ITS operational banners and an application transcript crossing IMP 6 and IMP 62 | In progress |
 | Payload integrity | End-to-end contract | Unique sentinel originates in guest A, is recovered only from guest B, and matches a host-side digest | Pending |
 | Pipeline compatibility | Contract/regression | Existing semantic output, status, provenance, reuse, fingerprint, and publication tests remain green | Pending and deliberately outside this repository for now |
-| Lifecycle failure | Fault-injection integration | Forced endpoint or IMP failure produces a bounded nonzero result and leaves no owned process, socket, or port | Pending |
+| Lifecycle failure | Unit plus fault-injection integration | Timeout and collision unit tests, followed by a forced endpoint or IMP failure that produces a bounded nonzero result and leaves no owned process, socket, or port | Unit coverage passing; full simulator fault injection pending |
 
 ## Acceptance cases
 
@@ -38,13 +38,13 @@ Generate a per-run printable-ASCII sentinel, inject it only through host A's con
 
 ### Lifecycle and cleanup
 
-Every process must be started as a child whose exact PID is recorded. Cleanup must be idempotent and run after success, command failure, timeout, and interruption. Before a test starts, it must refuse to replace a results directory. Each run must allocate its own UDP ports, retain cooperative per-user locks until cleanup, and use private Unix-domain NCP sockets.
+Every process must be started as a child whose exact PID is recorded. Cleanup must be idempotent and run after success, command failure, timeout, and interruption. Before a test starts, it must atomically create a new results-directory leaf. Each run must allocate its own UDP ports, retain cooperative per-user locks until cleanup, give each NCP daemon a private Unix-domain socket, and track the pinned client library's short-lived `/tmp/client.PID` socket by exact PID.
 
 ## Coverage gaps before site integration
 
 - The two-ITS application test has not yet passed.
 - The source-built generic KA image has not yet completed a clean reproducible build in this repository's workflow.
 - The test harness has not yet demonstrated the payload anti-bypass contract.
-- Forced-failure cleanup and occupied-port behavior need automated tests.
+- Full-simulator forced-failure cleanup and noncooperating occupied-port behavior need automated tests; bounded-child, stale-client-socket, and result-collision cases have unit coverage.
 - The existing site pipeline's publication and reuse contracts have been analyzed but not exercised against a network-stage implementation.
 - The eventual CI runtime, image packaging, and asset-licensing policy remain undecided.

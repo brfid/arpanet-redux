@@ -25,7 +25,7 @@ The default paths assume these sister directories:
 ~/src/brfid.gitlab.io/              # existing site; untouched during this phase
 ```
 
-The lab currently uses native arm64 builds on macOS. Nothing is installed into system Python or system directories. The smoke scripts accept every external root or binary path explicitly so another checkout can use a different lab location.
+The lab currently uses native arm64 builds on macOS and requires Python 3.11 or newer. Nothing is installed into system Python or system directories. The smoke scripts accept every external root or binary path explicitly so another checkout can use a different lab location.
 
 ## Reproduce the passing gates
 
@@ -34,12 +34,14 @@ The commands below assume the external lab has already been populated and built 
 ```sh
 make test
 make test-simh-env
-make verify-assets
+make verify
 make smoke-router
 make smoke-mixed
 ```
 
-Each smoke target creates a new timestamped directory under the external lab's `results/` tree and fails instead of overwriting an earlier run. It asks the operating system for an isolated UDP port set, keeps cooperative locks through the run, uses private NCP sockets, tracks simulator processes by exact PID, and performs bounded cleanup after success, failure, interruption, or timeout.
+`make verify` checks the pinned source heads and external assets, force-rebuilds the diagnostic NCP daemon and client from the verified source, and confirms that the H316 and KA10 executables embed the pinned simulator commits. The narrower smoke targets verify only the sources and assets they actually use.
+
+Each smoke target atomically creates a new timestamped directory under the external lab's `results/` tree and refuses a collision. It asks the operating system for an isolated UDP port set, keeps cooperative locks through the run, gives each NCP daemon a private control socket, tracks child processes by exact PID, bounds every NCP application call, and performs bounded cleanup after success or error. Each result contains a run manifest with source revisions, executable and configuration hashes, allocated ports, platform, timestamps, and final status.
 
 ## Design boundary
 

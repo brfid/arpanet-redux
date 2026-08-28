@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 import tomllib
@@ -16,15 +17,35 @@ def git_output(checkout: Path, *args: str) -> str:
     ).strip()
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"usage: {sys.argv[0]} LAB_ROOT", file=sys.stderr)
-        return 64
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("lab_root", type=Path)
+    parser.add_argument(
+        "--name",
+        action="append",
+        default=[],
+        help="verify only this named source; may be repeated",
+    )
+    return parser.parse_args()
 
-    lab_root = Path(sys.argv[1]).expanduser().resolve()
+
+def main() -> int:
+    args = parse_args()
+    lab_root = args.lab_root.expanduser().resolve()
     repo_root = Path(__file__).resolve().parent.parent
     lock_path = repo_root / "pins" / "sources.lock.toml"
     sources = tomllib.loads(lock_path.read_text(encoding="utf-8"))["source"]
+    known_names = {source["name"] for source in sources}
+    requested_names = set(args.name)
+    unknown_names = requested_names - known_names
+    if unknown_names:
+        print(
+            "unknown source name(s): " + ", ".join(sorted(unknown_names)),
+            file=sys.stderr,
+        )
+        return 64
+    if requested_names:
+        sources = [source for source in sources if source["name"] in requested_names]
     failures: list[str] = []
 
     for source in sources:

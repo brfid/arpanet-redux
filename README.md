@@ -14,7 +14,7 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 |---|---|
 | Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | In progress; the clean ITS source build completed, while image receipt and guest-to-guest application proof remain |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | In progress; both guests boot, prove local time, and reach a live NCP TELNET exchange with real packet traffic, but the connection does not complete. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
 | Application payload through both vintage guests | Not started |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.

@@ -26,11 +26,12 @@ redistribution = "review-upstream-notices"
 
 [[source]]
 name = "ka10-simh"
-url = "https://github.com/larsbrinkhoff/ka10-simh.git"
-revision = "b45fedc048c4a064aae6f771156349e78b3c21e8"
+url = "https://github.com/brfid/ka10-simh.git"
+revision = "8176903b0cdb8ba5c4ca1dd09d4743c1b339233d"
 checkout = "work/ka10-simh"
-purpose = "KA10 simulator with NCP-mode IMP device"
+purpose = "KA10 simulator with NCP-mode IMP device, plus a KAIMP not-ready status fix"
 redistribution = "review-file-scoped-notices"
+notes = "One commit ahead of upstream b45fedc048c4a064aae6f771156349e78b3c21e8: fixes imp_receive_udp() clobbering all IMP STATUS bits on a not-ready datagram (STATUS &= IMPR instead of &= ~IMPR), which caused intermittent KA10 halts at unrelated PCs during two-host NCP runs. Isolates one hunk of upstream larsbrinkhoff/ka10-simh commit ee55f7de (branch lars/ncp); that commit's other hunk (CONO/IMPIC interrupt-enable behavior) caused the two-host boot to hang and is intentionally omitted. See docs/adr/0002-kaimp-not-ready-fix.md."
 
 [[source]]
 name = "pdp10-its"

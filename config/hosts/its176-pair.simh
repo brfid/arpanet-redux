@@ -1,5 +1,7 @@
 # Boot the host-176 ITS image and connect its NCP interface to IMP 62.
-expect -p "DSKDMP" send "L\e2\eNITS\rIMPUS=\eG\r" ; continue
+# The its-readdress-src build renames the assembled system from NITS to ITS
+# as its final step, so the natively-built 176 image boots "ITS", not "NITS".
+expect -p "DSKDMP" send "L\e2\eITS\rIMPUS=\eG\r" ; continue
 
 set console wru=034
 set cpu its

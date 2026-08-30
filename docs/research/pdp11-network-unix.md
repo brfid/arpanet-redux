@@ -2,7 +2,7 @@
 
 **Status:** In progress. Steps 1 through 3 of [First experiment](#first-experiment) are done: the IMP11-A device model exists and is verified, and the prelinked `green/unix` kernel plus the `Largedaemon` NCP daemon binary are installed on a filesystem this device boots. `green/unix` reaches a login shell with root and swap on RL. See [imp11a-device.md](imp11a-device.md) for the full record. Steps 4 through 6 (actually starting the daemon, proving IMP READY/NOP, and the two-IMP route to ITS) have not started.
 
-SRI/NOSC Network UNIX V6 is the strongest first heterogeneous endpoint found for ARPANET Redux. It contains a genuine PDP-11 guest NCP, daemon binaries, guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The remaining critical path is a simulator device model plus disk assembly.
+SRI/NOSC Network UNIX V6 is the strongest first heterogeneous endpoint found for ARPANET Redux. It contains a genuine PDP-11 guest NCP, daemon binaries, guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The simulator device model and disk assembly this once called "the remaining critical path" are done; the remaining critical path is now starting the daemon and proving an actual NCP exchange.
 
 ## Prepared source
 
@@ -26,6 +26,8 @@ The H316-side datagram framing can be adapted conceptually from the existing sim
 4. Prove IMP READY/NOP exchange against a diagnostic NCP peer before introducing routing.
 5. Replace the peer with the two-IMP path to ITS and run TELNET from the PDP-11 guest.
 6. Accept only a command and response captured on the PDP-11 console plus corroborating traffic in both IMP logs.
+
+Step 2 did not go through a V6 `tp` tape in the end: the kernel and daemon are already-built binaries, so a from-scratch V6 filesystem injector places them directly (`scripts/research/v6fs.py`), and the RL01 base is a direct byte-level extraction of the real distribution tape rather than a `tp` transfer onto a freshly built filesystem. See [imp11a-device.md](imp11a-device.md) for why, and for exactly how steps 1 through 3 were actually done.
 
 ## Alternatives
 

@@ -46,6 +46,7 @@ Start with the shortest document that answers the question:
 - **Understand the system boundary:** [architecture](docs/architecture.md)
 - **Evaluate a result:** [test plan](docs/test-plan.md)
 - **Understand orchestration internals:** [harness design](docs/harness.md)
+- **Choose or resume a parallel workstream:** [workstreams and fresh-context handoff](docs/workstreams.md)
 - **Understand the planned NCC observability work:** [NCC observability](docs/ncc.md)
 - **Understand why this topology was chosen:** [ADR-001](docs/adr/0001-two-imp-baseline.md)
 - **Understand the complete KAIMP pin correction:** [ADR-003](docs/adr/0003-complete-kaimp-fix.md)

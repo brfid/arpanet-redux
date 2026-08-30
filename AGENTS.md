@@ -24,3 +24,7 @@ Do not add firmware, disk or tape images, simulator executables, generated media
 ## NCC observability work
 
 Before changing `ncc/`, an NCC data contract, or a visualization, read [`docs/ncc.md`](docs/ncc.md) for current scope and [`docs/research/2026-08-30-ncc-telemetry.md`](docs/research/2026-08-30-ncc-telemetry.md) for the historical and format evidence. The living page owns current direction; do not turn the dated research note into a second status tracker.
+
+## Parallel workstreams
+
+Before beginning or integrating NCC, PDP-11 TELNET, or network-expansion work, read [`docs/workstreams.md`](docs/workstreams.md). Use the dedicated worktree and branch recorded there; keep `main` as the integration checkout and do not use recovery branches for development.

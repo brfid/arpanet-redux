@@ -20,3 +20,7 @@ Reconcile those sources with the experiment's local evidence. Distinguish docume
 ## Third-party and historical material
 
 Do not add firmware, disk or tape images, simulator executables, generated media, source checkouts, or raw logs to this repository; keep them in the external laboratory per [`docs/runbook.md`](docs/runbook.md). Before publishing anything derived from an externally obtained source (quoting it, deriving a register map or protocol from it, adapting its code), check [`NOTICE.md`](NOTICE.md) for that source's redistribution status. Several sources in [`pins/sources.lock.toml`](pins/sources.lock.toml) have no resolved license; treat that as a hard boundary, not a formality.
+
+## NCC observability work
+
+Before changing `ncc/`, an NCC data contract, or a visualization, read [`docs/ncc.md`](docs/ncc.md) for current scope and [`docs/research/2026-08-30-ncc-telemetry.md`](docs/research/2026-08-30-ncc-telemetry.md) for the historical and format evidence. The living page owns current direction; do not turn the dated research note into a second status tracker.

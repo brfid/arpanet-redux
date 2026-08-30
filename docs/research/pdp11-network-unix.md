@@ -1,6 +1,6 @@
 # SRI/NOSC Network UNIX V6 as the first heterogeneous host
 
-**Status:** In progress. The IMP11-A device model in step 1 of [First experiment](#first-experiment) is implemented and verified in isolation; see [imp11a-device.md](imp11a-device.md) for the register-level design and test evidence. Steps 2 onward (disk assembly and a live guest boot) have not started.
+**Status:** In progress. Steps 1 through 3 of [First experiment](#first-experiment) are done: the IMP11-A device model exists and is verified, and the prelinked `green/unix` kernel plus the `Largedaemon` NCP daemon binary are installed on a filesystem this device boots. `green/unix` reaches a login shell with root and swap on RL. See [imp11a-device.md](imp11a-device.md) for the full record. Steps 4 through 6 (actually starting the daemon, proving IMP READY/NOP, and the two-IMP route to ITS) have not started.
 
 SRI/NOSC Network UNIX V6 is the strongest first heterogeneous endpoint found for ARPANET Redux. It contains a genuine PDP-11 guest NCP, daemon binaries, guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The remaining critical path is a simulator device model plus disk assembly.
 

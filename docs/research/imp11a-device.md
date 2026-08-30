@@ -1,6 +1,6 @@
 # DEC IMP11-A device model
 
-**Status:** Device model implemented and verified in isolation; not yet tested against a live guest driver.
+**Status:** Device model implemented and verified in isolation; the real NOSC `green/unix` kernel now boots to a login shell against it, with the NCP daemon binary and `/dev/ncpkernel` in place. The daemon itself has not yet been started.
 
 This continues the plan in [PDP-11 Network UNIX as the first heterogeneous host](pdp11-network-unix.md). It records the register-level design and the verification performed so far for the new IMP11-A device.
 
@@ -71,8 +71,25 @@ Its own tape-processing tool (`v6enb`'s `enblock`, converting a raw historical t
 
 This matters here because it is the same technique the remaining work depends on: getting the prelinked `green`/`green47` kernels and the NOSC NCP daemon and applications onto a filesystem this simulator can boot does not require rebuilding anything from source (they are already built), only correctly placing existing bytes.
 
+## Injecting files directly into a V6 filesystem image
+
+Getting the prelinked `green/unix` kernel and the NCP daemon onto a filesystem needed a way to place already-built binaries directly, since there is no source to compile in place and no working in-simulator tape-write path. A minimal V6 filesystem injector implements exactly the on-disk structures in [ino.h/filsys.h](#register-map)'s sibling headers: superblock free-list allocation (including the classic V6 trick where the block about to be handed out is first read as the next free-list chunk), inode allocation by linear scan for `i_mode == 0`, small (direct-block) and large (single-indirect) file writes, and directory-entry insertion.
+
+The first version had a real bug, caught by testing against a live boot rather than only re-reading the bytes with the same tool that wrote them: reusing a deleted (`ino == 0`) directory slot beyond the directory's current logical size wrote valid bytes that the kernel's own directory scan, bounded by the inode's `size` field, never reached. A file placed this way was invisible to `ls`/`open` even though it was genuinely on disk. Fixed by tracking size explicitly and only ever treating a slot as reusable when it falls within `[0, size)`; anything past that must grow `size` by exactly one 16-byte entry, whether or not it also requires a new block.
+
+## Booting `green/unix` under this device
+
+Two more facts had to be pinned down before a boot attempt meant anything, both by disassembling the actual `green/unix` a.out binary rather than guessing, since NOSC's own kernel-config table was not preserved in the archive:
+
+- **`/dev/ncpkernel`'s major number.** `cdevsw` (found in the binary's data segment via its own symbol table entry) is an array of `{open, close, read, write, sgtty}` function-pointer quintuples. Scanning it for the address of `_ncpopen` (the daemon-facing entry point in `ncpio.c`, not the lower-level `_impopen`/`_impread` internal to the driver) lands at index 25, i.e. major **5** — confirming the number already recorded in [pdp11-network-unix.md](pdp11-network-unix.md) independently.
+- **Root and swap devices.** The `_rootdev`/`_swapdev` data symbols decode directly to `(1,0)` and `(1,1)`: `bdevsw` entry 1 is the RL driver (`_rlopen` at that slot), so root and swap are both on RL, unit 0 and unit 1 respectively.
+
+Booting the resulting image over Open SIMH's `RK0` failed immediately (`panic: iinit`, `err on dev 1/0`) because attaching the very same bytes as `RK0` presents major 0, not the major-1 RL device the kernel expects — a software-level dispatch mismatch, not a data problem. Attaching as `RL0` instead got further but failed silently at the boot-ROM prompt (`@`) for every filename, including the already-known-good `rkunix`: the disk content's boot block (byte-identical to the RK-formatted image) contains RK-specific low-level disk I/O, which does not work when the CPU is executing it against an RL-attached device. The fix, taken directly from the `eblanton/unix-v6-install` `pristine-rl` script's own logic (copying an RL-native boot block over before use), was to overwrite block 0 with the boot block from the real RL02 reference image (Tim Shoppa's `unix_v6.rl02`, TUHS-hosted, methodology reference only). That RL bootstrap prompts with `!`, not `@`. With that block 0 and a second RL01 unit attached for swap (`err on dev 1/1` without one — `swapdev`, not root, once root itself was reachable), `green` boots cleanly to `login:` and root logs in.
+
+The confirmed-present, confirmed-correct result on a live boot: `/dev/ncpkernel` (`crw-rw-rw- root 5, 0`), `/green` (42,988 bytes, matching the source file exactly), and `/usr/net/etc/Largedaemon` (17,648 bytes, matching exactly). This is the actual NOSC-built kernel — not a synthetic test program — reaching a shell with the new IMP11-A device attached, root and swap on RL, and the NCP daemon binary in place at the path its own `smalldaemon` launcher (recovered by reading its embedded strings) expects.
+
 ## Next steps
 
-1. Write a minimal V6 filesystem injector (superblock, free list, inode table, directory entries) to place the prelinked `green/unix` kernel, the NCP daemon, and NCP client/server binaries directly into a root filesystem image, since these are already-built binaries rather than source to compile in place.
-2. Boot `green/unix` against this device and let its actual driver, not a synthetic test program, exercise the register contract.
-3. Decide whether and how to publish the device (a public fork of `open-simh`, mirroring how the KA10 fixes live in `github.com/brfid/ka10-simh`) once it has a real guest boot behind it.
+1. Start `Largedaemon` (or the simpler `smalldaemon` wrapper) against the live `/dev/ncpkernel` and observe what the real driver actually does with the device's registers — this is the point at which the open questions above (buffer chaining, partial-input contract, error handling) get real answers instead of guesses.
+2. Wire this into the two-IMP topology (a second `green/unix` instance, or the existing ITS pair) for an actual heterogeneous-host application proof, following the smoke-test recipe in [pdp11-network-unix.md](pdp11-network-unix.md).
+3. Decide whether and how to publish the device (a public fork of `open-simh`, mirroring how the KA10 fixes live in `github.com/brfid/ka10-simh`) now that it has a real guest boot behind it.

@@ -5,6 +5,26 @@
 
 This dated note explains why the normative two-ITS gate has its current readiness conditions. The gate itself lives in the [test plan](../test-plan.md).
 
+## Promotion checkpoint on 2026-08-30
+
+The source-only promotion baseline is commit `1120826` (`test: promote reproducible two-ITS TELNET gate`). It pins KA10 fork commit `5f57231e96ea823fa3f109d68e970546dcb08a31`, upstream H316 SIMH commit `feb155fbc49333e879ab082d481e6dcce27d2d91`, and PDP-10/ITS commit `0f7d67997f9f5d30208e117e73272031e74f16b9`. The KA10 fork commit is already pushed; the `arpanet-redux` commit is intentionally still one commit ahead of `origin/main`. The untracked root `AGENTS.md` belongs to the operator and is outside this work.
+
+At the checkpoint, the clean ITS build in `/Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src` had completed guest software construction and was still running the final `DUMP LINKS FULL LIST` filesystem inventory for `out/pdp10-ka/output.tape`. It had not yet returned to the host, completed the required no-op rebuild, or received `.brfid-build-receipt.json`. Do not claim a promoted-image pass from that intermediate state and do not start a competing build while the existing `make EMULATOR=pdp10-ka its` process is live.
+
+Resume by allowing that build to exit successfully, then run the target once more and require it to be a no-op. Write and verify the receipt before starting the supported smoke:
+
+```sh
+cd /Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src
+make EMULATOR=pdp10-ka its
+
+cd /Users/brf/src/arpanet-redux
+./scripts/its-build-receipt.py write /Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src /Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src/.brfid-build-receipt.json
+./scripts/its-build-receipt.py verify /Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src /Users/brf/src/brfid-vintage-network-lab/work/its-readdress-src/.brfid-build-receipt.json
+make LAB_ROOT=/Users/brf/src/brfid-vintage-network-lab smoke-two-its
+```
+
+The exact supported smoke is the only remaining technical gate. If it passes, update this note and the README with the immutable result leaf and sentinel digest, rerun `make test` plus the source-history and Markdown checks, commit the evidence update, and push `main`. If it fails, diagnose only from that result directory; do not reopen STELNT, NCPTN, ECHO, FTP, RJE, or alternate-host work unless the new evidence invalidates the already-settled findings below.
+
 ## Topology under test
 
 KA10/ITS host `106` attached to H316 IMP 6, one simulated modem link to H316 IMP 62, and KA10/ITS host `176` attached to IMP 62. Both guest links used HI2 with long/short leader conversion and independent guest-media copies.

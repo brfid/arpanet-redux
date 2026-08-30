@@ -17,7 +17,7 @@ These command files contain only the project-owned composition for each test top
 | `hosts/its106-pair.simh` | Boot the independently prepared ITS host-106 media. |
 | `hosts/its176-pair.simh` | Boot the independently prepared ITS host-176 media. |
 
-The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). Current outcomes are reported only in the project [README](../README.md).
+The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). The `its-pair` IMP files and `hosts/its106-pair.simh` have a second, exploratory consumer: [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) reuses them unchanged, attaching the IMP11-A PDP-11 research guest to IMP 62's `hi2` in place of `hosts/its176-pair.simh`, per [docs/research/imp11a-device.md](../docs/research/imp11a-device.md). Current outcomes are reported only in the project [README](../README.md).
 
 ## Runtime contract
 

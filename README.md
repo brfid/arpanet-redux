@@ -14,8 +14,8 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 |---|---|
 | Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: host `176`'s restored `UT` client reached host `106`'s automatic `TELSER`, entered its DDT, and recovered a remote `:TIME` response, with the actual modem-link (IMP 6 ↔ IMP 62) packet content correlated in both directions. Result: `two-its-telnet-20260830T155246Z-fe47a86c-eb93-4403-8549-8a3c431be43c`. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
-| Application payload through both vintage guests | Passing anti-bypass proof on the exact clean-media pins: host `106` injected sentinel `ARPANET-REDUX-20260830T155516Z-10FF4` with DDT `:OSEND`, host `176` recovered it through NCP TELNET, and the SHA-256 digests matched (`ed7e64a9a9f7d228cb76e11342b2d0a8efb51a54f959e20be7327863b5752e37`). |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: restored `UT` reached automatic `TELSER`, remote DDT, and `:TIME`, with two-way modem-link correlation. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md). |
+| Application payload through both vintage guests | Passing anti-bypass proof: host `106` injected a unique `:OSEND` sentinel and host `176` recovered it only through NCP TELNET. The evidence trail records the exact run and matching digest. |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 
@@ -36,7 +36,7 @@ The integration smokes require separately obtained and locally built historical 
 - Loopback UDP represents point-to-point simulator cabling; it must not carry the application payload around a guest NCP.
 - Each run owns its ports, processes, media copies, logs, and result directory.
 - Generated and third-party artifacts stay outside Git and are checked against the source-only policy.
-- The existing `brfid.gitlab.io` pipeline is an eventual integration consumer, not a runtime dependency of this laboratory.
+- The existing publishing pipeline is an eventual integration consumer, not a runtime dependency of this laboratory.
 
 ## Documentation
 

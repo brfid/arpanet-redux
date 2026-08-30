@@ -34,7 +34,7 @@ Do not delete, rebase, merge into, or begin work on the backup branches. A publi
 
 Read [`docs/ncc.md`](ncc.md) and the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md) before changing `ncc/`, its schema, or a visualization.
 
-The implemented foundation decodes the 1973 Type 301 trouble report and emits topology-neutral events. No derived run-summary schema, formal-run adapter, topology reducer, recorder, or interface exists yet. The next bounded task is to define and test the smallest safe derived run-summary contract over the formal two-ITS artifacts, using synthetic fixtures before reading real external results.
+Define and test the smallest safe derived run-summary contract over the formal two-ITS artifacts, using synthetic fixtures before reading real external results. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale.
 
 NCC work must not depend on or modify the exploratory PDP-11 TELNET driver. Its first adapter should read the formal two-ITS manifest and derived evidence; a promoted heterogeneous harness can adopt the same contract later.
 

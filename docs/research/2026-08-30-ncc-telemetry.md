@@ -1,8 +1,10 @@
 # NCC telemetry and logical-map direction
 
 - **Observed:** 2026-08-30
-- **Status:** First source-only decoder and event boundary implemented; live IMP attachment and display not yet implemented
+- **Implementation observed:** A first source-only decoder and event boundary existed; live IMP attachment and display had not yet been implemented
 - **Scope:** Surviving Network Control Center material, historical report formats, operator-display model, and an integration path that does not depend on the current number of IMPs
+
+Current product scope and implementation order live in [NCC observability](../ncc.md). This dated note preserves the historical and format evidence that informed them.
 
 ## Finding
 
@@ -77,7 +79,7 @@ Historical observations and modern simulator-process health are separate sources
 
 Events carry a schema version, monotonic sequence, observation time, source IMP, subject, state, and optional details. The decoder currently emits one report event, four host-interface state events, and five line-endpoint state events. None of those events names a remote topology edge; that association belongs to the reducer.
 
-## Integration sequence
+## Proposed integration sequence at the time of this research
 
 1. Decode recorded or synthetic Type 301 word sequences offline and prove deterministic event output. This step is implemented under `ncc/` with unit tests and has no simulator dependency.
 2. Define a safe derived run-summary contract and adapt completed harness results into it. This gives a deterministic, read-only evidence console before a new live simulator attachment exists.
@@ -88,7 +90,7 @@ Events carry a schema version, monotonic sequence, observation time, source IMP,
 7. Add the topology reducer, report timeouts, event recording, and paired plus/minus line state for genuine IMP reports.
 8. Consider booting NCC System 52 only after the modern ingress proves the exact host-interface, report-version, checksum, and device requirements. The H316 simulator currently has packet-switch IMP devices, but an original NCC boot also needs a suitable host-side interface and the NCC's console/lightbox devices or defensible substitutes.
 
-## Parallel-work boundary
+## Parallel-work boundary at the time of this research
 
 The first slice is additive: `ncc/`, its tests, and this note. It does not edit the current IMP pair configurations, controller, Makefile, architecture document, or runbook. The live-topology step should wait until the third IMP/host change is available in committed form, then rebase and add IMP 5 through the topology mechanism that change establishes. This avoids encoding a two-IMP assumption or competing edits to the same orchestration files.
 

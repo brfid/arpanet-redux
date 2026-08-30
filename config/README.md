@@ -12,12 +12,12 @@ These command files contain only the project-owned composition for each test top
 | `imp/mixed/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62. |
 | `imp/mixed/imp62.simh` | Join IMP 62 to the Linux NCP diagnostic host 076. |
 | `hosts/its70-mixed.simh` | Boot the prepared ITS host-106 media and attach its NCP device to IMP 6. |
-| `imp/its-pair/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62 for the pending guest-to-guest topology. |
-| `imp/its-pair/imp62.simh` | Join ITS host 176 to IMP 62 and IMP 62 to IMP 6 for the pending guest-to-guest topology. |
+| `imp/its-pair/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62 for the two-ITS guest-to-guest topology. |
+| `imp/its-pair/imp62.simh` | Join ITS host 176 to IMP 62 and IMP 62 to IMP 6 for the two-ITS guest-to-guest topology. |
 | `hosts/its106-pair.simh` | Boot the independently prepared ITS host-106 media. |
 | `hosts/its176-pair.simh` | Boot the independently prepared ITS host-176 media. |
 
-The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). The `its-pair` IMP files and `hosts/its106-pair.simh` have a second, exploratory consumer: [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) reuses them unchanged, attaching the IMP11-A PDP-11 research guest to IMP 62's `hi2` in place of `hosts/its176-pair.simh`, per [docs/research/imp11a-device.md](../docs/research/imp11a-device.md). Current outcomes are reported only in the project [README](../README.md).
+The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). The `its-pair` IMP files and `hosts/its106-pair.simh` have a second, exploratory consumer: [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) reuses them unchanged, attaching the IMP11-A PDP-11 research guest to IMP 62's `hi2` in place of `hosts/its176-pair.simh`, per [docs/research/imp11a-device.md](../docs/research/imp11a-device.md). Formal smoke outcomes are summarized in the project [README](../README.md).
 
 ## Runtime contract
 

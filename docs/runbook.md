@@ -63,6 +63,15 @@ The mixed smoke proves that native ITS NCP interoperates with the two-IMP path:
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab smoke-mixed
 ```
 
+The two-ITS smoke additionally needs promoted clean media for host `176`. Build from the exact pinned ITS checkout and then run the supported application proof:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-its
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab smoke-two-its
+```
+
+The clean build is intentionally separate from the smoke and can take a long time. `build-its` holds the build/use lease while it cleans the generated output, builds `EMULATOR=pdp10-ka its`, repeats the target as a no-op rebuild, and writes the receipt. Receipt creation fails unless the pinned source and initialized submodules are clean, the target is up to date, and all five promoted runtime files exist. The smoke holds the same lease while it verifies and copies those files, so a cooperating rebuild cannot replace a running input.
+
 Set `RUN_ID` to a unique value when a stable result-directory name is useful. Otherwise the Makefile creates a UTC timestamp plus UUID. A collision is an error; a prior result is never overwritten.
 
 ## Read the result
@@ -81,4 +90,4 @@ On macOS, use the repository launchers rather than upstream wrappers that depend
 
 ## Promoting source-built ITS media
 
-Before any source-built ITS media becomes an acceptance input, record its clean-tree and recursive-submodule state, prove the target is a no-op on a second build, hash every promoted output, write a receipt, and boot an independent media copy. The normative application and readiness requirements are in the [test plan](test-plan.md); current progress is reported only in the [README](../README.md).
+Before any source-built ITS media becomes an acceptance input, run `build-its`. It performs the clean upstream build and no-op rebuild under one lease, records the clean-tree and recursive-submodule state, and hashes every promoted runtime output. `smoke-two-its` verifies the receipt and boots an independent media copy. The normative application and readiness requirements are in the [test plan](test-plan.md); current progress is reported only in the [README](../README.md).

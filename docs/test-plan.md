@@ -4,7 +4,7 @@
 
 These gates distinguish a genuinely networked vintage application from simulators that merely boot. A pass requires evidence at the highest layer under test and corroborating evidence that the intended lower-layer route carried it.
 
-Current results are reported only in the [README](../README.md). This document is the normative pass/fail specification.
+The [README](../README.md) summarizes the current result, and the dated [two-ITS readiness note](experiments/2026-08-28-two-its-readiness.md) owns its evidence trail. This document is the normative pass/fail specification.
 
 ## Common preconditions
 
@@ -46,18 +46,20 @@ Start IMPs 6 and 62 before two independent KA10 guests. Host A must identify as 
 
 1. Both H316 logs report watchdog lights `077400`, showing the modem path is up.
 2. Both H316 logs subsequently report watchdog lights `075400`, showing the attached HI2 host link is up.
-3. At least 60 seconds elapse after the later modem-up observation, covering the recovered firmware's peer-route hold-down.
-4. Both ITS consoles print the complete `SYSTEM JOB USING THIS CONSOLE` banner.
-5. Each guest completes local `:TIME`, including time, date, uptime, and return to the DDT prompt.
-6. Both controller states are `RUNNING`, and neither simulator is at `sim>`.
+3. The most recent watchdog state on both H316s remains `075400` immediately before the application probe. A change to `175400` before the probe begins invalidates readiness even if `075400` appeared earlier; a cleanup transition after the verdict does not retroactively fail the proof.
+4. At least 60 seconds elapse after the later modem-up observation, covering the recovered firmware's peer-route hold-down.
+5. Both ITS consoles print the complete `SYSTEM JOB USING THIS CONSOLE` banner.
+6. Each guest completes local `:TIME`, including time, date, uptime, and return to the DDT prompt.
+7. Both controller states are `RUNNING`, and neither simulator is at `sim>`.
 
-Capture the two IMP log offsets immediately before host `176` issues `:NCPTN 106`. Accept the application proof only if:
+Capture the two IMP log offsets immediately before host `176` starts `UT` and connects to host `106`. Accept the application proof only if:
 
-1. TELNET reports `Open` and does not subsequently report an explicit close or error before proof completes.
-2. Host `106` exposes a unique per-run identity that host `176` recovers through the live remote session.
+1. `UT` reports `CONNECT`, displays host `106`'s server greeting, and does not subsequently report an explicit close or error before proof completes.
+2. Host `106` reports the incoming `nnTLNT` service job, and host `176` reaches host `106`'s DDT through that live remote session.
 3. A remote `:TIME` response contains the expected time, date, and uptime structure.
 4. Both IMP traces contain matching regular traffic and leader conversion after the captured offsets.
-5. Every identity, lifecycle, and cleanup precondition passes.
+5. The most recent watchdog state on both IMPs remains `075400` throughout the application proof; any modem-line-dead transition fails the run at the network layer.
+6. Every identity, lifecycle, and cleanup precondition passes.
 
 Boot traffic, reset messages, debugger symbol inspection, a live PID, or a bound UDP socket cannot satisfy this gate. `IMP: Interface-reset msg` is telemetry, not a readiness condition.
 
@@ -66,6 +68,8 @@ Boot traffic, reset messages, debugger symbol inspection, a live PID, or a bound
 Generate a unique printable-ASCII sentinel. Inject it only through host A's console or guest application, transfer it using guest NCP, and extract it only through host B's console or guest application. The controller must have no operation that copies the payload between guest workspaces.
 
 Accept only if the recovered sentinel matches the original digest and both IMPs record correlated post-start traffic. A test that writes the sentinel into both guest workspaces fails by construction even if its reported digests match.
+
+For the two-ITS TELNET baseline, log host `106`'s console in as `DB`, log the remote pseudo-terminal in under a per-test name, and inject the sentinel with DDT `:OSEND` only after the remote session is interactive. Recover it solely from host `176`'s `UT` transcript. Do not substitute `:SEND`: this DDT configuration redirects that name to a mail-aware program, while `:OSEND` selects DDT's original real-time terminal-send path.
 
 ## Gate 6: Site integration
 

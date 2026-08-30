@@ -167,6 +167,19 @@ class UtilityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 75)
             self.assertIn("NCP build lock is busy", result.stderr)
 
+    def test_its_build_lock_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            root = Path(directory_name)
+            (root / ".brfid-build.lock").mkdir()
+            result = run(
+                "sh",
+                SCRIPTS / "build-its.sh",
+                root,
+                root / "receipt.json",
+            )
+            self.assertEqual(result.returncode, 75)
+            self.assertIn("ITS build lock is busy", result.stderr)
+
     def test_ordered_log_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)
@@ -564,7 +577,7 @@ class UtilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory_name:
             executable = Path(directory_name) / "fake-h316"
             executable.write_text(
-                "#!/bin/sh\nprintf '%s\\n' 'git commit id: 2ccfed85'\n",
+                "#!/bin/sh\nprintf '%s\\n' 'git commit id: feb155fb'\n",
                 encoding="ascii",
             )
             executable.chmod(0o755)
@@ -586,7 +599,7 @@ class UtilityTests(unittest.TestCase):
                 executable,
             )
             self.assertNotEqual(failing.returncode, 0)
-            self.assertIn("expected embedded commit 2ccfed85", failing.stderr)
+            self.assertIn("expected embedded commit feb155fb", failing.stderr)
 
 
 if __name__ == "__main__":

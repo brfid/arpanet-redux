@@ -14,8 +14,8 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 |---|---|
 | Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | In progress; both guests boot, prove local time, and reach a live NCP TELNET exchange with real packet traffic, but the connection does not complete. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
-| Application payload through both vintage guests | Not started |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Functional criteria passed in an exploratory run: host `176` used the restored `UT` client to reach host `106`'s automatic `TELSER`, enter its DDT, and recover a remote `:TIME` response. The simulator fixes and supported harness are promoted; the exact-pin clean-media rerun remains. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
+| Application payload through both vintage guests | Functional anti-bypass proof passed: host `106` injected a per-run sentinel with DDT `:OSEND`, host `176` recovered it through NCP TELNET, and the digests matched. The supported exact-pin rerun remains pending. |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 
@@ -47,8 +47,10 @@ Start with the shortest document that answers the question:
 - **Evaluate a result:** [test plan](docs/test-plan.md)
 - **Understand orchestration internals:** [harness design](docs/harness.md)
 - **Understand why this topology was chosen:** [ADR-001](docs/adr/0001-two-imp-baseline.md)
+- **Understand the complete KAIMP pin correction:** [ADR-003](docs/adr/0003-complete-kaimp-fix.md)
+- **Understand the H316 buffer-fix pin:** [ADR-004](docs/adr/0004-h316-hi-conversion-buffer.md)
 - **Review the original feasibility evidence:** [phase-one feasibility report](docs/research/2026-08-28-phase-one-feasibility.md)
-- **Review the current two-ITS failure analysis:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
+- **Review the current two-ITS result and evidence trail:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
 - **Explore the heterogeneous follow-up:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
 - **Contribute safely:** [contributor guide](CONTRIBUTING.md)
 - **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)

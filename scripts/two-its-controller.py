@@ -1,0 +1,610 @@
+#!/usr/bin/env python3
+"""Drive the two-ITS NCP TELNET acceptance test through simulator PTYs."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import errno
+import hashlib
+import os
+from pathlib import Path
+import pty
+import re
+import signal
+import subprocess
+import threading
+import time
+import traceback
+
+
+WRU = b"\x1c"
+PORT_VARIABLES = (
+    "BRFID_IMP6_MI_PORT",
+    "BRFID_IMP62_MI_PORT",
+    "BRFID_IMP6_HI_PORT",
+    "BRFID_HOST_A_IMP_PORT",
+    "BRFID_IMP62_HI_PORT",
+    "BRFID_HOST_B_IMP_PORT",
+)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--h316", required=True, type=Path)
+    parser.add_argument("--pdp10-ka", required=True, type=Path)
+    parser.add_argument("--mini-root", required=True, type=Path)
+    parser.add_argument("--host106-work", required=True, type=Path)
+    parser.add_argument("--host176-work", required=True, type=Path)
+    parser.add_argument("--imp6-config", required=True, type=Path)
+    parser.add_argument("--imp62-config", required=True, type=Path)
+    parser.add_argument("--host106-config", required=True, type=Path)
+    parser.add_argument("--host176-config", required=True, type=Path)
+    parser.add_argument("--results-dir", required=True, type=Path)
+    parser.add_argument("--manifest", required=True, type=Path)
+    return parser.parse_args()
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def append_manifest(path: Path, key: str, value: str | int) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", key):
+        raise ValueError(f"invalid manifest key: {key}")
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(f"{key}={value}\n")
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_environment() -> None:
+    for name in PORT_VARIABLES:
+        value = os.environ.get(name, "")
+        if not value.isdigit() or not 1 <= int(value) <= 65535:
+            raise ValueError(f"{name} is not a valid UDP port")
+
+
+def create_host106_attach_config(source: Path, destination: Path) -> None:
+    text = source.read_text(encoding="ascii")
+    boot_expect = (
+        '# Boot the host-106 ITS image and connect its NCP interface to IMP 6.\n'
+        'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\n\n'
+    )
+    if not text.startswith(boot_expect) or not text.endswith("boot ptr\n"):
+        raise ValueError("host 106 configuration has an unexpected boot sequence")
+    destination.write_text(
+        text.removeprefix(boot_expect).removesuffix("boot ptr\n"),
+        encoding="ascii",
+    )
+
+
+class PtyProcess:
+    def __init__(
+        self,
+        name: str,
+        executable: Path,
+        config: Path,
+        work_dir: Path,
+        console_log: Path,
+        sent_log: Path,
+        manifest: Path,
+    ) -> None:
+        self.name = name
+        self.executable = executable
+        self.config = config
+        self.work_dir = work_dir
+        self.console_log_path = console_log
+        self.sent_log_path = sent_log
+        self.manifest = manifest
+        self.process: subprocess.Popen[bytes] | None = None
+        self.master_fd: int | None = None
+        self.reader: threading.Thread | None = None
+        self.console_stream = None
+        self.sent_stream = None
+        self.buffer = bytearray()
+        self.cursor = 0
+        self.eof = False
+        self.condition = threading.Condition()
+        self.state = "NEW"
+
+    def launch(self, state: str = "BOOTING") -> None:
+        self.console_stream = self.console_log_path.open("wb", buffering=0)
+        self.sent_stream = self.sent_log_path.open("a", encoding="ascii")
+        master_fd, slave_fd = pty.openpty()
+        self.master_fd = master_fd
+        try:
+            self.process = subprocess.Popen(
+                [self.executable, self.config],
+                cwd=self.work_dir,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                start_new_session=True,
+                close_fds=True,
+            )
+        finally:
+            os.close(slave_fd)
+        append_manifest(self.manifest, f"process.{self.name}.pid", self.process.pid)
+        self.state = state
+        self.reader = threading.Thread(
+            target=self._read_console,
+            name=f"{self.name}-console",
+            daemon=True,
+        )
+        self.reader.start()
+
+    def _read_console(self) -> None:
+        assert self.master_fd is not None
+        assert self.console_stream is not None
+        try:
+            while True:
+                try:
+                    chunk = os.read(self.master_fd, 65536)
+                except OSError as error:
+                    if error.errno in (errno.EIO, errno.EBADF):
+                        break
+                    raise
+                if not chunk:
+                    break
+                self.console_stream.write(chunk)
+                with self.condition:
+                    self.buffer.extend(chunk)
+                    self.condition.notify_all()
+        finally:
+            with self.condition:
+                self.eof = True
+                self.condition.notify_all()
+
+    def expect(self, pattern: bytes | str, timeout: float) -> re.Match[bytes]:
+        encoded = pattern.encode("latin-1") if isinstance(pattern, str) else pattern
+        expression = re.compile(encoded, re.DOTALL)
+        deadline = time.monotonic() + timeout
+        with self.condition:
+            while True:
+                match = expression.search(self.buffer, self.cursor)
+                if match is not None:
+                    self.cursor = match.end()
+                    return match
+                remaining = deadline - time.monotonic()
+                if self.eof or self.process is None or self.process.poll() is not None:
+                    tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
+                    raise RuntimeError(
+                        f"{self.name} exited while waiting for {pattern!r}; tail={tail!r}"
+                    )
+                if remaining <= 0:
+                    tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
+                    raise TimeoutError(
+                        f"{self.name} timed out waiting for {pattern!r}; tail={tail!r}"
+                    )
+                self.condition.wait(min(remaining, 0.5))
+
+    def send(self, data: bytes | str) -> None:
+        encoded = data.encode("latin-1") if isinstance(data, str) else data
+        if self.master_fd is None or self.process is None or self.process.poll() is not None:
+            raise RuntimeError(f"cannot send to stopped process {self.name}")
+        assert self.sent_stream is not None
+        self.sent_stream.write(f"{utc_now()} {encoded.hex()}\n")
+        self.sent_stream.flush()
+        written = 0
+        while written < len(encoded):
+            written += os.write(self.master_fd, encoded[written:])
+
+    def send_slow(self, data: bytes | str, delay: float = 0.05) -> None:
+        encoded = data.encode("latin-1") if isinstance(data, str) else data
+        for byte in encoded:
+            self.send(bytes((byte,)))
+            time.sleep(delay)
+
+    def position(self) -> int:
+        with self.condition:
+            return len(self.buffer)
+
+    def output_from(self, offset: int) -> bytes:
+        with self.condition:
+            return bytes(self.buffer[offset:])
+
+    def mark_running_after_banner(self) -> None:
+        self.expect("SYSTEM JOB USING THIS CONSOLE", timeout=900)
+        self.state = "RUNNING"
+
+    def enter_ddt_and_prove_local_time(self) -> None:
+        if self.state != "RUNNING":
+            raise RuntimeError(f"{self.name} cannot enter DDT from {self.state}")
+        self.send(b"\x1a")
+        self.expect("Welcome to ITS!", timeout=300)
+        self.send(":time\r")
+        self.expect("The time is", timeout=90)
+        self.expect("Today is", timeout=30)
+        self.expect(rb"KA ITS [0-9]+ has run for", timeout=30)
+        self.expect(rb"\r\n\*", timeout=30)
+
+    def stop(self, force: bool = False) -> None:
+        process = self.process
+        if process is None:
+            return
+        if process.poll() is None and force:
+            process.terminate()
+        if process.poll() is None and not force:
+            try:
+                if self.state == "RUNNING":
+                    self.send(WRU)
+                    self.expect("sim> ", timeout=3)
+                    self.state = "PROMPT"
+                if self.state == "PROMPT":
+                    self.send("quit\r")
+            except (OSError, RuntimeError, TimeoutError):
+                pass
+        if process.poll() is None:
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=3)
+        self.state = "STOPPED"
+        if self.master_fd is not None:
+            try:
+                os.close(self.master_fd)
+            except OSError:
+                pass
+            self.master_fd = None
+        if self.reader is not None:
+            self.reader.join(timeout=1)
+        if self.console_stream is not None:
+            self.console_stream.close()
+        if self.sent_stream is not None:
+            self.sent_stream.close()
+
+
+class ImpProcess:
+    def __init__(
+        self,
+        name: str,
+        executable: Path,
+        config: Path,
+        work_dir: Path,
+        results_dir: Path,
+        manifest: Path,
+    ) -> None:
+        self.name = name
+        self.executable = executable
+        self.config = config
+        self.work_dir = work_dir
+        self.console_path = results_dir / f"{name}.console.log"
+        self.debug_path = results_dir / f"{name}.debug.log"
+        self.manifest = manifest
+        self.console_stream = None
+        self.debug_stream = None
+        self.master_fd: int | None = None
+        self.process: subprocess.Popen[bytes] | None = None
+
+    def launch(self) -> None:
+        self.console_stream = self.console_path.open("wb")
+        self.debug_stream = self.debug_path.open("wb")
+        master_fd, slave_fd = pty.openpty()
+        self.master_fd = master_fd
+        try:
+            self.process = subprocess.Popen(
+                [self.executable, self.config],
+                cwd=self.work_dir,
+                stdin=slave_fd,
+                stdout=self.console_stream,
+                stderr=self.debug_stream,
+                start_new_session=True,
+                close_fds=True,
+            )
+        finally:
+            os.close(slave_fd)
+        append_manifest(self.manifest, f"process.{self.name}.pid", self.process.pid)
+
+    def ensure_alive(self) -> None:
+        if self.process is None or self.process.poll() is not None:
+            raise RuntimeError(f"{self.name} exited early")
+
+    def stop(self) -> None:
+        process = self.process
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        if self.master_fd is not None:
+            os.close(self.master_fd)
+            self.master_fd = None
+        if self.console_stream is not None:
+            self.console_stream.close()
+        if self.debug_stream is not None:
+            self.debug_stream.close()
+
+
+def wait_for_log_marker(
+    imp: ImpProcess, marker: str, timeout: float, offset: int = 0
+) -> float:
+    deadline = time.monotonic() + timeout
+    encoded = marker.encode("latin-1")
+    while time.monotonic() < deadline:
+        imp.ensure_alive()
+        if imp.debug_path.exists() and encoded in imp.debug_path.read_bytes()[offset:]:
+            return time.monotonic()
+        time.sleep(0.1)
+    raise TimeoutError(f"{imp.name} did not report {marker!r} within {timeout}s")
+
+
+def latest_watchdog(path: Path) -> str | None:
+    states = re.findall(
+        rb"WDT LIGHTS: changed to ([0-7]{6})", path.read_bytes()
+    )
+    return states[-1].decode("ascii") if states else None
+
+
+def assert_imp_application_evidence(imp: ImpProcess, offset: int) -> None:
+    text = imp.debug_path.read_bytes()
+    suffix = text[offset:]
+    required = (
+        b"HI2 MSG: message received",
+        b"HI2 MSG: message sent",
+        b"Short leader:",
+        b"Long leader:",
+        b"Converted:",
+        b"type=0",
+    )
+    missing = [marker.decode("ascii") for marker in required if marker not in suffix]
+    if missing:
+        raise RuntimeError(
+            f"{imp.name} lacks post-probe evidence: {', '.join(missing)}"
+        )
+    fatal = re.search(
+        rb"HARDWARE ERROR|HOST DOWN|bind error|Can't open Datagram socket|"
+        rb"UNRECOVERABLE I/O ERROR|tmxr_put_packet_ln\(\) failed",
+        text,
+        re.IGNORECASE,
+    )
+    if fatal is not None:
+        raise RuntimeError(
+            f"{imp.name} reported a fatal transport condition: "
+            f"{fatal.group(0).decode('latin-1')}"
+        )
+    if latest_watchdog(imp.debug_path) != "075400":
+        raise RuntimeError(
+            f"{imp.name} readiness regressed to {latest_watchdog(imp.debug_path)}"
+        )
+
+
+def assert_client_application_evidence(output: bytes) -> None:
+    required = (
+        b"CONNECT",
+        b"MIT Dynamic",
+        b"Modelling PDP-10",
+        b"Welcome to ITS!",
+        b"The time is",
+        b"Today is",
+        b"KA ITS",
+        b"has run for",
+    )
+    missing = [marker.decode("ascii") for marker in required if marker not in output]
+    if missing:
+        raise RuntimeError(
+            "host176 lacks live remote-session evidence: " + ", ".join(missing)
+        )
+    if re.search(rb"(?:^|[\r\n])(?:CLOSED|ERROR)\b", output, re.IGNORECASE):
+        raise RuntimeError("UT reported a close or error before proof completed")
+
+
+def regular_message_ids(path: Path, offset: int) -> set[bytes]:
+    return set(
+        re.findall(
+            rb"(?:Short|Long) leader: flags=[^\n]*?type=0, [^\n]*?id=([0-7]+)",
+            path.read_bytes()[offset:],
+        )
+    )
+
+
+def stop_all(
+    hosts: tuple[PtyProcess, ...], imps: tuple[ImpProcess, ...], force: bool
+) -> None:
+    for host in hosts:
+        host.stop(force=force)
+    for imp in imps:
+        imp.stop()
+
+
+def run(args: argparse.Namespace) -> int:
+    validate_environment()
+    results_dir = args.results_dir.resolve()
+    manifest = args.manifest.resolve()
+    attach_config = results_dir / "host106-attach-only.simh"
+    create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    append_manifest(manifest, "sha256.host106-attach-config", sha256(attach_config))
+    append_manifest(manifest, "path.host106-attach-config", attach_config)
+
+    imp6 = ImpProcess(
+        "imp6",
+        args.h316.resolve(),
+        args.imp6_config.resolve(),
+        args.mini_root.resolve(),
+        results_dir,
+        manifest,
+    )
+    imp62 = ImpProcess(
+        "imp62",
+        args.h316.resolve(),
+        args.imp62_config.resolve(),
+        args.mini_root.resolve(),
+        results_dir,
+        manifest,
+    )
+    host106 = PtyProcess(
+        "host106",
+        args.pdp10_ka.resolve(),
+        attach_config,
+        args.host106_work.resolve(),
+        results_dir / "host106.console.log",
+        results_dir / "host106.sent.log",
+        manifest,
+    )
+    host176 = PtyProcess(
+        "host176",
+        args.pdp10_ka.resolve(),
+        args.host176_config.resolve(),
+        args.host176_work.resolve(),
+        results_dir / "host176.console.log",
+        results_dir / "host176.sent.log",
+        manifest,
+    )
+    hosts = (host176, host106)
+    imps = (imp6, imp62)
+    outcome = "failed"
+    interrupted = False
+
+    def interrupt(_signum: int, _frame: object) -> None:
+        nonlocal interrupted
+        if interrupted:
+            return
+        interrupted = True
+        raise InterruptedError("controller interrupted")
+
+    old_term = signal.signal(signal.SIGTERM, interrupt)
+    old_int = signal.signal(signal.SIGINT, interrupt)
+    try:
+        imp6.launch()
+        imp62.launch()
+        wait_for_log_marker(imp6, "listening on port", 30)
+        wait_for_log_marker(imp62, "listening on port", 30)
+
+        # Both guest endpoints must bind before the recovered IMPs can send
+        # their first host-link NOP after the modem route comes up.
+        host176.launch()
+        host106.launch(state="PROMPT")
+        host106.expect("sim> ", timeout=60)
+
+        imp6_modem_up = wait_for_log_marker(
+            imp6, "WDT LIGHTS: changed to 077400", 60
+        )
+        imp62_modem_up = wait_for_log_marker(
+            imp62, "WDT LIGHTS: changed to 077400", 60
+        )
+        route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + 60
+
+        host176.mark_running_after_banner()
+        host106.send(
+            'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
+        )
+        host106.expect("sim> ", timeout=30)
+        host106.send("boot ptr\r")
+        host106.state = "BOOTING"
+        host106.mark_running_after_banner()
+        for imp in imps:
+            imp.ensure_alive()
+
+        host106.enter_ddt_and_prove_local_time()
+        host176.enter_ddt_and_prove_local_time()
+        host106.expect(rb"LOGIN  GUNNER 0", timeout=180)
+        host176.expect(rb"LOGIN  GUNNER 0", timeout=180)
+        host106.send_slow(":login db\r")
+        time.sleep(8)
+
+        wait_for_log_marker(imp6, "WDT LIGHTS: changed to 075400", 1200)
+        wait_for_log_marker(imp62, "WDT LIGHTS: changed to 075400", 1200)
+        remaining = route_settle_deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(remaining)
+        for imp in imps:
+            imp.ensure_alive()
+            if latest_watchdog(imp.debug_path) != "075400":
+                raise RuntimeError(
+                    f"{imp.name} is not host-link ready: {latest_watchdog(imp.debug_path)}"
+                )
+        if host106.state != "RUNNING" or host176.state != "RUNNING":
+            raise RuntimeError("both KA10 controllers must be RUNNING before UT")
+
+        imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
+        client_offset = host176.position()
+        host176.send_slow("ut")
+        host176.send(b"\x0b")
+        host176.expect(rb"UT\.76", timeout=45)
+        host176.send_slow("106\r")
+        service_match = host106.expect(
+            rb"LOGIN  ([0-9]{2}TLNT) 0 HST176", timeout=180
+        )
+        service_user = service_match.group(1).decode("ascii")
+
+        host176.expect("MIT Dynamic", timeout=60)
+        host176.send_slow(b"\x1eTRANSPARENT\r")
+        host176.send(b"\x1a")
+        host176.expect("Welcome to ITS!", timeout=60)
+        remote_user = "NETTST"
+        host176.send_slow(f":login {remote_user.lower()}\r")
+        host106.expect(rf"LOGIN  {remote_user}", timeout=60)
+        host176.send_slow(":time\r")
+        host176.expect("The time is", timeout=60)
+        host176.expect("Today is", timeout=30)
+        host176.expect(rb"KA ITS [0-9]+ has run for", timeout=30)
+
+        token = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        token += f"-{os.getpid():X}"
+        sentinel = f"ARPANET-REDUX-{token}"
+        host106.send_slow(f":osend {remote_user} {sentinel}")
+        host106.send(b"\x03")
+        host176.expect(re.escape(sentinel.encode("ascii")), timeout=60)
+        recovered = sentinel.encode("ascii")
+        source_digest = hashlib.sha256(sentinel.encode("ascii")).hexdigest()
+        recovered_digest = hashlib.sha256(recovered).hexdigest()
+        if recovered_digest != source_digest:
+            raise RuntimeError("the recovered sentinel digest does not match")
+
+        client_output = host176.output_from(client_offset)
+        assert_client_application_evidence(client_output)
+        for imp in imps:
+            assert_imp_application_evidence(imp, imp_offsets[imp.name])
+        correlated_ids = regular_message_ids(
+            imp6.debug_path, imp_offsets[imp6.name]
+        ) & regular_message_ids(imp62.debug_path, imp_offsets[imp62.name])
+        if not correlated_ids:
+            raise RuntimeError("the two IMP traces lack a correlated regular-message ID")
+
+        (results_dir / "sentinel-evidence.txt").write_text(
+            "source=host106-console\n"
+            "destination=host176-ncp-telnet\n"
+            f"service_user={service_user}\n"
+            f"remote_user={remote_user}\n"
+            f"sentinel={sentinel}\n"
+            f"source_sha256={source_digest}\n"
+            f"recovered_sha256={recovered_digest}\n",
+            encoding="ascii",
+        )
+        append_manifest(manifest, "application.client", "UT.76")
+        append_manifest(manifest, "application.server", "TELSER")
+        append_manifest(manifest, "application.sentinel_sha256", source_digest)
+        outcome = "passed"
+        print(f"PASS: two ITS guests exchanged an NCP TELNET payload through two IMPs: {results_dir}")
+        return 0
+    finally:
+        stop_all(hosts, imps, force=interrupted)
+        (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
+        signal.signal(signal.SIGTERM, old_term)
+        signal.signal(signal.SIGINT, old_int)
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        return run(args)
+    except (OSError, RuntimeError, TimeoutError, ValueError, InterruptedError):
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

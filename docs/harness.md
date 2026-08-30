@@ -30,19 +30,19 @@ After source verification, the diagnostic NCP tools are force-rebuilt under an e
 
 Simulator checks independently require embedded source revisions. Per-run manifests then hash the exact executables, configurations, firmware, base configuration, and receipt used by the launch.
 
-The clean ITS image workflow must apply the same principle: bind clean source and recursive submodule states to every promoted disk, tape, and bootstrap output, then give each guest a distinct copied workspace. A stamp alone is not a sufficient receipt.
+`its-build-receipt.py` applies the same principle to promoted ITS media. It binds the pinned main revision, exact recursive submodule status, clean tracked state, an up-to-date `make EMULATOR=pdp10-ka its` target, and the SHA-256 values of the bootstrap and four runtime disks. The two-ITS launcher verifies that receipt while holding the ITS build/use lease, then gives each guest a distinct copied workspace. A stamp alone is not accepted.
 
 ## Controller states
 
-A two-ITS controller must distinguish at least `BOOTING`, `RUNNING`, `PROMPT`, and `STOPPED` for each KA10. Console streams must be drained concurrently, and sent control characters must be logged separately from received output.
+`two-its-controller.py` distinguishes `BOOTING`, `RUNNING`, `PROMPT`, and `STOPPED` for each KA10. Its standard-library PTY reader threads drain both consoles concurrently, while separate sent logs record every controller write as hexadecimal bytes with timestamps.
 
-Cleanup may send the WRU character only to a simulator known to be running. A simulator already at `PROMPT` receives `quit`; a stopped child receives neither. A PID that exists without current guest-level evidence remains unready.
+The controller starts host `106` with an attach-only derivative of the tracked configuration so both guest UDP endpoints bind before the recovered IMPs can send their first host-link NOP. It boots host `106` only after both modem watchdogs are up. Cleanup sends the WRU character only to a simulator known to be running; a simulator already at `PROMPT` receives `quit`, and a stopped child receives neither. A PID that exists without current guest-level evidence remains unready.
 
 ## Evidence
 
 The manifest records repository and source revisions, tracked-dirty flags, executable and configuration hashes, ports, platform, timestamps, outcome, and exit status. Application assertions capture relevant log offsets immediately before the probe so startup traffic cannot satisfy a later gate.
 
-Full console and protocol logs remain outside Git. Only minimal synthetic fixtures belong in the repository, and they must include negative cases for tempting false positives such as partial banners, preexisting IMP traffic, or a connection that opens and then closes before remote proof.
+Full console and protocol logs remain outside Git. The source-only tests cover the tempting false positives directly: partial remote output, a connection that closes before proof, startup IMP traffic before the captured offsets, and an attach-only host configuration that accidentally boots early.
 
 ## Repository guard
 

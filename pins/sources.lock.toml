@@ -19,19 +19,20 @@ redistribution = "unresolved-root-license"
 [[source]]
 name = "h316-simh"
 url = "https://github.com/larsbrinkhoff/simh.git"
-revision = "2ccfed85acad83b254a6ed5fdd1c342bcdf3a3dd"
+revision = "feb155fbc49333e879ab082d481e6dcce27d2d91"
 checkout = "work/arpanet/src/linux-ncp/test/simh"
-purpose = "H316 simulator with working IMP host interface"
+purpose = "H316 simulator with working IMP host interface and safe 1822 leader conversion"
 redistribution = "review-upstream-notices"
+notes = "Repinned under ADR-004. Upstream commit feb155fbc49333e879ab082d481e6dcce27d2d91 replaces the undersized temporary HI conversion allocation with a 1500-word static buffer and eliminates the captured heap overwrite."
 
 [[source]]
 name = "ka10-simh"
 url = "https://github.com/brfid/ka10-simh.git"
-revision = "8176903b0cdb8ba5c4ca1dd09d4743c1b339233d"
+revision = "5f57231e96ea823fa3f109d68e970546dcb08a31"
 checkout = "work/ka10-simh"
-purpose = "KA10 simulator with NCP-mode IMP device, plus a KAIMP not-ready status fix"
+purpose = "KA10 simulator with NCP-mode IMP device and the complete KAIMP state fix"
 redistribution = "review-file-scoped-notices"
-notes = "One commit ahead of upstream b45fedc048c4a064aae6f771156349e78b3c21e8: fixes imp_receive_udp() clobbering all IMP STATUS bits on a not-ready datagram (STATUS &= IMPR instead of &= ~IMPR), which caused intermittent KA10 halts at unrelated PCs during two-host NCP runs. Isolates one hunk of upstream larsbrinkhoff/ka10-simh commit ee55f7de (branch lars/ncp); that commit's other hunk (CONO/IMPIC interrupt-enable behavior) caused the two-host boot to hang and is intentionally omitted. See docs/adr/0002-kaimp-not-ready-fix.md."
+notes = "Two focused commits ahead of upstream b45fedc048c4a064aae6f771156349e78b3c21e8 reproduce both required kx10_imp.c hunks from upstream commit ee55f7de16c27c233d76fd1b58a21d239afe4625 without its unrelated surrounding branch history. ADR-003 records the instruction-trace evidence and promotion."
 
 [[source]]
 name = "pdp10-its"

@@ -13,5 +13,5 @@ set hi2 debug
 attach -u hi2 %BRFID_IMP62_HI_PORT%:127.0.0.1:%BRFID_HOST_B_IMP_PORT%
 set hi2 convert
 
-set throttle 400K
+set throttle 10000K
 go

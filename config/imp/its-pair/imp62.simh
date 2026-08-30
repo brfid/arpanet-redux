@@ -5,6 +5,7 @@ set imp num=62
 do impcode.simh
 
 set mi1 enabled
+set mi1 debug
 attach -u mi1 %BRFID_IMP62_MI_PORT%:127.0.0.1:%BRFID_IMP6_MI_PORT%
 
 set hi1 disabled

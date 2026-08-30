@@ -57,8 +57,13 @@ def pinned_revision() -> str:
 
 
 def target_is_up_to_date(root: Path, emulator: str) -> bool:
+    # Check the real build-output stamp, not the `its` target itself: `its`
+    # also depends on per-submodule .gitignore sentinel files ($(SMF)), and
+    # the pinned pdp6 fork has no root-level .gitignore, so that prerequisite
+    # can never satisfy `make -q` regardless of build freshness. Submodule
+    # state is independently captured and verified via `recursive_submodules`.
     result = subprocess.run(
-        ["make", "-q", f"EMULATOR={emulator}", "its"],
+        ["make", "-q", f"EMULATOR={emulator}", f"out/{emulator}/stamp/its"],
         cwd=root,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,

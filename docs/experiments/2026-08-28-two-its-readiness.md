@@ -1,7 +1,7 @@
 # Two-ITS readiness findings
 
 - **Observed:** 2026-08-28 through 2026-08-30
-- **Outcome:** The two-ITS NCP TELNET application and anti-bypass payload criteria passed in an exploratory run. Host `176` used the restored `UT` client to interact with host `106` and recover a unique host-`106` sentinel through both IMPs. The simulator pins and supported orchestration are now promoted; the clean exact-pin rerun remains.
+- **Outcome:** The two-ITS NCP TELNET application and anti-bypass payload criteria passed on the exact clean-media pins. Host `176` used the restored `UT` client to interact with host `106` and recover a unique host-`106` sentinel through both IMPs, and the modem-link (MI1) packet content was independently correlated across both IMPs in both directions. The gate is promoted and reproducible.
 
 This dated note explains why the normative two-ITS gate has its current readiness conditions. The gate itself lives in the [test plan](../test-plan.md).
 
@@ -116,6 +116,18 @@ For the anti-bypass proof, host `106`'s console logged in as `DB`, the remote ps
 
 This passes the functional criteria of Gates 4 and 5. It is not yet the clean reproducible gate because the run used two locally patched simulator trees, a pre-start restoration of source-original `TDNE` in an experimental ITS disk, and a disposable driver. Promote the two simulator fixes, rebuild the clean host-`176` image from the reverted source, move stable orchestration into the repository, and repeat with exact clean pins before treating the gate as release evidence.
 
+## Trial 13: no-op check and dead-evidence-marker bugs at promotion
+
+Resuming the checkpoint's no-op rebuild surfaced two structural bugs in the acceptance harness itself, not in the guest software or simulator pins.
+
+`its-build-receipt.py`'s no-op check ran `make -q ... its`, which depends on per-submodule `$(SMF)` sentinel files. The pinned `pdp6` fork (`aap/pdp6` at `lars/cscope-20-g5f4d511`) has no root-level `.gitignore`, so that sentinel can never exist and `make -q` always reported the target stale regardless of build freshness. The fix checks the real build-output stamp, `out/$(EMULATOR)/stamp/its`, directly; recursive submodule state is independently captured and verified through `git submodule status --recursive` in the same receipt, so nothing is lost.
+
+`two-its-controller.py`'s `assert_imp_application_evidence()` and `regular_message_ids()`/`correlated_ids` required `Short leader:`, `Long leader:`, `Converted:`, `type=0`, and an `id=` field in the IMP debug logs. Those exact fprintf lines came only from a hand-instrumented `h316_hi.c` used during Trial 10's diagnosis and left behind in `its-readdress-src/tools/ncp/test/simh`; the clean pinned upstream `h316-simh` (`feb155fb`) never emits them. Both checks could never pass against correctly promoted media.
+
+The fix replaces the dead checks with real evidence from the MI1 modem-interface link between the two IMPs, which the harness had never logged. `config/imp/its-pair/imp6.simh` and `imp62.simh` now enable `set mi1 debug`; the controller reconstructs each MI1 packet's exact word content and requires that content sent by one IMP appear verbatim as received by the other, in both directions, above a four-word floor that excludes generic single-word acks from coincidental matches. This is a strictly more literal proof of the two-hop path than the retired ID-correlation check: it matches genuine wire content crossing the real inter-IMP hop instead of a host-facing conversion side effect. `assert_imp_application_evidence()` keeps only the two markers the clean build actually emits, `HI2 MSG: message received` and `HI2 MSG: message sent`.
+
+With both fixes applied, the clean image (source revision `0f7d67997f9f5d30208e117e73272031e74f16b9`, matching the pin, tree and submodules clean) passed its no-op rebuild, receipt write and verify, and `smoke-two-its`: result `two-its-telnet-20260830T155246Z-fe47a86c-eb93-4403-8549-8a3c431be43c`, sentinel `ARPANET-REDUX-20260830T155516Z-10FF4`, matching SHA-256 `ed7e64a9a9f7d228cb76e11342b2d0a8efb51a54f959e20be7327863b5752e37` on both ends, and over 1,400 exact-content MI1 packet matches in each direction post-probe. `make test`, `check-source-history`, and the full acceptance suite pass with the updated harness.
+
 ## Application and host alternatives
 
 - FTP and RJE depend on the same NCP and IMP path now proven by the interactive `UT` session. They remain possible follow-up applications, but no longer offer diagnostic leverage over the accepted TELNET baseline.
@@ -137,14 +149,15 @@ The 2026-08-30 wall check covered both active GitHub work and primary system doc
 |---|---|---|---|
 | Are both ITS images live and distinct? | Complete banners, local `:TIME`, native host identities `106` and `176` | Keep the two-ITS topology | Settled |
 | Did the clean image name the boot monitor incorrectly? | `NITS` is renamed to `ITS` at build completion | Boot `ITS`; do not restore `NITS` | Fixed |
-| Did KAIMP corrupt status on a not-ready datagram? | Random-PC halts stopped after `STATUS &= ~IMPR` | Require the complete upstream fix | Promoted; exact rerun pending |
-| Is the isolated KAIMP hunk sufficient? | Instruction trace shows a persistent PI interrupt after RRP until `IMPIC` is cleared | Promote the complete upstream fix | Promoted; exact rerun pending |
+| Did KAIMP corrupt status on a not-ready datagram? | Random-PC halts stopped after `STATUS &= ~IMPR` | Require the complete upstream fix | Settled |
+| Is the isolated KAIMP hunk sufficient? | Instruction trace shows a persistent PI interrupt after RRP until `IMPIC` is cleared | Promote the complete upstream fix | Settled |
 | Does host `106` lack an NCP TELNET listener? | Dynamic `RFC137`/`TELSER`, remote `nnTLNT`, negotiation, and greeting bytes | Use automatic `TELSER`; retire `STELNT` | Settled |
 | Is ITS mishandling the received RFNM? | KAIMP delivered type 7 subtype 0 instead of type 5 | Do not modify the ITS receive condition | Settled |
 | Does changing simulator throttle cure the connection? | The same failure occurs from `400K` through `50M` | Treat throttle only as test throughput | Settled |
-| Why did the H316 modem appear to die? | Crash record and exact 17-to-27-word conversion show a five-word heap overwrite | Promote upstream H316 buffer fix | Promoted; exact rerun pending |
+| Why did the H316 modem appear to die? | Crash record and exact 17-to-27-word conversion show a five-word heap overwrite | Promote upstream H316 buffer fix | Settled |
 | Why did `NCPTN` open but not display data? | Behavior matches upstream issue `#2351`; `UT` displays the same stream | Use restored `UT` for the baseline | Settled |
-| Can two ITS guests complete the application proof? | Remote greeting, DDT, `:TIME`, and matching `:OSEND` sentinel in the retained run | Keep ITS and promote the working dependency set | Functional pass; clean rerun pending |
+| Can two ITS guests complete the application proof on clean, exact-pin media? | Remote greeting, DDT, `:TIME`, matching `:OSEND` sentinel digests, and correlated MI1 packet content across both IMPs in the promoted run | Keep ITS and promote the working dependency set | Settled |
+| Did the acceptance harness itself prove what it claimed to? | `assert_imp_application_evidence`/`regular_message_ids` required fprintf strings that exist only in a leftover hand-instrumented `h316_hi.c`, never in the clean pinned upstream build | Check the real build-output stamp for no-op; correlate genuine MI1 modem-link content instead | Settled |
 | Would FTP, RJE, or another host improve the baseline? | Native ITS NCP TELNET now passes the functional criteria | Defer alternatives until after reproducible promotion | Settled |
 
 ## Evidence retention
@@ -155,6 +168,7 @@ Raw logs and historical assets remain outside Git under the laboratory result ro
 - `two-its-ncp-telnet-live-diagnostics-upstream-h316-buffer-fix-paced10m-upstream-kaimp-runtime-original-tdne-20260830T111157Z`: live `:PEEK A`, TELSER/STY ownership, and remote `nnTLNT` registration.
 - `two-its-ncp-telnet-e2e-upstream-h316-buffer-fix-paced10m-upstream-kaimp-runtime-original-tdne-20260830T112140Z`: `NCPTN` opens while failing to display received data, matching upstream issue `#2351`.
 - `two-its-ut-ncp-telnet-e2e-upstream-h316-buffer-fix-paced10m-upstream-kaimp-runtime-original-tdne-20260830T114351Z`: functional Gate 4/5 pass with remote DDT, `:TIME`, matching sentinel digests, and post-probe IMP traffic.
+- `two-its-telnet-20260830T155246Z-fe47a86c-eb93-4403-8549-8a3c431be43c`: the promoted clean-media pass. Exact source and simulator pins, no-op rebuild, verified build receipt, matching sentinel digest `ed7e64a9a9f7d228cb76e11342b2d0a8efb51a54f959e20be7327863b5752e37`, and over 1,400 exact-content MI1 packet matches per direction across the real IMP 6 ↔ IMP 62 hop.
 
 This note is the canonical chronological evidence record; the [test plan](../test-plan.md) is the normative acceptance contract, and ADRs own durable decisions. The stable behavior from the disposable driver now lives in `scripts/smoke-two-its.sh` and `scripts/two-its-controller.py`; exploratory drivers remain outside Git. Do not add one report per failed timing attempt or copy mutable status into parallel briefs.
 
@@ -172,3 +186,5 @@ This note is the canonical chronological evidence record; the [test plan](../tes
 - Require the promoted H316 leader-conversion buffer fix; do not diagnose the prior process crash as firmware modem timing.
 - Use automatic `TELSER` with restored `UT` for the two-ITS baseline; do not pursue `STELNT` or the broken `NCPTN` receive path.
 - Distinguish functional proof from reproducible acceptance: the simulator pins, clean ITS media, and supported harness must all agree before the gate becomes release evidence.
+- Check ITS build no-op status against the real output stamp (`out/$(EMULATOR)/stamp/its`), not the `its` target itself; the pinned `pdp6` submodule has no root `.gitignore`, so its `$(SMF)` sentinel can never satisfy `make -q`.
+- Enable `set mi1 debug` on both IMPs and require exact-content MI1 packet matches across both directions of the real inter-IMP hop as post-probe application evidence; never gate acceptance on debug strings that exist only in an exploratory, non-promoted simulator build.

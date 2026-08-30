@@ -14,8 +14,8 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 |---|---|
 | Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Functional criteria passed in an exploratory run: host `176` used the restored `UT` client to reach host `106`'s automatic `TELSER`, enter its DDT, and recover a remote `:TIME` response. The simulator fixes and supported harness are promoted; the exact-pin clean-media rerun remains. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
-| Application payload through both vintage guests | Functional anti-bypass proof passed: host `106` injected a per-run sentinel with DDT `:OSEND`, host `176` recovered it through NCP TELNET, and the digests matched. The supported exact-pin rerun remains pending. |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: host `176`'s restored `UT` client reached host `106`'s automatic `TELSER`, entered its DDT, and recovered a remote `:TIME` response, with the actual modem-link (IMP 6 ↔ IMP 62) packet content correlated in both directions. Result: `two-its-telnet-20260830T155246Z-fe47a86c-eb93-4403-8549-8a3c431be43c`. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md) |
+| Application payload through both vintage guests | Passing anti-bypass proof on the exact clean-media pins: host `106` injected sentinel `ARPANET-REDUX-20260830T155516Z-10FF4` with DDT `:OSEND`, host `176` recovered it through NCP TELNET, and the SHA-256 digests matched (`ed7e64a9a9f7d228cb76e11342b2d0a8efb51a54f959e20be7327863b5752e37`). |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 

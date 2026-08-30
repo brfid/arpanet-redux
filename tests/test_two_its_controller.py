@@ -32,15 +32,17 @@ class TwoItsEvidenceTests(unittest.TestCase):
                 complete + b"\r\nCLOSED by foreign host\r\n"
             )
 
-    def test_imp_evidence_requires_post_probe_bidirectional_conversion(self) -> None:
+    def test_imp_evidence_requires_post_probe_hi2_traffic(self) -> None:
+        # "Short leader:"/"Long leader:"/"Converted:"/"type=0" are not
+        # asserted here: those fprintf lines only ever came from a
+        # hand-instrumented h316_hi.c used during Trial 10's diagnosis and
+        # never exist in the clean pinned upstream h316-simh build.
         startup = (
             b"WDT LIGHTS: changed to 075400\n"
             b"HI2 MSG: message received\nHI2 MSG: message sent\n"
-            b"Short leader: type=0\nLong leader: type=0\nConverted:\n"
         )
         application = (
             b"HI2 MSG: message received\nHI2 MSG: message sent\n"
-            b"Short leader: type=0\nLong leader: type=0\nConverted:\n"
             b"WDT LIGHTS: changed to 075400\n"
         )
         with tempfile.TemporaryDirectory() as directory_name:
@@ -53,15 +55,47 @@ class TwoItsEvidenceTests(unittest.TestCase):
             path.write_bytes(startup + application)
             CONTROLLER.assert_imp_application_evidence(imp, len(startup))
 
-    def test_regular_message_ids_ignore_pre_probe_traffic(self) -> None:
+    def test_mi_link_messages_ignore_pre_probe_and_correlate_by_content(self) -> None:
+        # Real MI1 (modem-interface) traffic captured from a passing run:
+        # the exact word content imp6 logs as "sent" reappears verbatim as
+        # what imp62 logs as "received", proving the packet actually
+        # crossed the simulated inter-IMP line.
+        pre_probe = (
+            b"MI1 MSG: message sent (length=1)\n"
+            b"MI1 MSG: - 000377 \n"
+        )
+        imp6_post_probe = (
+            b"MI1 MSG: message sent (length=5)\n"
+            b"MI1 MSG: - 000377 003003 000347 000000 174033 \n"
+        )
+        imp62_all = (
+            b"MI1 MSG: message received (length=5)\n"
+            b"MI1 MSG: - 000377 003003 000347 000000 174033 \n"
+        )
         with tempfile.TemporaryDirectory() as directory_name:
-            path = Path(directory_name) / "imp.debug.log"
-            startup = b"Short leader: flags=0, type=0, host=1, imp=6, id=40\n"
-            application = b"Long leader: flags=0, type=0, handling=0, host=1, imp=76, id=100, sub=0\n"
-            path.write_bytes(startup + application)
-            self.assertEqual(
-                CONTROLLER.regular_message_ids(path, len(startup)), {b"100"}
+            directory = Path(directory_name)
+            imp6_path = directory / "imp6.debug.log"
+            imp62_path = directory / "imp62.debug.log"
+            imp6_path.write_bytes(pre_probe + imp6_post_probe)
+            imp62_path.write_bytes(imp62_all)
+
+            imp6_pre_probe_view = CONTROLLER.mi_link_messages(imp6_path, 0)
+            self.assertIn(b"000377", imp6_pre_probe_view[b"sent"])
+
+            imp6_messages = CONTROLLER.mi_link_messages(imp6_path, len(pre_probe))
+            self.assertNotIn(b"000377", imp6_messages[b"sent"])
+            imp62_messages = CONTROLLER.mi_link_messages(imp62_path, 0)
+
+            correlated = (
+                CONTROLLER.significant(imp6_messages[b"sent"])
+                & CONTROLLER.significant(imp62_messages[b"received"])
             )
+            self.assertEqual(
+                correlated, {b"000377 003003 000347 000000 174033"}
+            )
+
+            short_only = {b"000377"}
+            self.assertEqual(CONTROLLER.significant(short_only), set())
 
     def test_host106_attach_config_cannot_boot_early(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:

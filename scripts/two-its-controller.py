@@ -350,15 +350,15 @@ def latest_watchdog(path: Path) -> str | None:
 
 
 def assert_imp_application_evidence(imp: ImpProcess, offset: int) -> None:
+    # "Short leader:"/"Long leader:"/"Converted:"/"type=0" were fprintf lines
+    # from a hand-instrumented h316_hi.c used only during Trial 10's
+    # diagnosis; the clean pinned upstream h316-simh build never emits them,
+    # so requiring them here could never pass against promoted media.
     text = imp.debug_path.read_bytes()
     suffix = text[offset:]
     required = (
         b"HI2 MSG: message received",
         b"HI2 MSG: message sent",
-        b"Short leader:",
-        b"Long leader:",
-        b"Converted:",
-        b"type=0",
     )
     missing = [marker.decode("ascii") for marker in required if marker not in suffix]
     if missing:
@@ -402,13 +402,50 @@ def assert_client_application_evidence(output: bytes) -> None:
         raise RuntimeError("UT reported a close or error before proof completed")
 
 
-def regular_message_ids(path: Path, offset: int) -> set[bytes]:
-    return set(
-        re.findall(
-            rb"(?:Short|Long) leader: flags=[^\n]*?type=0, [^\n]*?id=([0-7]+)",
-            path.read_bytes()[offset:],
-        )
-    )
+# Below this many words, a matched MI1 packet (e.g. a bare ready/ack) is too
+# generic to rule out independent coincidence on each side of the link; the
+# smallest observed application-bearing packet was 5 words.
+MIN_CORRELATED_MI_WORDS = 4
+
+_MI_HEADER = re.compile(rb"MI1 MSG: message (sent|received) \(length=(\d+)\)")
+_MI_BODY = re.compile(rb"MI1 MSG: - (.*)")
+
+
+def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
+    """Reconstruct exact modem-interface (MI1) packet contents by direction.
+
+    MI1 is the simulated line between the two IMPs, distinct from each IMP's
+    HI2 host-facing interface. A packet's exact word content appearing as
+    "sent" on one IMP and "received" on the other is direct evidence that it
+    physically crossed the inter-IMP hop, not just the local host link.
+    """
+    messages: dict[bytes, set[bytes]] = {b"sent": set(), b"received": set()}
+    direction: bytes | None = None
+    remaining = 0
+    words: list[bytes] = []
+    for line in path.read_bytes()[offset:].splitlines():
+        header = _MI_HEADER.search(line)
+        if header is not None:
+            direction, remaining = header.group(1), int(header.group(2))
+            words = []
+            continue
+        if direction is None or remaining <= 0:
+            continue
+        body = _MI_BODY.search(line)
+        if body is None:
+            direction = None
+            continue
+        chunk = body.group(1).split()
+        words.extend(chunk)
+        remaining -= len(chunk)
+        if remaining <= 0:
+            messages[direction].add(b" ".join(words))
+            direction = None
+    return messages
+
+
+def significant(contents: set[bytes]) -> set[bytes]:
+    return {content for content in contents if len(content.split()) >= MIN_CORRELATED_MI_WORDS}
 
 
 def stop_all(
@@ -568,11 +605,14 @@ def run(args: argparse.Namespace) -> int:
         assert_client_application_evidence(client_output)
         for imp in imps:
             assert_imp_application_evidence(imp, imp_offsets[imp.name])
-        correlated_ids = regular_message_ids(
-            imp6.debug_path, imp_offsets[imp6.name]
-        ) & regular_message_ids(imp62.debug_path, imp_offsets[imp62.name])
-        if not correlated_ids:
-            raise RuntimeError("the two IMP traces lack a correlated regular-message ID")
+        imp6_mi = mi_link_messages(imp6.debug_path, imp_offsets[imp6.name])
+        imp62_mi = mi_link_messages(imp62.debug_path, imp_offsets[imp62.name])
+        forward_hop = significant(imp6_mi[b"sent"]) & significant(imp62_mi[b"received"])
+        return_hop = significant(imp62_mi[b"sent"]) & significant(imp6_mi[b"received"])
+        if not forward_hop or not return_hop:
+            raise RuntimeError(
+                "the two IMPs lack a correlated modem-link (MI1) packet in both directions"
+            )
 
         (results_dir / "sentinel-evidence.txt").write_text(
             "source=host106-console\n"

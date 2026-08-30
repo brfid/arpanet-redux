@@ -1,6 +1,6 @@
 # SRI/NOSC Network UNIX V6 as the first heterogeneous host
 
-**Status:** Recommended follow-up after the two-ITS application gate
+**Status:** In progress. The IMP11-A device model in step 1 of [First experiment](#first-experiment) is implemented and verified in isolation; see [imp11a-device.md](imp11a-device.md) for the register-level design and test evidence. Steps 2 onward (disk assembly and a live guest boot) have not started.
 
 SRI/NOSC Network UNIX V6 is the strongest first heterogeneous endpoint found for ARPANET Redux. It contains a genuine PDP-11 guest NCP, daemon binaries, guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The remaining critical path is a simulator device model plus disk assembly.
 

@@ -53,6 +53,7 @@ Start with the shortest document that answers the question:
 - **Review the current two-ITS result and evidence trail:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
 - **Explore the heterogeneous follow-up:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
 - **Contribute safely:** [contributor guide](CONTRIBUTING.md)
+- **Working here as an agent:** [agent instructions](AGENTS.md)
 - **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)
 
 Active source revisions and asset hashes live only in [`pins/`](pins/); dated reports describe what was observed at those pins without acting as a second lock file.

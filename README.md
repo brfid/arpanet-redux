@@ -24,7 +24,7 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 The source-only checks need Python 3.11 or newer, POSIX shell tools, Git, and Make. They do not download or boot historical software.
 
 ```sh
-git clone https://gitlab.com/brfid/arpanet-redux.git
+git clone https://github.com/brfid/arpanet-redux.git
 cd arpanet-redux
 make test
 ```
@@ -55,9 +55,10 @@ Start with the shortest document that answers the question:
 - **Contribute safely:** [contributor guide](CONTRIBUTING.md)
 - **Working here as an agent:** [agent instructions](AGENTS.md)
 - **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)
+- **See what this project draws on:** [credits](CREDITS.md)
 
 Active source revisions and asset hashes live only in [`pins/`](pins/); dated reports describe what was observed at those pins without acting as a second lock file.
 
 ## License status
 
-No license has yet been granted for the original work in this repository. Public visibility permits reading and GitLab's normal fork behavior but does not grant broader reuse rights. Third-party assets are excluded and retain their own terms; see [`NOTICE.md`](NOTICE.md).
+Original work in this repository — orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, and the scripts/research tooling — is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).

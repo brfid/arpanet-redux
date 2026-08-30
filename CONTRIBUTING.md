@@ -25,7 +25,7 @@ The optional local guard can be enabled with:
 git config core.hooksPath hooks
 ```
 
-Local hooks are not authoritative. `make test` checks indexed files in the current tree; unrelated untracked files are outside Git policy until staged. `make check-source-history` also rejects prohibited material that was committed and later deleted. GitLab CI runs the complete-history form from a non-shallow clone.
+Local hooks are not authoritative. `make test` checks indexed files in the current tree; unrelated untracked files are outside Git policy until staged. `make check-source-history` also rejects prohibited material that was committed and later deleted. The GitHub Actions workflow runs the complete-history form on every push, against a full, non-shallow checkout (`fetch-depth: 0`).
 
 ## Documentation style
 

@@ -1,0 +1,37 @@
+# Credits
+
+ARPANET Redux exists because of recovered historical software and documentation, and because of modern people who preserved, reconstructed, or fixed the simulators and guest systems this project depends on. This page names every external repository, tool, and historical document the project draws on, in one place, for anyone landing on the repo cold.
+
+Where a source is already cited inline at its point of use — most of them are, in the ADRs and in `docs/research/` and `docs/experiments/` — that citation stays there; this page consolidates rather than replaces it. Redistribution status for pinned sources is tracked in [`pins/sources.lock.toml`](pins/sources.lock.toml) and explained in [`NOTICE.md`](NOTICE.md); this page does not repeat those terms.
+
+## Pinned build and runtime dependencies
+
+These are checked out at an exact revision recorded in [`pins/sources.lock.toml`](pins/sources.lock.toml) and built into the external laboratory; none of their source is vendored into this repository.
+
+- [`obsolescence/arpanet`](https://github.com/obsolescence/arpanet) ("ARPANET in a Box") — recovered IMP firmware, H316 configurations, and KA10/ITS disk sets.
+- [`larsbrinkhoff/linux-ncp`](https://github.com/larsbrinkhoff/linux-ncp.git) — the diagnostic NCP daemon and applications used as the router-oracle and mixed-topology endpoint.
+- [`larsbrinkhoff/simh`](https://github.com/larsbrinkhoff/simh.git) — the H316 simulator, pinned at the [leader-conversion buffer fix](https://github.com/larsbrinkhoff/simh/commit/feb155fbc49333e879ab082d481e6dcce27d2d91) (see [ADR-004](docs/adr/0004-h316-hi-conversion-buffer.md)).
+- [`larsbrinkhoff/ka10-simh`](https://github.com/larsbrinkhoff/ka10-simh) — the upstream KA10 simulator with NCP-mode IMP device; the project fork below derives from it, including its [KAIMP status/interrupt fix](https://github.com/larsbrinkhoff/ka10-simh/commit/ee55f7de16c27c233d76fd1b58a21d239afe4625) (see [ADR-002](docs/adr/0002-kaimp-not-ready-fix.md) and [ADR-003](docs/adr/0003-complete-kaimp-fix.md)).
+- [`brfid/ka10-simh`](https://github.com/brfid/ka10-simh.git) — this project's minimal fork of the above, carrying only the two file-scoped KAIMP hunks on top of a pinned upstream base.
+- [`PDP-10/its`](https://github.com/PDP-10/its.git) — the ITS monitor and disk build used for both KA10 guests. Upstream [PR #2348](https://github.com/PDP-10/its/pull/2348), [issue #2351](https://github.com/PDP-10/its/issues/2351), and [PR #2350](https://github.com/PDP-10/its/pull/2350) directly informed the two-ITS TELNET client debugging in [the readiness experiment log](docs/experiments/2026-08-28-two-its-readiness.md).
+
+## Not yet pinned, in-progress dependency
+
+- [`open-simh/simh`](https://github.com/open-simh/simh) — base for the new DEC IMP11-A device (`pdp11_imp.c`), currently a local, unpublished branch outside this repository. See [`docs/research/imp11a-device.md`](docs/research/imp11a-device.md).
+
+## Reference and methodology sources (not vendored)
+
+These were read, adapted conceptually, or used to verify behavior, but no code from them was copied into this repository. Several are separately targeted for future pinning as the PDP-11 heterogeneous-host phase continues.
+
+- [`pdp11/network-unix-v6`](https://github.com/pdp11/network-unix-v6) — the preserved SRI/NOSC Network UNIX V6 source tree (kernel, NCP daemon, TELNET/FTP) targeted for the in-progress PDP-11 work; see [`docs/research/pdp11-network-unix.md`](docs/research/pdp11-network-unix.md).
+- [`eblanton/unix-v6-install`](https://github.com/eblanton/unix-v6-install) — methodology reference for extracting a V6 filesystem from a raw distribution tape and for substituting an RL-native boot block; no declared license, its code was never copied into this repository, only its documented technique.
+- [TUHS SRI-NOSC collection](https://www.tuhs.org/cgi-bin/utree.pl?file=SRI-NOSC) — primary archival source for the Network UNIX V6 distribution tape.
+- Tim Shoppa's `unix_v6.rl02` reference image, TUHS-hosted — source of the RL-native boot block used to boot the byte-extracted V6 filesystem; methodology reference only.
+- [SIMH UNIX V6 software kit](https://sourceforge.net/projects/simh/files/Software%20Kits/UNIX%20v6%20for%20the%20PDP-11./) (Caldera/Ancient-UNIX licensed) — used to validate baseline PDP-11/V6 boot behavior before the IMP11-A device existed.
+- [DEC IMP11-A Host-to-IMP Interface manual](https://bitsavers.org/pdf/dec/unibus/IMP11-A_PDP-11_Host_to_IMP_Interface_Feb1975.pdf) — register-level contract for the IMP11-A device.
+- BBN Report 1822 — historical specification of RFNM and host/IMP control-message semantics, used to interpret IMP trace evidence.
+- [RFC 681](https://www.rfc-editor.org/rfc/rfc681.html) — historical description of the SRI/NOSC Network UNIX system.
+- ["The ARPANET IMP Program: Retrospective and Resurrection"](https://www.bitsavers.org/pdf/bbn/imp/The_ARPANET_IMP_Program_-_Retrospective_and_Resurrection_201312.pdf) (BBN) — provenance trail for the recovered IMP firmware.
+- [SIMH software-kit catalog](https://simh.trailing-edge.com/software.html) — additional provenance reference for the recovered router software.
+- [H316 IMP documentation](https://opensimh.org/simdocs/h316_imp_doc.html) — device and UDP modem model reference.
+- [`timereshared/stanford-waits-simh-quickstart`](https://github.com/timereshared/stanford-waits-simh-quickstart) — evaluated WAITS alternative, not adopted; see [ADR-001](docs/adr/0001-two-imp-baseline.md).

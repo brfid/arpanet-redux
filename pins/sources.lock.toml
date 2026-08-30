@@ -44,6 +44,15 @@ redistribution = "clear-mit-style"
 notes = "Personal fork of open-simh/simh at a1f57fa3738ed31148d31126ba1a7278ff845c6d (single root MIT-style LICENSE.txt with a no-advertising clause, matching the shared H316 UDP transport's own license). Branch imp11a-device adds pdp11_imp.c plus two new pdp11_defs.h interrupt slots, a makefile hook, and a pdp11_sys.c registration; see docs/research/imp11a-device.md for the full record and docs/research/pdp11-network-unix.md for what it feeds."
 
 [[source]]
+name = "network-unix-v6"
+url = "https://github.com/pdp11/network-unix-v6.git"
+revision = "464893a99da8e3ac7f90577bc54749fa64bb0966"
+checkout = "work/network-unix-v6"
+purpose = "Preserved SRI/NOSC Network UNIX V6 source (kernel, NCP daemon/applications, guest TELNET/FTP source) built from and injected onto guest media, never vendored"
+redistribution = "unresolved-root-license"
+notes = "Promoted from CREDITS.md's reference-only list once scripts/research/build-guest-telnet.py started building an executable from it (ncpp/tel-u/telnet.c.org) rather than only placing already-built binaries; see docs/research/imp11a-device.md. This checkout's own ncpp/tel-u/telnet.c is a same-sized but entirely zero-filled file -- a real preservation defect -- and telnet.c.org, 9 bytes smaller, is the intact source that script actually compiles."
+
+[[source]]
 name = "pdp10-its"
 url = "https://github.com/PDP-10/its.git"
 revision = "0f7d67997f9f5d30208e117e73272031e74f16b9"

@@ -14,10 +14,8 @@ These are checked out at an exact revision recorded in [`pins/sources.lock.toml`
 - [`larsbrinkhoff/ka10-simh`](https://github.com/larsbrinkhoff/ka10-simh) — the upstream KA10 simulator with NCP-mode IMP device; the project fork below derives from it, including its [KAIMP status/interrupt fix](https://github.com/larsbrinkhoff/ka10-simh/commit/ee55f7de16c27c233d76fd1b58a21d239afe4625) (see [ADR-002](docs/adr/0002-kaimp-not-ready-fix.md) and [ADR-003](docs/adr/0003-complete-kaimp-fix.md)).
 - [`brfid/ka10-simh`](https://github.com/brfid/ka10-simh.git) — this project's minimal fork of the above, carrying only the two file-scoped KAIMP hunks on top of a pinned upstream base.
 - [`PDP-10/its`](https://github.com/PDP-10/its.git) — the ITS monitor and disk build used for both KA10 guests. Upstream [PR #2348](https://github.com/PDP-10/its/pull/2348), [issue #2351](https://github.com/PDP-10/its/issues/2351), and [PR #2350](https://github.com/PDP-10/its/pull/2350) directly informed the two-ITS TELNET client debugging in [the readiness experiment log](docs/experiments/2026-08-28-two-its-readiness.md).
-
-## Not yet pinned, in-progress dependency
-
-- [`open-simh/simh`](https://github.com/open-simh/simh) — base for the new DEC IMP11-A device (`pdp11_imp.c`), currently a local, unpublished branch outside this repository. See [`docs/research/imp11a-device.md`](docs/research/imp11a-device.md).
+- [`open-simh/simh`](https://github.com/open-simh/simh) — the upstream PDP-11 simulator the new DEC IMP11-A device (`pdp11_imp.c`) is built on; the project fork below derives from it.
+- [`brfid/imp11a-simh`](https://github.com/brfid/imp11a-simh.git) — this project's fork of the above, adding `pdp11_imp.c` on the `imp11a-device` branch. See [`docs/research/imp11a-device.md`](docs/research/imp11a-device.md) for the full record.
 
 ## Reference and methodology sources (not vendored)
 

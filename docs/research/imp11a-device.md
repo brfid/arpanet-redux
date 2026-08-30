@@ -61,8 +61,18 @@ The build also passes Open SIMH's own `RegisterSanityCheck` self-test.
 - `TIMOUT` and the general error-summary bit are defined but nothing yet drives them; the real driver's NXM/error handling has not been exercised.
 - No `DEBTAB` (`SET IMP DEBUG`) yet, so diagnosing a future guest-boot failure will need either temporary instrumentation or that gap closed first.
 
+## V6 base: reproducing the pristine root filesystem
+
+The official [SIMH UNIX V6 software kit](https://sourceforge.net/projects/simh/files/Software%20Kits/UNIX%20v6%20for%20the%20PDP-11./) (Caldera/Ancient-UNIX licensed) boots to a login prompt on this same Open SIMH build unmodified: `SET CPU 11/34`, `SET CPU 128K`, `SET CPU NOAUTOCONFIG`, attach its four RK05 images, `BOOT RK0`, then `unix` at the `@` prompt. This confirms the IMP11-A changes above do not disturb the baseline PDP-11 simulator.
+
+Reproducing that same root/source/doc filesystem set from the raw historical distribution tape (rather than the prebuilt kit) turned out to need a different method than the one documented method assumes. The [`eblanton/unix-v6-install`](https://github.com/eblanton/unix-v6-install) reference (`94df669009311ce0e693aa326142732f77796813`, no declared license, used here only as a methodology reference, not copied into any repository) drives this via an in-simulator `tmrk` meta-command that does not exist in Open SIMH; every attempt using it hangs indefinitely on an unmatched `expect "="`.
+
+Its own tape-processing tool (`v6enb`'s `enblock`, converting a raw historical tape image into SIMH's `.tap` container format) still works once its 2001-era C is coaxed past current clang's default-error implicit-function-declaration checks (`-Wno-error=implicit-function-declaration -Wno-error=implicit-int`). The resulting `.tap` file is exactly 12,100 fixed 512-byte tape records plus a tape mark: the first 100 are a raw bootstrap area, then three 4,000-record filesystems back to back (root at tape offset 100, `/usr/source` at 4,100, `/usr/doc` at 8,100). Because a SIMH `.tap` record is just a length-prefixed byte range, those three filesystems can be extracted directly, at the host level, straight into zeroed RK05-sized target files, with no PDP-11 execution involved at all. That reproduced root filesystem boots and logs in identically to the official kit (`rkunix`, root, no password) with the historically correct embedded clock (`Fri Oct 10 12:29:44 EDT 1975`).
+
+This matters here because it is the same technique the remaining work depends on: getting the prelinked `green`/`green47` kernels and the NOSC NCP daemon and applications onto a filesystem this simulator can boot does not require rebuilding anything from source (they are already built), only correctly placing existing bytes.
+
 ## Next steps
 
-1. Assemble a bootable RL01 (or configured boot device) V6 base and splice in the NOSC network kernel and daemon per the smoke-test recipe in [pdp11-network-unix.md](pdp11-network-unix.md).
-2. Boot the real `green/unix` kernel against this device and let its actual driver, not a synthetic test program, exercise the register contract.
+1. Write a minimal V6 filesystem injector (superblock, free list, inode table, directory entries) to place the prelinked `green/unix` kernel, the NCP daemon, and NCP client/server binaries directly into a root filesystem image, since these are already-built binaries rather than source to compile in place.
+2. Boot `green/unix` against this device and let its actual driver, not a synthetic test program, exercise the register contract.
 3. Decide whether and how to publish the device (a public fork of `open-simh`, mirroring how the KA10 fixes live in `github.com/brfid/ka10-simh`) once it has a real guest boot behind it.

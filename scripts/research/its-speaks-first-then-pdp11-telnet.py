@@ -79,6 +79,9 @@ def _main() -> int:
                     help="octal host number ITS should dial to reach the "
                          "guest, per docs/test-plan.md's host176 convention "
                          "for IMP 62's hi2")
+    p.add_argument("--pdp11-hi-convert", action="store_true",
+                    help="retain the shared IMP 62 HI2 long-leader conversion "
+                         "instead of using the PDP-11's native short leader")
     p.add_argument("--daemon-settle", type=float, default=12.0)
     p.add_argument("--its-dial-settle", type=float, default=20.0,
                     help="seconds to watch ITS's UT output after dialing "
@@ -115,6 +118,17 @@ def _main() -> int:
 
     imp6_cfg = args.repo_root / "config/imp/its-pair/imp6.simh"
     imp62_cfg = args.repo_root / "config/imp/its-pair/imp62.simh"
+    if not args.pdp11_hi_convert:
+        # This shared configuration normally hosts ITS, which uses long
+        # leaders.  The PDP-11 guest supplies and expects the old short
+        # leader itself, so keep a run-local configuration without the
+        # bidirectional HI2 conversion rather than changing the ITS config.
+        imp62_cfg = results / "imp62-pdp11-noconvert.simh"
+        imp62_text = (args.repo_root / "config/imp/its-pair/imp62.simh").read_text()
+        expected = "set hi2 convert\n"
+        if expected not in imp62_text:
+            raise RuntimeError("IMP 62 configuration no longer has the expected HI2 conversion line")
+        imp62_cfg.write_text(imp62_text.replace(expected, "set hi2 noconvert\n", 1))
     host106_cfg = args.repo_root / "config/hosts/its106-pair.simh"
 
     procs = []

@@ -1,6 +1,6 @@
 # SRI/NOSC Network UNIX V6 as the first heterogeneous host
 
-**Observed through 2026-08-30:** The IMP11-A device, bootable `green/unix` system, live daemon, two-IMP attachment, and guest-built TELNET client were demonstrated. A bookkeeping deadlock in the preserved NCP daemon's own defensive pre-connection RST (it left the host's RFNM-tracking bit set, blocking the real RFC queued moments later) was found, patched, and rebuilt from source in-guest, and confirmed by rerun to now send the real RFC — but the connection to ITS host 106 still does not complete: IMP 62 does not relay that genuine RFC toward IMP 6 either, the same fate as the RST before it, leaving the guest-visible application proof open. [The IMP11-A device record](imp11a-device.md) retains the detailed evidence; [workstreams](../workstreams.md) owns the active task.
+**Observed through 2026-08-31:** The IMP11-A device, bootable `green/unix` system, live daemon, two-IMP attachment, and guest-built TELNET client were demonstrated. The daemon's RFNM bookkeeping deadlock is fixed, and the apparent IMP 62 relay failure is also fixed: the device now converts PDP-11 little-endian DMA words to the IMP's high-bit-first wire order, so the real RFC crosses both IMPs and reaches ITS. The guest then receives error-in-leader messages attributed to host 106 and TELNET still times out, leaving a narrower historical leader-version/interoperability investigation rather than a routing failure. [The IMP11-A device record](imp11a-device.md) retains the detailed evidence; [workstreams](../workstreams.md) owns the active task.
 
 This research selected SRI/NOSC Network UNIX V6 as the strongest first heterogeneous endpoint. It contains a genuine PDP-11 guest NCP, prelinked daemon binaries, source for guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The detailed device and RFC investigation belongs in [the IMP11-A record](imp11a-device.md), not this selection note.
 
@@ -27,7 +27,7 @@ The device investigation records how the documented guest registers interoperate
 5. Replace the peer with the two-IMP path to ITS and run TELNET from the PDP-11 guest.
 6. Accept only a command and response captured on the PDP-11 console plus corroborating traffic in both IMP logs.
 
-The experiment diverged from its original mechanics without changing its objective: the filesystem injector placed the existing kernel and daemon directly, the client was built in-guest, and the two-IMP network half completed. The detailed record of those deviations and the unanswered RFC forwarding question is in [the IMP11-A record](imp11a-device.md); the active next action is in [workstreams](../workstreams.md).
+The experiment diverged from its original mechanics without changing its objective: the filesystem injector placed the existing kernel and daemon directly, the client was built in-guest, and the two-IMP network half completed. The detailed record of those deviations, the fixed wire-ordering defect, and the remaining leader-error response is in [the IMP11-A record](imp11a-device.md); the active next action is in [workstreams](../workstreams.md).
 
 ## Alternatives
 

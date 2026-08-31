@@ -6,21 +6,15 @@ two-imp-its-with-pdp11.py, start the NCP daemon, and attempt a real
 guest TELNET connection to ITS host 106 -- the application-level proof
 pdp11-network-unix.md's "First experiment" step 6 calls for.
 
-Reuses config/imp/its-pair/{imp6,imp62}.simh and
-config/hosts/its106-pair.simh unchanged, exactly as
-two-imp-its-with-pdp11.py does.
+Reuses the IMP 6 and ITS configuration unchanged.  It makes a run-local
+copy of the shared IMP 62 configuration with HI2's long-leader conversion
+disabled: that shared configuration normally hosts ITS, while this guest
+uses the original short leader directly.
 
-As of this script's introduction the connection does not complete:
-the guest daemon does send a real RFC/ICP pair (confirmed byte-for-
-byte arriving at IMP 62's hi2 in its own debug trace), but nothing
-shows up on IMP 6's hi2 (ITS's side) anywhere near that time, and ITS
-never reacts. That looks like an IMP62->IMP6 relay/routing gap rather
-than a guest or daemon problem, but it has not been isolated further.
-See "Attempting the guest TELNET connection" in
-docs/research/imp11a-device.md. --daemon-settle and the wait before
-sending the RFC are the first things worth lengthening if you're
-picking this back up: convergence timing was never ruled out before
-this was set aside.
+The PDP-11's IMP11-A interface sends the high bit of every DMA word
+first, so this requires a PDP-11 binary with the corresponding output
+byte-order handling.  See docs/research/imp11a-device.md for the
+historical source and the controlled run evidence.
 
 Research-phase tool: exploratory, not wired into any make target or
 test.
@@ -82,6 +76,9 @@ def _main() -> int:
                          "/dev/net/anyhost)")
     p.add_argument("--pdp11-swap-image", required=True, type=Path)
     p.add_argument("--base-port", type=int, default=19100)
+    p.add_argument("--pdp11-hi-convert", action="store_true",
+                    help="retain the shared IMP 62 HI2 long-leader conversion "
+                         "instead of using the PDP-11's native short leader")
     p.add_argument("--host-number", default="106",
                     help="octal NCP host number to connect to, per "
                          "docs/test-plan.md's convention (default 106 = ITS)")
@@ -120,6 +117,17 @@ def _main() -> int:
 
     imp6_cfg = args.repo_root / "config/imp/its-pair/imp6.simh"
     imp62_cfg = args.repo_root / "config/imp/its-pair/imp62.simh"
+    if not args.pdp11_hi_convert:
+        # The shared configuration normally hosts ITS, which uses long
+        # leaders.  The PDP-11 supplies and expects the old short leader
+        # itself, so keep a run-local configuration without the bidirectional
+        # conversion rather than changing the ITS configuration.
+        imp62_cfg = results / "imp62-pdp11-noconvert.simh"
+        imp62_text = (args.repo_root / "config/imp/its-pair/imp62.simh").read_text()
+        expected = "set hi2 convert\n"
+        if expected not in imp62_text:
+            raise RuntimeError("IMP 62 configuration no longer has the expected HI2 conversion line")
+        imp62_cfg.write_text(imp62_text.replace(expected, "set hi2 noconvert\n", 1))
     host106_cfg = args.repo_root / "config/hosts/its106-pair.simh"
 
     procs = []

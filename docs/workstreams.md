@@ -6,16 +6,16 @@
 
 ## Local worktree convention
 
-This machine uses one Git repository with four working directories. They share Git object storage and remote history but have independent checked-out branches and uncommitted files.
+This machine uses one Git repository with an integration checkout and a grouped worktree container. They share Git object storage and remote history but have independent checked-out branches and uncommitted files.
 
 | Local directory | Active branch | Role |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not begin feature work here |
-| `/Users/brf/src/arpanet-redux-ncc` | `codex/ncc-run-summary` | NCC event model, derived run summary, replay, and visualization |
-| `/Users/brf/src/arpanet-redux-telnet` | `codex/pdp11-telnet` | SRI/NOSC PDP-11 TELNET diagnosis and eventual formal application proof |
-| `/Users/brf/src/arpanet-redux-network` | `codex/network-expansion` | Additional IMPs, hosts, topology, and the notes that establish those changes |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-run-summary` | NCC event model, derived run summary, replay, and visualization |
+| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | SRI/NOSC PDP-11 TELNET diagnosis and eventual formal application proof |
+| `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/network-expansion` | Additional IMPs, hosts, topology, and the notes that establish those changes |
 
-The GitHub `origin` remote is canonical. The `gitlab` remote is retained as historical/secondary state but is not the upstream for `main` or the active workstream branches.
+The separate external laboratory is `/Users/brf/src/arpanet-redux-lab`; it is not a Git worktree, and the [runbook](runbook.md) owns its layout and handling. The GitHub `origin` remote is canonical. The `gitlab` remote is retained as historical/secondary state but is not the upstream for `main` or the active workstream branches.
 
 ## Branch roles
 

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "run": {
+    "id": "fixture:assertion-mismatch",
+    "started_at": "2026-08-30T15:00:00Z",
+    "finished_at": "2026-08-30T15:02:00Z",
+    "outcome": "passed",
+    "provenance": [
+      {
+        "id": "fixture:assertion-mismatch",
+        "kind": "synthetic-fixture",
+        "revision": "fixture"
+      }
+    ]
+  },
+  "topology": {
+    "components": [
+      {
+        "id": "host:176",
+        "kind": "host",
+        "label": "ITS 176",
+        "position": {"x": 0, "y": 0},
+        "endpoints": [{"id": "host:176:hi2", "label": "HI2"}]
+      },
+      {
+        "id": "imp:62",
+        "kind": "imp",
+        "label": "IMP 62",
+        "position": {"x": 1, "y": 0},
+        "endpoints": [
+          {"id": "imp:62:hi2", "label": "HI2"},
+          {"id": "imp:62:mi1", "label": "MI1"}
+        ]
+      },
+      {
+        "id": "imp:6",
+        "kind": "imp",
+        "label": "IMP 6",
+        "position": {"x": 2, "y": 0},
+        "endpoints": [
+          {"id": "imp:6:mi1", "label": "MI1"},
+          {"id": "imp:6:hi2", "label": "HI2"}
+        ]
+      },
+      {
+        "id": "host:106",
+        "kind": "host",
+        "label": "ITS 106",
+        "position": {"x": 3, "y": 0},
+        "endpoints": [{"id": "host:106:hi2", "label": "HI2"}]
+      }
+    ],
+    "links": [
+      {"id": "link:176-62", "endpoints": ["host:176:hi2", "imp:62:hi2"]},
+      {"id": "link:62-6", "endpoints": ["imp:62:mi1", "imp:6:mi1"]},
+      {"id": "link:6-106", "endpoints": ["imp:6:hi2", "host:106:hi2"]}
+    ],
+    "routes": [
+      {
+        "id": "route:host176-to-host106",
+        "components": ["host:176", "imp:62", "imp:6", "host:106"]
+      }
+    ]
+  },
+  "observations": [
+    {
+      "id": "observation:1",
+      "sequence": 1,
+      "observed_at": "2026-08-30T15:01:00Z",
+      "category": "application",
+      "subject_id": "route:host176-to-host106",
+      "state": "failed",
+      "source": {"id": "fixture:controller", "kind": "synthetic-controller"}
+    }
+  ],
+  "derived_states": [
+    {
+      "id": "derived:path",
+      "subject_id": "route:host176-to-host106",
+      "state": "down",
+      "basis": "inference",
+      "supporting_observation_ids": ["observation:1"]
+    }
+  ],
+  "gates": [
+    {
+      "id": "gate:two-its-application",
+      "assertion": "The two guest applications exchanged the required payload.",
+      "verdict": "passed",
+      "evidence_observation_ids": ["observation:1"]
+    }
+  ]
+}

@@ -21,6 +21,12 @@ Every integration run must:
 
 The tracked tree must contain no vintage media, firmware, simulator binary, build output, source checkout, or raw log. Indexed files must remain below the configured size limit, and no indexed blob may match a known external-asset digest. The staged denylist may grow but must not silently discard a digest already protected by `HEAD`.
 
+## NCC derived-summary contract
+
+The source-only suite accepts a version-1 NCC completed-run summary only when it declares a complete run clock and provenance, gives all topology components and endpoints stable unambiguous identities, orders direct observations inside that clock, ties every derived state and gate verdict to known observation identifiers, and distinguishes incomplete or failed gates from a pass. A passed gate must include direct passed application evidence; a passed run must contain only passed gates.
+
+Synthetic fixtures must cover a passing run, missing evidence, a partition-like result, and a rejected assertion/evidence mismatch. This is a contract test for derived project data, not a replacement for the two-ITS acceptance gates or a permission to commit external logs.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import unittest
+
+from ncc.run_summary import (
+    RUN_SUMMARY_SCHEMA_VERSION,
+    RunSummaryValidationError,
+    load_run_summary,
+    run_summary_from_mapping,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURES = ROOT / "tests" / "fixtures" / "ncc"
+
+
+class RunSummaryTests(unittest.TestCase):
+    def test_loads_passing_missing_and_partition_fixtures(self) -> None:
+        expected = {
+            "run-summary-passing.json": ("fixture:two-its-passing", "passed", "up"),
+            "run-summary-missing-observation.json": (
+                "fixture:missing-observation",
+                "incomplete",
+                "unknown",
+            ),
+            "run-summary-partition.json": (
+                "fixture:partition-like",
+                "failed",
+                "partitioned",
+            ),
+        }
+        for filename, (run_id, outcome, path_state) in expected.items():
+            with self.subTest(filename=filename):
+                summary = load_run_summary(FIXTURES / filename)
+                document = summary.to_dict()
+                self.assertEqual(summary.run_id, run_id)
+                self.assertEqual(document["schema_version"], RUN_SUMMARY_SCHEMA_VERSION)
+                self.assertEqual(document["run"]["outcome"], outcome)
+                self.assertEqual(document["derived_states"][-1]["state"], path_state)
+
+    def test_serialization_is_deterministic_and_does_not_share_mutable_state(self) -> None:
+        summary = load_run_summary(FIXTURES / "run-summary-passing.json")
+        first = summary.to_dict()
+        first["run"]["id"] = "mutated"
+        self.assertEqual(summary.run_id, "fixture:two-its-passing")
+        self.assertEqual(summary.to_json(), summary.to_json())
+        self.assertEqual(json.loads(summary.to_json())["run"]["id"], summary.run_id)
+
+    def test_rejects_gate_assertion_without_passing_application_evidence(self) -> None:
+        with self.assertRaisesRegex(
+            RunSummaryValidationError, "passes without passed application evidence"
+        ):
+            load_run_summary(FIXTURES / "run-summary-assertion-mismatch.json")
+
+    def test_rejects_unknown_fields_and_noncontiguous_observation_order(self) -> None:
+        document = json.loads(
+            (FIXTURES / "run-summary-passing.json").read_text(encoding="utf-8")
+        )
+        document["unexpected"] = True
+        with self.assertRaisesRegex(RunSummaryValidationError, "unknown fields"):
+            run_summary_from_mapping(document)
+
+        document.pop("unexpected")
+        document["observations"][1]["sequence"] = 3
+        with self.assertRaisesRegex(RunSummaryValidationError, "sequence must be 2"):
+            run_summary_from_mapping(document)
+
+        document["observations"][1]["sequence"] = 2
+        document["schema_version"] = True
+        with self.assertRaisesRegex(RunSummaryValidationError, "schema_version must be"):
+            run_summary_from_mapping(document)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -4,7 +4,7 @@
 
 The NCC work adds a historically grounded observability layer to ARPANET Redux without weakening the project's evidence boundary or turning the first version into a remote-control console.
 
-The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report and translates it into topology-neutral events; synthetic unit tests establish the field and event boundary. No live IMP attachment, run-summary adapter, topology reducer, event recorder, or user interface exists yet.
+The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report into topology-neutral events and validates a fixture-only, derived completed-run summary. Synthetic unit tests establish both boundaries. No adapter from real results, live IMP attachment, topology reducer, event recorder, or user interface exists yet.
 
 The detailed historical evidence, format derivation, and visual references are in the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md). This page owns current product scope and next steps; the dated note should not be edited merely to reflect implementation progress.
 
@@ -55,11 +55,13 @@ The contract is not finalized, but its stable concerns are:
 - explicit unknown, stale, incomplete, and contradictory states;
 - optional external evidence references that are never required repository fixtures.
 
+The proposed version-1 contract and its alternatives are in [ADR-005](adr/0005-ncc-run-summary-contract.md). `ncc.run_summary` validates only project-authored synthetic fixtures at present: a passing run, explicit missing evidence, a partition-like failure, and a rejected assertion/evidence mismatch. It performs no laboratory reads and gives an unavailable external-evidence locator no semantic effect.
+
 The existing `NccEvent` is one input form, not yet the complete run-summary schema. A topology reducer should pair endpoint observations and derive historical plus/minus line state; it should not be embedded in the decoder or the browser.
 
 ## Implementation sequence
 
-1. Define and test a minimal derived run-summary schema using only synthetic fixtures. Include a small passing run, a missing-observation run, a partition-like run, and an assertion/evidence mismatch.
+1. Define and test a minimal derived run-summary schema using only synthetic fixtures. **Implemented as a proposed version-1 contract** with a small passing run, a missing-observation run, a partition-like run, and an assertion/evidence mismatch.
 2. Add a read-only adapter from the current controller's manifest and existing evidence parsers into that schema. Do not change acceptance semantics merely to make the display convenient.
 3. Add deterministic replay and a local viewer for completed summaries. The initial implementation can use Python's standard library plus project-authored HTML, CSS, JavaScript, and SVG.
 4. Add live publication of the same normalized events from the controller without granting the viewer process-control authority.
@@ -72,7 +74,7 @@ Use each repository document for one kind of memory:
 
 - This page is the living entry point: current scope, implemented state, boundaries, and next step.
 - [`docs/research/`](research/) records dated historical or experimental evidence and unresolved questions.
-- [`docs/adr/`](adr/) records decisions only after an alternative is explicitly accepted or rejected. A future ADR should settle the run-summary contract and read-only first-release boundary once reviewed.
+- [`docs/adr/`](adr/) records decisions after alternatives are explicit. [ADR-005](adr/0005-ncc-run-summary-contract.md) proposes the run-summary contract and read-only first-release boundary for review.
 - [`docs/architecture.md`](architecture.md) should gain the NCC component only when its boundary is stable enough to describe as project architecture.
 - [`docs/test-plan.md`](test-plan.md) should gain NCC gates when there is a runnable artifact and an exact pass/fail contract.
 - [`docs/runbook.md`](runbook.md) should gain commands only when those commands exist and have been exercised.
@@ -81,4 +83,4 @@ Do not commit generated prompts, raw archive images, or a second free-standing r
 
 ## Next decision
 
-The next design review should settle the smallest derived run-summary contract and its relationship to the existing run manifest. That decision can be made and tested entirely in the NCC worktree while the parallel third-IMP/host work continues.
+Review ADR-005 before treating version 1 as a stable viewer or replay interface. The next engineering task can then adapt the existing formal manifest and evidence parsers without changing their acceptance semantics; it can proceed entirely in the NCC worktree while the parallel third-IMP/host work continues.

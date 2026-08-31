@@ -98,6 +98,14 @@ Interpret evidence using the [test plan](test-plan.md). A successful process exi
 
 ## Summarize a completed two-ITS result
 
+Each formal two-ITS run writes `ncc-observations.jsonl` into its external result directory. The controller flushes only its existing lifecycle and application observations to that append-only stream; it does not add simulator control or new raw-log parsing. A passive snapshot command can inspect the current direct state without modifying the run or requiring external evidence locators:
+
+```sh
+python3 scripts/ncc-live-snapshot.py /absolute/path/to/arpanet-redux-lab/results/two-its-telnet-<run-id>/ncc-observations.jsonl
+```
+
+The snapshot preserves configured topology and the last direct state while marking old observations stale. It has no gate-verdict or process-control authority.
+
 The read-only NCC adapter reads the formal manifest, controller outcome, and sentinel evidence from an existing two-ITS result. It never launches or controls simulators, parses raw logs, or modifies the result directory. Redirect its JSON output outside the immutable result directory when a saved summary is useful:
 
 ```sh

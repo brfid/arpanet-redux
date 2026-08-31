@@ -34,7 +34,7 @@ Do not delete, rebase, merge into, or begin work on the backup branches. A publi
 
 Read [`docs/ncc.md`](ncc.md) and the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md) before changing `ncc/`, its schema, or a visualization.
 
-Define bounded live publication of the same accepted run-summary events from the formal controller. Preserve stale/unknown states, leave all viewer process control absent, and do not add raw-log parsing or a second controller configuration. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale.
+Bounded controller publication is implemented: each formal two-ITS run records a validated JSON Lines observation stream and a passive reader preserves nominal topology while marking expired direct observations stale. The next NCC task is to define topology reconciliation, paired-line state, and report-timeout rules for genuine IMP reports before adding a passive receiver. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale.
 
 NCC work must not depend on or modify the exploratory PDP-11 TELNET driver. Its first adapter should read the formal two-ITS manifest and derived evidence; a promoted heterogeneous harness can adopt the same contract later.
 

@@ -55,7 +55,7 @@ This accepted option creates an explicit adapter boundary before a viewer or liv
 
 ## Consequences
 
-- The next NCC implementation task is a read-only adapter from the formal two-ITS manifest and retained evidence parsers into version 1; it must not change existing acceptance semantics.
+- The initial NCC implementation includes a read-only adapter from the formal two-ITS manifest and retained evidence parsers into version 1; it does not change existing acceptance semantics.
 - Consumers receive normalized, replayable data without access to raw logs or simulator process control.
 - A later schema change requires an explicit version, fixtures, migration or compatibility decision, and an ADR update or successor.
 - The version-1 contract is accepted for completed formal runs. A public replay or viewer interface must preserve the same read-only and evidence-traceability boundaries.

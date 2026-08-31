@@ -78,6 +78,48 @@ def run_summary_from_mapping(document: object) -> RunSummary:
     return RunSummary(json.dumps(document, indent=2, sort_keys=True) + "\n")
 
 
+def validate_normalized_observations(
+    topology: object,
+    observations: object,
+    *,
+    started_at: str,
+    finished_at: str,
+) -> None:
+    """Validate direct observations against the version-1 topology envelope.
+
+    A live publisher has no completed-run verdict or final clock yet, but it
+    must use the same topology identities and observation record shape as a
+    completed summary. This shared validation boundary keeps a live reader
+    from becoming a second, looser event schema.
+    """
+
+    run_started = _timestamp(started_at, "observation stream.started_at")
+    run_finished = _timestamp(finished_at, "observation stream.finished_at")
+    if run_finished < run_started:
+        raise RunSummaryValidationError(
+            "observation stream.finished_at precedes started_at"
+        )
+    component_ids, endpoint_owners, link_ids, route_ids = validate_normalized_topology(
+        topology
+    )
+    subject_ids = component_ids | set(endpoint_owners) | link_ids | route_ids
+    _validate_observations(
+        observations,
+        subject_ids,
+        set(),
+        run_started,
+        run_finished,
+    )
+
+
+def validate_normalized_topology(
+    topology: object,
+) -> tuple[set[str], dict[str, str], set[str], set[str]]:
+    """Validate the topology portion shared by summaries and live streams."""
+
+    return _validate_topology(topology)
+
+
 def _validate_document(document: object) -> None:
     root = _mapping(document, "summary")
     _fields(

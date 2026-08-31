@@ -99,7 +99,8 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
   --host106-config "$repo_root/config/hosts/its106-pair.simh" \
   --host176-config "$repo_root/config/hosts/its176-pair.simh" \
   --results-dir "$results_dir" \
-  --manifest "$runtime_dir/run.env" >/dev/null
+  --manifest "$runtime_dir/run.env" \
+  --ncc-observation-stream "$results_dir/ncc-observations.jsonl" >/dev/null
 controller_pid=$BRFID_LAST_PID
 if wait "$controller_pid"; then
   controller_status=0

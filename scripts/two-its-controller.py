@@ -13,9 +13,18 @@ import pty
 import re
 import signal
 import subprocess
+import sys
 import threading
 import time
 import traceback
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from ncc.live import LiveObservationPublisher
+from ncc.topology import two_its_topology
 
 
 WRU = b"\x1c"
@@ -42,6 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host176-config", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--ncc-observation-stream", required=True, type=Path)
     return parser.parse_args()
 
 
@@ -522,8 +532,39 @@ def run(args: argparse.Namespace) -> int:
     )
     hosts = (host176, host106)
     imps = (imp6, imp62)
+    publisher = LiveObservationPublisher(
+        args.ncc_observation_stream.resolve(),
+        run_id=f"run:{results_dir.name}",
+        started_at=utc_now(),
+        provenance=[
+            {
+                "id": "source:two-its-controller",
+                "kind": "harness-controller",
+            }
+        ],
+        topology=two_its_topology(),
+        stale_after_seconds=90,
+    )
+    append_manifest(manifest, "ncc.observation_stream", publisher.path)
     outcome = "failed"
     interrupted = False
+
+    def observe(
+        category: str,
+        subject_id: str,
+        state: str,
+        details: dict[str, str] | None = None,
+    ) -> None:
+        publisher.publish(
+            category=category,
+            subject_id=subject_id,
+            state=state,
+            source={
+                "id": "source:two-its-controller",
+                "kind": "harness-controller",
+            },
+            details=details,
+        )
 
     def interrupt(_signum: int, _frame: object) -> None:
         nonlocal interrupted
@@ -536,25 +577,36 @@ def run(args: argparse.Namespace) -> int:
     old_int = signal.signal(signal.SIGINT, interrupt)
     try:
         imp6.launch()
+        observe("harness", "imp:6", "started", {"process": "imp6"})
         imp62.launch()
+        observe("harness", "imp:62", "started", {"process": "imp62"})
         wait_for_log_marker(imp6, "listening on port", 30)
+        observe("harness", "imp:6", "listening", {"marker": "listening-on-port"})
         wait_for_log_marker(imp62, "listening on port", 30)
+        observe("harness", "imp:62", "listening", {"marker": "listening-on-port"})
 
         # Both guest endpoints must bind before the recovered IMPs can send
         # their first host-link NOP after the modem route comes up.
         host176.launch()
+        observe("harness", "host:176", "started", {"process": "host176"})
         host106.launch(state="PROMPT")
+        observe("harness", "host:106", "started", {"process": "host106"})
         host106.expect("sim> ", timeout=60)
+        observe("harness", "host:106", "console-ready", {"state": "PROMPT"})
 
         imp6_modem_up = wait_for_log_marker(
             imp6, "WDT LIGHTS: changed to 077400", 60
         )
+        observe("harness", "imp:6", "modem-ready", {"watchdog_lights": "077400"})
         imp62_modem_up = wait_for_log_marker(
             imp62, "WDT LIGHTS: changed to 077400", 60
         )
+        observe("harness", "imp:62", "modem-ready", {"watchdog_lights": "077400"})
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + 60
+        observe("harness", "link:62-6", "modem-ready", {"watchdog_lights": "077400"})
 
         host176.mark_running_after_banner()
+        observe("harness", "host:176", "running", {"marker": "system-console-banner"})
         host106.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
@@ -562,6 +614,7 @@ def run(args: argparse.Namespace) -> int:
         host106.send("boot ptr\r")
         host106.state = "BOOTING"
         host106.mark_running_after_banner()
+        observe("harness", "host:106", "running", {"marker": "system-console-banner"})
         for imp in imps:
             imp.ensure_alive()
 
@@ -573,7 +626,9 @@ def run(args: argparse.Namespace) -> int:
         time.sleep(8)
 
         wait_for_log_marker(imp6, "WDT LIGHTS: changed to 075400", 1200)
+        observe("harness", "imp:6", "host-link-ready", {"watchdog_lights": "075400"})
         wait_for_log_marker(imp62, "WDT LIGHTS: changed to 075400", 1200)
+        observe("harness", "imp:62", "host-link-ready", {"watchdog_lights": "075400"})
         remaining = route_settle_deadline - time.monotonic()
         if remaining > 0:
             time.sleep(remaining)
@@ -585,9 +640,16 @@ def run(args: argparse.Namespace) -> int:
                 )
         if host106.state != "RUNNING" or host176.state != "RUNNING":
             raise RuntimeError("both KA10 controllers must be RUNNING before UT")
+        observe(
+            "harness",
+            "route:host176-to-host106",
+            "host-link-ready",
+            {"watchdog_lights": "075400"},
+        )
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         client_offset = host176.position()
+        observe("harness", "route:host176-to-host106", "probing")
         host176.send_slow("ut")
         host176.send(b"\x0b")
         host176.expect(rb"UT\.76", timeout=45)
@@ -647,12 +709,43 @@ def run(args: argparse.Namespace) -> int:
         append_manifest(manifest, "application.client", "UT.76")
         append_manifest(manifest, "application.server", "TELSER")
         append_manifest(manifest, "application.sentinel_sha256", source_digest)
+        observe(
+            "application",
+            "route:host176-to-host106",
+            "passed",
+            {"sentinel_sha256": source_digest},
+        )
         outcome = "passed"
         print(f"PASS: two ITS guests exchanged an NCP TELNET payload through two IMPs: {results_dir}")
         return 0
+    except TimeoutError:
+        observe(
+            "missing-evidence",
+            "route:host176-to-host106",
+            "timeout",
+            {"controller": "two-its"},
+        )
+        raise
+    except InterruptedError:
+        observe(
+            "missing-evidence",
+            "route:host176-to-host106",
+            "interrupted",
+            {"controller": "two-its"},
+        )
+        raise
+    except (OSError, RuntimeError, ValueError):
+        observe(
+            "harness",
+            "route:host176-to-host106",
+            "failed",
+            {"controller": "two-its"},
+        )
+        raise
     finally:
         stop_all(hosts, imps, force=interrupted)
         (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
+        publisher.close()
         signal.signal(signal.SIGTERM, old_term)
         signal.signal(signal.SIGINT, old_int)
 

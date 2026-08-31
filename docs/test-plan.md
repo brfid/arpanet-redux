@@ -35,6 +35,19 @@ The source-only historical-line reducer accepts only strictly ordered direct Typ
 
 The source-only message-journey diagnostic must derive request and reply boundaries from one named route plus the shared topology's existing host and modem bindings; an unbound crossing, unknown route, component, interface, direction, malformed correlation fingerprint, or incoherent source-local order must fail closed. Direct observations must retain stable topology identity, source-local sequence, normalized decoded 1822/NCP fields, a safe content fingerprint, provenance, optional source-local transport/tick values, and optional opaque external evidence references. Independent simulator ticks must never be compared as a global clock. The pure reducer must retain supporting direct-observation identifiers and distinguish a complete request/reply path, the first missing boundary, contradictory decoded destination or interface evidence, ambiguous duplicates or incomplete decoding, and wholly absent evidence that remains unknown. Synthetic coverage must include the PDP-11-shaped result in which ITS's reply is observed through the return path but its leader is contradictory only at the guest input boundary. The H316 adapter may consume only established literal `HI`/`MI` trace transfers and must reject compressed or incomplete word content; KA10 and IMP11-A parsers remain out of scope until their extraction formats are proven.
 
+## NCC alternate-path line-fault gate
+
+Start IMPs 5, 6, and 7 with the NCC receiver on IMP 5. Join IMPs 5 and 6 both directly through the owned two-ended relay and indirectly through IMP 7. The shared topology may map report line 1 only on the direct IMP 5/6 binding; the alternate bindings remain routing composition and must not acquire inferred report-line identities. After a bounded forwarding interval, keep both relay ports bound but drop every valid direct-line packet in both directions. Accept only if:
+
+1. The receiver completes its ready exchange and records at least one complete IMP-to-host message plus checksum-valid trouble and throughput reports.
+2. Before the cut, the relay forwards traffic in both directions and fresh reciprocal reports reconcile the direct IMP 5/6 line as `up`.
+3. After the cut timestamp, the relay records dropped traffic in both directions, accepts no unexpected packet source, and never resumes forwarding.
+4. The receiver records reports from IMPs 5, 6, and 7, including at least one post-cut report from both IMP 5 and IMP 6. Because the direct relay is dropping all packets, the latter is direct evidence that IMP 6 remained observable through IMP 7 and IMP 5.
+5. The final fresh reciprocal direct-line observations reconcile as `down`, with the supporting event sequences retained in the verdict.
+6. Every identity, transport, lifecycle, and cleanup precondition passes, including clean recorded source trees, exact configuration and helper hashes, no simulator transport errors, no surviving owned process, and released ports and locks.
+
+A receiver exit, a line-state transition without post-cut IMP 6 evidence, a one-sided cut, missing pre-cut `up` evidence, or a result reconstructed from raw packet logs cannot satisfy this gate. The relay counters and structured receiver outputs stay in the external immutable result directory; Git retains only the composition, evaluator, tests, and concise dated conclusions.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

@@ -59,6 +59,14 @@ The router oracle proves routing plus explicit network failure reporting:
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab smoke-router
 ```
 
+The NCC alternate-path fault smoke proves that IMPs 5 and 6 remain observable while their direct line changes from reciprocal `up` to reciprocal `down` evidence. It runs for about 130 seconds so the recovered firmware can emit reports before and after the relay cut:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID smoke-ncc-alternate-path
+```
+
+The target verifies the pinned H316 sources, simulator, firmware, and project inputs; leases ten UDP ports; starts the NCC receiver, three IMPs, and the owned direct-line relay; and performs bounded cleanup. `NCC_DIRECT_FORWARD_SECONDS` and `NCC_ALTERNATE_DURATION` are diagnostic overrides, but the forwarding interval must be positive and shorter than the receiver duration. Interpret the result against the NCC alternate-path line-fault gate in the [test plan](test-plan.md).
+
 The mixed smoke proves that native ITS NCP interoperates with the two-IMP path:
 
 ```sh
@@ -91,6 +99,8 @@ Set `RUN_ID` to a unique value when a stable result-directory name is useful. Ot
 ## Read the result
 
 Each smoke creates one directory beneath `$LAB_ROOT/results`. Its run manifest records source revisions, tracked-dirty flags, executable and configuration hashes, allocated ports, platform, timestamps, outcome, and exit status. Console, protocol, and IMP traces remain beside that manifest in the external result directory.
+
+An NCC alternate-path result is named `ncc-alternate-path-fault-<run-id>`. `verdict.json` records every acceptance check, report counts by source IMP, post-cut report counts for IMPs 5 and 6, relay forward/drop counts, and the direct line's pre-cut and final supporting event sequences. `direct-relay.json`, `receiver.json`, and `historical-events.jsonl` are its structured direct inputs. A pass additionally requires `outcome=passed`, `exit_status=0`, both owned controllers to exit successfully, `cleanup.completed=1`, and no transport error in any IMP log. Do not edit a result or rerun the evaluator into its directory; write any read-only reevaluation to a separate temporary path.
 
 The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
 

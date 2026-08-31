@@ -1,0 +1,19 @@
+# IMP 5 ingress and two-line composition for the NCC alternate-path fault proof.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=5
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP5_DIRECT_PORT%:127.0.0.1:%BRFID_DIRECT_RELAY5_PORT%
+set mi2 enabled
+set mi2 debug
+attach -u mi2 %BRFID_IMP5_ALT_PORT%:127.0.0.1:%BRFID_IMP7_TO5_PORT%
+
+set hi1 enabled
+set hi1 debug
+attach -u hi1 %BRFID_IMP5_HI_PORT%:127.0.0.1:%BRFID_NCC_HI_PORT%
+
+set throttle 10000K
+go

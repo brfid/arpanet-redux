@@ -1,0 +1,17 @@
+# IMP 6 direct and alternate egress for the NCC alternate-path fault proof.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=6
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP6_DIRECT_PORT%:127.0.0.1:%BRFID_DIRECT_RELAY6_PORT%
+set mi2 enabled
+set mi2 debug
+attach -u mi2 %BRFID_IMP6_ALT_PORT%:127.0.0.1:%BRFID_IMP7_TO6_PORT%
+
+set hi1 disabled
+
+set throttle 10000K
+go

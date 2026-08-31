@@ -10,7 +10,7 @@ The shell layer targets `/bin/sh` on macOS and Linux. Committed Python helpers r
 
 Each run atomically creates a unique result-directory leaf and a mode-0700 NCP control-socket directory. An existing leaf is an error, never an overwrite target.
 
-`reserve-udp-ports.py` asks the operating system for ephemeral ports and holds IPv4 plus, when available, IPv6 wildcard UDP sockets on every selected number. Six ports cover two inter-IMP endpoints and two endpoints for each host link. The router oracle uses ten for its two hosts, three IMPs, and deliberately unreachable peer.
+`reserve-udp-ports.py` asks the operating system for ephemeral ports and holds IPv4 plus, when available, IPv6 wildcard UDP sockets on every selected number. Six ports cover two inter-IMP endpoints and two endpoints for each host link. The router oracle uses ten for its two hosts, three IMPs, and deliberately unreachable peer. The NCC alternate-path fault harness also uses ten: two NCC host-link endpoints, four endpoints for the two alternate-path modem cables, two direct-line simulator endpoints, and two direct-line relay endpoints.
 
 Topology-specific environment variables carry the allocated values into the SIMH command files through native `%NAME%` expansion. This avoids mutating tracked configurations or interpolating them with a shell.
 
@@ -19,6 +19,8 @@ Immediately before simulator launch, the harness asks the reservation helper to 
 ## Process ownership
 
 Every daemon, simulator, and bounded client is launched as a direct child and registered by exact PID. Cleanup is idempotent: it sends `TERM`, waits for a bounded interval, sends `KILL` only to a surviving owned child, removes known client sockets, releases locks, and finalizes the manifest.
+
+The NCC alternate-path harness owns its receiver, all three IMP simulators, and a two-ended UDP relay. The relay accepts packets only from the two recorded simulator ports, forwards both directions for a bounded interval, then keeps both relay sockets bound while counting and discarding traffic in both directions. Termination makes it write the cut timestamp, per-direction receive/forward/drop counters, and any unexpected source addresses before its PID is released.
 
 Process names and global kill patterns are never lifecycle authority. Startup, application probes, cleanup, and manifest finalization all have explicit deadlines so a blocked console or NCP client cannot retain a run indefinitely.
 
@@ -47,6 +49,8 @@ The controller starts host `106` with an attach-only derivative of the tracked c
 The manifest records repository and source revisions, tracked-dirty flags, executable and configuration hashes, ports, platform, timestamps, outcome, and exit status. Application assertions capture relevant log offsets immediately before the probe so startup traffic cannot satisfy a later gate.
 
 The heterogeneous reducer operates only on post-offset console and IMP bytes. It requires ordered connection, greeting, TTY, welcome, time, date, and uptime evidence; the ITS `HST176` service job; host-interface traffic on both IMPs; and exact significant MI1 packets correlated across the inter-IMP hop in both directions. It rejects application, modem, bind, and transport failures while explicitly preserving the known non-fatal legacy option diagnostic. The controller records child cleanup separately, and the shell layer does not mark the run passed until all internal children are gone, the outer runtime has released its sockets and locks, and the retained evidence files agree.
+
+The NCC alternate-path evaluator consumes only the shared topology, the receiver's structured sidecar and historical-event stream, and the relay's structured counters. It requires bidirectional forwarding before the cut, reciprocal direct-line `up` evidence before the cut, bidirectional drops after the cut, no unexpected relay source, reports from all three IMPs, post-cut reports from IMPs 5 and 6, and a final reciprocal direct-line `down` result. It does not inspect packet logs or infer report-line identities from simulator device names. The receiver independently requires a complete IMP-to-host message plus checksum-valid trouble and throughput reports before it can exit successfully.
 
 Full console and protocol logs remain outside Git. The source-only tests cover the tempting false positives directly: partial remote output, a connection that closes before proof, startup IMP traffic before the captured offsets, and an attach-only host configuration that accidentally boots early.
 

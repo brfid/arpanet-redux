@@ -21,6 +21,20 @@ from .shared_topology import SharedTopology
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_CORRELATION_FIELDS = (
+    "message_type",
+    "host",
+    "link",
+    "subtype",
+    "m1",
+    "byte_size",
+    "byte_count",
+    "m2",
+    "ncp_opcode",
+)
+_OCTET_CORRELATION_FIELDS = tuple(
+    field for field in _CORRELATION_FIELDS if field != "byte_count"
+)
 
 
 class JourneyValidationError(ValueError):
@@ -120,16 +134,7 @@ class DecodedMessage:
         if not isinstance(self.message_class, MessageClass):
             raise JourneyValidationError("decoded message_class is unsupported")
         _nonempty_text(self.leader_format, "decoded leader_format")
-        for name in (
-            "message_type",
-            "host",
-            "link",
-            "subtype",
-            "m1",
-            "byte_size",
-            "m2",
-            "ncp_opcode",
-        ):
+        for name in _OCTET_CORRELATION_FIELDS:
             _optional_unsigned(getattr(self, name), 0xFF, f"decoded {name}")
         _optional_unsigned(self.byte_count, 0xFFFF, "decoded byte_count")
 
@@ -154,16 +159,7 @@ class MessageExpectation:
         _fingerprint(self.correlation_fingerprint, "message expectation fingerprint")
         if not isinstance(self.message_class, MessageClass):
             raise JourneyValidationError("message expectation class is unsupported")
-        for name in (
-            "message_type",
-            "host",
-            "link",
-            "subtype",
-            "m1",
-            "byte_size",
-            "m2",
-            "ncp_opcode",
-        ):
+        for name in _OCTET_CORRELATION_FIELDS:
             _optional_unsigned(getattr(self, name), 0xFF, f"message expectation {name}")
         _optional_unsigned(self.byte_count, 0xFFFF, "message expectation byte_count")
 
@@ -175,17 +171,7 @@ class MessageExpectation:
                 return BoundaryAssessmentState.AMBIGUOUS
             return BoundaryAssessmentState.CONTRADICTORY
         incomplete = False
-        for name in (
-            "message_type",
-            "host",
-            "link",
-            "subtype",
-            "m1",
-            "byte_size",
-            "byte_count",
-            "m2",
-            "ncp_opcode",
-        ):
+        for name in _CORRELATION_FIELDS:
             expected = getattr(self, name)
             if expected is None:
                 continue

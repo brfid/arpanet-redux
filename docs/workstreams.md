@@ -34,9 +34,11 @@ Do not delete, rebase, merge into, or begin work on the backup branches. A publi
 
 Read [`docs/ncc.md`](ncc.md) and the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md) before changing `ncc/`, its schema, or a visualization.
 
-Bounded controller publication and the source-only historical-line reducer are implemented. Passive host-interface ingress, shared IMP 5 / IMP 6 topology composition, Type 301/303 and Type 302 decoding, and report-checksum validation are also implemented. An exact run identifies the configured path's IMP 5 endpoint as report line 1 toward IMP 6, but supplies no independently reported IMP 6 endpoint. The next NCC task is to define explicit report-line identities in shared topology and obtain that second endpoint before considering durable reducer output or any bridge to the accepted run-summary/controller-live contracts. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale; [ADR-006](adr/0006-ncc-line-reconciliation.md) owns reducer rules.
+Bounded controller publication, the source-only historical-line reducer, and the source-only message-journey diagnostic are implemented. The journey slice derives request/reply boundaries from one shared-topology route, correlates source-local direct observations without a global simulator clock, and has a narrow H316 trace adapter plus typed KA10 and IMP11-A seams. The next journey task is for a promoted heterogeneous or network-expansion harness to emit those typed observations under its own manifest, port, cleanup, and application-verdict boundary; [`docs/ncc.md`](ncc.md) owns the exact implemented state and next action.
 
-NCC work must not depend on or modify the exploratory PDP-11 TELNET driver. Its first adapter should read the formal two-ITS manifest and derived evidence; a promoted heterogeneous harness can adopt the same contract later.
+The separate historical-line task still requires explicit report-line identities in shared topology and an independently attributed IMP 6 endpoint before any durable reducer output or bridge to the accepted run-summary/controller-live contracts. [ADR-006](adr/0006-ncc-line-reconciliation.md) owns reducer rules, and [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md) owns the one-sided evidence boundary.
+
+NCC work must not depend on or modify the exploratory PDP-11 TELNET driver. Read-only adapter exercises may inspect its external-laboratory traces, but the promoted harness must own the durable evidence boundary.
 
 ### PDP-11 TELNET
 

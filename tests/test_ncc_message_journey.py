@@ -12,6 +12,7 @@ from ncc.h316_journey import (
 from ncc.message_journey import (
     BoundaryDirection,
     DecodedMessage,
+    ExpectedJourney,
     JourneyLeg,
     JourneyState,
     JourneyValidationError,
@@ -207,10 +208,10 @@ def source_for(component_id: str) -> str:
     }[component_id]
 
 
-def complete_observations(expected: object) -> list[MessageJourneyObservation]:
+def complete_observations(expected: ExpectedJourney) -> list[MessageJourneyObservation]:
     observations = []
     source_sequences: defaultdict[str, int] = defaultdict(int)
-    for index, boundary in enumerate(expected.boundaries, start=1):  # type: ignore[attr-defined]
+    for index, boundary in enumerate(expected.boundaries, start=1):
         source_id = source_for(boundary.component_id)
         source_sequences[source_id] += 1
         expectation = (
@@ -219,7 +220,7 @@ def complete_observations(expected: object) -> list[MessageJourneyObservation]:
         observations.append(
             MessageJourneyObservation(
                 id=f"observation:{index}",
-                journey_id=expected.id,  # type: ignore[attr-defined]
+                journey_id=expected.id,
                 leg=boundary.leg,
                 component_id=boundary.component_id,
                 interface_id=boundary.interface_id,

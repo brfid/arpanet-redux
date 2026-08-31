@@ -37,11 +37,11 @@ notes = "Two focused commits ahead of upstream b45fedc048c4a064aae6f771156349e78
 [[source]]
 name = "imp11a-simh"
 url = "https://github.com/brfid/imp11a-simh.git"
-revision = "a56c68ed8c8d677db31eeed5f6830c0a909aedc5"
+revision = "f1ca562e5a61be20015d7cb044ac4722297e93d7"
 checkout = "work/open-simh"
 purpose = "PDP-11 IMP11-A host/IMP interface device (pdp11_imp.c), forked from open-simh/simh"
 redistribution = "clear-mit-style"
-notes = "Personal fork of open-simh/simh at a1f57fa3738ed31148d31126ba1a7278ff845c6d (single root MIT-style LICENSE.txt with a no-advertising clause, matching the shared H316 UDP transport's own license). Branch imp11a-device adds pdp11_imp.c plus two new pdp11_defs.h interrupt slots, a makefile hook, and a pdp11_sys.c registration; see docs/research/imp11a-device.md for the full record and docs/research/pdp11-network-unix.md for what it feeds."
+notes = "Personal fork of open-simh/simh at a1f57fa3738ed31148d31126ba1a7278ff845c6d (single root MIT-style LICENSE.txt with a no-advertising clause, matching the shared H316 UDP transport's own license). Branch imp11a-device adds pdp11_imp.c plus two new pdp11_defs.h interrupt slots, a makefile hook, and a pdp11_sys.c registration. This published revision includes the verified high-bit-first output conversion, symmetric input-DMA conversion, and post-store input trace; see docs/research/imp11a-device.md for the full record and docs/research/pdp11-network-unix.md for what it feeds."
 
 [[source]]
 name = "network-unix-v6"

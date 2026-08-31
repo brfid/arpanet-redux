@@ -31,12 +31,21 @@ from ncc.host_interface import (
     IngressMessage,
     PassiveHostIngress,
 )
+from ncc.historical_events import (
+    HISTORICAL_EVENT_STREAM_SCHEMA_VERSION,
+    HistoricalEventRecorder,
+    HistoricalEventStreamError,
+)
 from ncc.imp_to_host import (
     ImpToHostMessageError,
     decode_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
-from ncc.shared_topology import SharedTopologyValidationError, load_shared_topology
+from ncc.shared_topology import (
+    SharedTopology,
+    SharedTopologyValidationError,
+    load_shared_topology,
+)
 from ncc.trouble_report import TROUBLE_REPORT_TYPES
 
 
@@ -51,6 +60,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ready-interval", type=float, default=1.0)
     parser.add_argument("--require-message", action="store_true")
     parser.add_argument("--require-trouble-report", action="store_true")
+    parser.add_argument("--event-record", type=Path)
+    parser.add_argument("--run-id")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if bool(args.topology) != bool(args.interface_id):
@@ -59,6 +70,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("supply both ports or one shared --topology interface")
     if args.topology is not None and (args.listen_port is not None or args.imp_port is not None):
         parser.error("shared topology and explicit ports cannot be combined")
+    if args.event_record is not None and args.topology is None:
+        parser.error("--event-record requires a shared --topology interface")
+    if (args.event_record is None) != (args.run_id is None):
+        parser.error("--event-record and --run-id must be used together")
     for port in (args.listen_port, args.imp_port):
         if port is not None and not 0 < port < 65536:
             parser.error("ports must be in the range 1..65535")
@@ -79,12 +94,14 @@ def message_record(message: IngressMessage) -> dict[str, int | str]:
     }
 
 
-def connection_details(args: argparse.Namespace) -> tuple[int, int, dict[str, object]]:
+def connection_details(
+    args: argparse.Namespace,
+) -> tuple[int, int, dict[str, object], SharedTopology | None]:
     """Resolve either direct ports or the one binding in a shared topology."""
 
     if args.topology is None:
         assert args.listen_port is not None and args.imp_port is not None
-        return args.listen_port, args.imp_port, {}
+        return args.listen_port, args.imp_port, {}, None
     topology = load_shared_topology(args.topology)
     binding = topology.interface(args.interface_id)
     return (
@@ -95,6 +112,7 @@ def connection_details(args: argparse.Namespace) -> tuple[int, int, dict[str, ob
             "interface_id": binding.id,
             "proof_requirements": list(topology.proof_requirements),
         },
+        topology,
     )
 
 
@@ -110,7 +128,7 @@ def _environment_port(name: str) -> int:
 def main() -> int:
     args = parse_args()
     try:
-        listen_port, imp_port, binding_metadata = connection_details(args)
+        listen_port, imp_port, binding_metadata, shared_topology = connection_details(args)
     except SharedTopologyValidationError as error:
         print(f"cannot resolve host-interface proof ports: {error}", file=sys.stderr)
         return 1
@@ -169,6 +187,7 @@ def main() -> int:
                 )
 
     trouble_reports = []
+    report_events = []
     next_event_sequence = 1
     for message, observed_at in messages:
         try:
@@ -187,6 +206,7 @@ def main() -> int:
             print(f"host-interface proof rejected a trouble report: {error}", file=sys.stderr)
             return 1
         next_event_sequence += len(events)
+        report_events.extend(events)
         trouble_reports.append(
             {
                 "first_sequence": message.first_sequence,
@@ -197,6 +217,36 @@ def main() -> int:
                 "events": [event.to_dict() for event in events],
             }
         )
+
+    event_record_metadata: dict[str, int] = {}
+    if args.event_record is not None:
+        assert args.run_id is not None and shared_topology is not None
+        try:
+            recorder = HistoricalEventRecorder(
+                args.event_record,
+                run_id=args.run_id,
+                started_at=started_at.isoformat().replace("+00:00", "Z"),
+                topology_id=shared_topology.id,
+                interface_id=args.interface_id,
+                topology=shared_topology.topology,
+                provenance=[
+                    {
+                        "id": "source:passive-h316-host-interface-proof",
+                        "kind": "project-authored-receiver",
+                    }
+                ],
+            )
+            try:
+                recorder.append(report_events)
+            finally:
+                recorder.close()
+        except HistoricalEventStreamError as error:
+            print(f"host-interface proof could not record report events: {error}", file=sys.stderr)
+            return 1
+        event_record_metadata = {
+            "event_record_schema_version": HISTORICAL_EVENT_STREAM_SCHEMA_VERSION,
+            "recorded_direct_event_count": len(report_events),
+        }
 
     result = {
         "version": 2,
@@ -210,6 +260,7 @@ def main() -> int:
         "trouble_reports": trouble_reports,
     }
     result.update(binding_metadata)
+    result.update(event_record_metadata)
     rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output is None:
         sys.stdout.write(rendered)

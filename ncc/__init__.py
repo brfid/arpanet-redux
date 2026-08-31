@@ -18,6 +18,15 @@ from .live import (
     LiveObservationStreamError,
     read_live_observation_stream,
 )
+from .historical_events import (
+    HISTORICAL_EVENT_STREAM_SCHEMA_VERSION,
+    HistoricalEventRecorder,
+    HistoricalEventStream,
+    HistoricalEventStreamError,
+    HistoricalReplayFrame,
+    read_historical_event_stream,
+    replay_historical_event_stream,
+)
 from .imp_to_host import (
     OLD_STYLE_LEADER_WORD_COUNT,
     ImpToHostMessage,
@@ -49,6 +58,11 @@ from .viewer import render_summary_html
 __all__ = [
     "EventSource",
     "Endpoint",
+    "HISTORICAL_EVENT_STREAM_SCHEMA_VERSION",
+    "HistoricalEventRecorder",
+    "HistoricalEventStream",
+    "HistoricalEventStreamError",
+    "HistoricalReplayFrame",
     "ImpState",
     "ImpToHostMessage",
     "ImpToHostMessageError",
@@ -83,8 +97,10 @@ __all__ = [
     "load_run_summary",
     "run_summary_from_mapping",
     "read_live_observation_stream",
+    "read_historical_event_stream",
     "reconcile",
     "replay_frames",
+    "replay_historical_event_stream",
     "render_summary_html",
     "summarize_two_its_result",
     "trouble_report_events",

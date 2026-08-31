@@ -36,3 +36,7 @@ This accepted option uses genuine direct source, line, and state evidence while 
 - A present wrong neighbor remains contradictory, and an up report with no configured neighbor remains contradictory.
 - The decoder, historical-event stream, nominal-topology schema, completed-run contract, controller-live contract, and browser remain unchanged.
 - The retained failed run is not rewritten; a read-only re-evaluation with this accepted rule must produce a new derived verdict.
+
+## Later refinement
+
+[ADR-011](0011-ncc-looped-report-self-neighbor.md) separately accepts the recovered firmware's self-neighbor signature only for an explicitly mapped `looped` endpoint. It does not broaden this ADR's down-state exception: a down report with a present self-neighbor remains contradictory.

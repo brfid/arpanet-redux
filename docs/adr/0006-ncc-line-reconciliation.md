@@ -48,6 +48,8 @@ This accepted option preserves the decoder's direct-fact boundary, permits deter
 - The first `partitioned` condition is intentionally a narrow connectivity class. Missing evidence or a single failed peer remains `unknown` or `stale`.
 - A shared project topology and any durable reducer-result format remain future work; they must not be inferred from the current two-ITS harness.
 
-## Later refinement
+## Later refinements
 
 [ADR-010](0010-ncc-down-report-neighbor-absence.md) refines the configured-neighbor check after an exact alternate-path fault run showed that the recovered firmware clears its remembered neighbor when a line goes down. A present reported neighbor must still match the configured peer, but an explicitly mapped down endpoint may omit it. The source, line identity, direct state, reciprocal-evidence, and timeout requirements above remain unchanged.
+
+[ADR-011](0011-ncc-looped-report-self-neighbor.md) refines the looped-state neighbor check after an exact two-ended reflection run showed that the recovered firmware reports its own source IMP as neighbor on a looped endpoint. Only that self-neighbor form is compatible with looped; the configured remote peer, an absent neighbor, or a third IMP remains contradictory.

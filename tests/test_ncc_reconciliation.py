@@ -72,15 +72,15 @@ class ReconciliationTests(unittest.TestCase):
     def test_pairs_fresh_endpoint_observations_into_minus_and_plus_states(self) -> None:
         topology = two_imp_topology()
         cases = [
-            ("down", "up", LineState.MINUS_DOWN),
-            ("up", "down", LineState.PLUS_DOWN),
-            ("looped", "up", LineState.MINUS_LOOPED),
-            ("up", "looped", LineState.PLUS_LOOPED),
-            ("down", "down", LineState.DOWN),
-            ("looped", "looped", LineState.LOOPED),
-            ("up", "up", LineState.UP),
+            ("down", 31, "up", 5, LineState.MINUS_DOWN),
+            ("up", 31, "down", 5, LineState.PLUS_DOWN),
+            ("looped", 5, "up", 5, LineState.MINUS_LOOPED),
+            ("up", 31, "looped", 31, LineState.PLUS_LOOPED),
+            ("down", 31, "down", 5, LineState.DOWN),
+            ("looped", 5, "looped", 31, LineState.LOOPED),
+            ("up", 31, "up", 5, LineState.UP),
         ]
-        for minus_state, plus_state, expected in cases:
+        for minus_state, minus_neighbor, plus_state, plus_neighbor, expected in cases:
             with self.subTest(minus_state=minus_state, plus_state=plus_state):
                 result = reconcile(
                     topology,
@@ -89,14 +89,14 @@ class ReconciliationTests(unittest.TestCase):
                             imp=5,
                             interface=1,
                             state=minus_state,
-                            neighbor_imp=31,
+                            neighbor_imp=minus_neighbor,
                             sequence=1,
                         ),
                         line_event(
                             imp=31,
                             interface=2,
                             state=plus_state,
-                            neighbor_imp=5,
+                            neighbor_imp=plus_neighbor,
                             sequence=2,
                         ),
                     ],
@@ -107,6 +107,41 @@ class ReconciliationTests(unittest.TestCase):
                 line = result.lines[0]
                 self.assertEqual(line.state, expected)
                 self.assertEqual(line.supporting_sequences, (1, 2))
+
+    def test_accepts_only_self_neighbor_for_looped_endpoint(self) -> None:
+        cases = [
+            ("looped", 5, LineState.MINUS_LOOPED),
+            ("looped", 31, LineState.CONTRADICTORY),
+            ("looped", 6, LineState.CONTRADICTORY),
+            ("looped", None, LineState.CONTRADICTORY),
+            ("up", 5, LineState.CONTRADICTORY),
+            ("down", 5, LineState.CONTRADICTORY),
+        ]
+        for state, neighbor_imp, expected in cases:
+            with self.subTest(state=state, neighbor_imp=neighbor_imp):
+                result = reconcile(
+                    two_imp_topology(),
+                    [
+                        line_event(
+                            imp=5,
+                            interface=1,
+                            state=state,
+                            neighbor_imp=neighbor_imp,
+                            sequence=1,
+                        ),
+                        line_event(
+                            imp=31,
+                            interface=2,
+                            state="up",
+                            neighbor_imp=5,
+                            sequence=2,
+                        ),
+                    ],
+                    started_at=STARTED_AT,
+                    observed_at=NOW,
+                    report_interval=INTERVAL,
+                )
+                self.assertEqual(result.lines[0].state, expected)
 
     def test_rejects_topology_mismatch_without_relabeling_it_as_network_down(self) -> None:
         result = reconcile(

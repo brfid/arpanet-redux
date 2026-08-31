@@ -416,6 +416,11 @@ def _matches_expected_peer(event: NccEvent, line: NominalLine, endpoint: Endpoin
     if event.state == "unknown":
         return True
     reported_peer = event.details.get("neighbor_imp")
+    if event.state == "looped":
+        # The recovered firmware recognizes loopback after it receives its own
+        # routing message on the line, so the reported neighbor is the source
+        # endpoint itself rather than the configured endpoint across the cable.
+        return reported_peer == endpoint.imp
     if event.state == "down" and reported_peer is None:
         # The recovered firmware clears its remembered neighbor when it kills a
         # line. The explicitly mapped source endpoint still supplies identity;

@@ -18,7 +18,8 @@ byte-order handling.  See docs/research/imp11a-device.md for the
 historical source and the controlled run evidence.
 
 Research-phase tool: exploratory, not wired into any make target or
-test.
+test.  It nevertheless fails closed unless the guest reports an open
+connection and the requested remote response appears.
 """
 from __future__ import annotations
 
@@ -37,8 +38,12 @@ def start_background(name, argv, cwd, log_path, env):
     log = open(log_path, "wb", buffering=0)
     print(f"[driver] starting {name}: {' '.join(str(a) for a in argv)} (cwd={cwd})",
           file=sys.stderr)
-    proc = subprocess.Popen(argv, cwd=cwd, stdout=log, stderr=subprocess.STDOUT,
-                             env=env, start_new_session=True)
+    try:
+        proc = subprocess.Popen(argv, cwd=cwd, stdout=log, stderr=subprocess.STDOUT,
+                                env=env, start_new_session=True)
+    except Exception:
+        log.close()
+        raise
     return proc, log
 
 
@@ -57,6 +62,25 @@ def wait_for(path: Path, needle: str, timeout: float, label: str) -> bool:
         time.sleep(1.0)
     print(f"[driver] {label}: TIMEOUT waiting for {needle!r} in {path.name}", file=sys.stderr)
     return False
+
+
+def stop_background(procs) -> None:
+    for _, proc, _ in procs:
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
+    for _, proc, _ in procs:
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            proc.wait(timeout=2)
+    for _, _, log in procs:
+        log.close()
 
 
 def _main() -> int:
@@ -88,7 +112,13 @@ def _main() -> int:
                          "against the live IMP before attempting to connect")
     p.add_argument("--telnet-settle", type=float, default=25.0,
                     help="seconds to watch console output after issuing telnet")
+    p.add_argument("--telnet-command", default=":time",
+                    help="line sent after the remote session opens (default: :time)")
+    p.add_argument("--expect-response", default="The time is ",
+                    help="exact remote-response text required for success")
     args = p.parse_args()
+    if not args.expect_response:
+        p.error("--expect-response must not be empty")
 
     results = args.results_dir
     results.mkdir(parents=True, exist_ok=True)
@@ -142,121 +172,134 @@ def _main() -> int:
     host106_cfg.write_text(host106_text.replace(expected, host106_trace, 1))
 
     procs = []
-    imp6_proc, imp6_log = start_background(
-        "imp6", [str(args.h316), str(imp6_cfg)], args.mini_root,
-        results / "imp6.console.log", env)
-    procs.append(("imp6", imp6_proc, imp6_log))
-    imp62_proc, imp62_log = start_background(
-        "imp62", [str(args.h316), str(imp62_cfg)], args.mini_root,
-        results / "imp62.console.log", env)
-    procs.append(("imp62", imp62_proc, imp62_log))
-
-    time.sleep(2.0)
-
-    host106_proc, host106_log = start_background(
-        "host106", [str(args.pdp10_ka), str(host106_cfg)], host106_work,
-        results / "host106.console.log", env)
-    procs.append(("host106", host106_proc, host106_log))
-
-    # Informal readiness -- not the Gate 4 watchdog-state machine in
-    # docs/test-plan.md, just enough to know both IMPs and ITS are up
-    # before attaching the PDP-11 guest.
-    wait_for(results / "imp6.console.log", "077400", 30, "imp6 modem light")
-    wait_for(results / "imp62.console.log", "077400", 30, "imp62 modem light")
-    wait_for(results / "imp6.console.log", "075400", 30, "imp6 host-link light")
-    wait_for(results / "host106.console.log", "SYSTEM JOB USING THIS CONSOLE", 60,
-              "ITS host 106 banner")
-
-    print("[driver] settling 5s before attaching the PDP-11 guest", file=sys.stderr)
-    time.sleep(5.0)
-
-    pdp11_console = open(results / "pdp11.console.log", "w")
-    child = pexpect.spawn(str(args.pdp11), cwd=str(pdp11_work), timeout=20,
-                            encoding="utf-8", env=env)
-    child.logfile = pdp11_console
-
-    child.sendline("set cpu 11/34 256k")
-    child.sendline("set rl0 rl01")
-    child.sendline("set rl1 rl01")
-    child.sendline("attach rl0 images/ncp_root.rl01")
-    child.sendline("attach rl1 images/ncp_swap.rl01")
-    child.sendline("set imp enabled")
-    child.sendline(
-        f"attach imp {ports['BRFID_HOST_B_IMP_PORT']}:127.0.0.1:{ports['BRFID_IMP62_HI_PORT']}")
-    child.sendline(f"set debug -n {results / 'pdp11-imp-debug.log'}")
-    child.sendline("set imp debug=reg;int;pkt")
-    child.sendline("boot rl0")
-    child.expect("!", timeout=15)  # the RL bootstrap prompts with "!", not "@"
-    time.sleep(0.5)
-    child.send("green\r")
-    child.expect("login:", timeout=30)
-    time.sleep(0.5)
-    child.send("root\r")
-    child.expect("#", timeout=10)
-    time.sleep(1.0)
-
-    print("[driver] starting smalldaemon on the PDP-11 guest", file=sys.stderr)
-    child.send("/usr/net/etc/smalldaemon &\r")
-    child.expect("#", timeout=10)
-
-    print(f"[driver] settling {args.daemon_settle}s for the daemon/IMP handshake",
-          file=sys.stderr)
-    time.sleep(args.daemon_settle)
-    child.send("\r")
+    child = None
+    pdp11_console = None
     try:
-        child.expect("#", timeout=5)
-    except pexpect.TIMEOUT:
-        pass
+        imp6_proc, imp6_log = start_background(
+            "imp6", [str(args.h316), str(imp6_cfg)], args.mini_root,
+            results / "imp6.console.log", env)
+        procs.append(("imp6", imp6_proc, imp6_log))
+        imp62_proc, imp62_log = start_background(
+            "imp62", [str(args.h316), str(imp62_cfg)], args.mini_root,
+            results / "imp62.console.log", env)
+        procs.append(("imp62", imp62_proc, imp62_log))
 
-    print(f"[driver] running guest telnet: telnet - -h {args.host_number}", file=sys.stderr)
-    child.send(f"/usr/bin/telnet - -h {args.host_number}\r")
+        time.sleep(2.0)
 
-    print(f"[driver] watching for {args.telnet_settle}s of console output", file=sys.stderr)
-    deadline = time.time() + args.telnet_settle
-    while time.time() < deadline:
+        host106_proc, host106_log = start_background(
+            "host106", [str(args.pdp10_ka), str(host106_cfg)], host106_work,
+            results / "host106.console.log", env)
+        procs.append(("host106", host106_proc, host106_log))
+
+        # Informal readiness -- not the Gate 4 watchdog-state machine in
+        # docs/test-plan.md, but every observation is mandatory before the
+        # exploratory guest run begins.
+        readiness = (
+            wait_for(results / "imp6.console.log", "077400", 30, "imp6 modem light"),
+            wait_for(results / "imp62.console.log", "077400", 30, "imp62 modem light"),
+            wait_for(results / "imp6.console.log", "075400", 30, "imp6 host-link light"),
+            wait_for(results / "host106.console.log", "SYSTEM JOB USING THIS CONSOLE", 60,
+                     "ITS host 106 banner"),
+        )
+        if not all(readiness):
+            raise RuntimeError("one or more required topology readiness observations timed out")
+
+        print("[driver] settling 5s before attaching the PDP-11 guest", file=sys.stderr)
+        time.sleep(5.0)
+
+        pdp11_console = open(results / "pdp11.console.log", "w")
+        child = pexpect.spawn(str(args.pdp11), cwd=str(pdp11_work), timeout=20,
+                              encoding="utf-8", env=env)
+        child.logfile = pdp11_console
+
+        child.sendline("set cpu 11/34 256k")
+        child.sendline("set rl0 rl01")
+        child.sendline("set rl1 rl01")
+        child.sendline("attach rl0 images/ncp_root.rl01")
+        child.sendline("attach rl1 images/ncp_swap.rl01")
+        child.sendline("set imp enabled")
+        child.sendline(
+            f"attach imp {ports['BRFID_HOST_B_IMP_PORT']}:127.0.0.1:{ports['BRFID_IMP62_HI_PORT']}")
+        child.sendline(f"set debug -n {results / 'pdp11-imp-debug.log'}")
+        child.sendline("set imp debug=reg;int;pkt")
+        child.sendline("boot rl0")
+        child.expect("!", timeout=15)  # the RL bootstrap prompts with "!", not "@"
+        time.sleep(0.5)
+        child.send("green\r")
+        child.expect("login:", timeout=30)
+        time.sleep(0.5)
+        child.send("root\r")
+        child.expect("#", timeout=10)
+        time.sleep(1.0)
+
+        print("[driver] starting smalldaemon on the PDP-11 guest", file=sys.stderr)
+        child.send("/usr/net/etc/smalldaemon &\r")
+        child.expect("#", timeout=10)
+
+        print(f"[driver] settling {args.daemon_settle}s for the daemon/IMP handshake",
+              file=sys.stderr)
+        time.sleep(args.daemon_settle)
+        child.send("\r")
         try:
-            child.expect([r"\*", "#", pexpect.TIMEOUT], timeout=3)
+            child.expect("#", timeout=5)
         except pexpect.TIMEOUT:
             pass
+
+        print(f"[driver] running guest telnet: telnet - -h {args.host_number}",
+              file=sys.stderr)
+        child.send(f"/usr/bin/telnet - -h {args.host_number}\r")
+
+        print(f"[driver] watching for {args.telnet_settle}s of console output",
+              file=sys.stderr)
+        opened = False
+        failed = False
+        deadline = time.time() + args.telnet_settle
+        while time.time() < deadline:
+            timeout = min(3.0, max(0.1, deadline - time.time()))
+            event = child.expect_exact(
+                ["Connection open", "Host is Unavailable", pexpect.EOF, pexpect.TIMEOUT],
+                timeout=timeout,
+            )
+            if event == 0:
+                opened = True
+            elif event in (1, 2):
+                failed = True
+                break
+        if not opened or failed:
+            raise RuntimeError("guest TELNET did not report a usable open connection")
+
+        print(f"[driver] sending a command line into the connection: {args.telnet_command!r}",
+              file=sys.stderr)
+        child.send(args.telnet_command + "\r")
+        child.expect_exact(args.expect_response, timeout=15)
+        print(f"[driver] saw required remote response: {args.expect_response!r}",
+              file=sys.stderr)
+        time.sleep(3.0)
+
+        print("[driver] closing telnet session", file=sys.stderr)
+        child.send("close\r")
+        time.sleep(2.0)
+        child.send("bye\r")
+        try:
+            child.expect("#", timeout=10)
+        except pexpect.TIMEOUT:
+            pass
+
+        child.sendcontrol("e")  # SIMH console escape
         time.sleep(0.5)
-
-    print("[driver] sending a command line into the connection: 'time\\r'", file=sys.stderr)
-    child.send("time\r")
-    time.sleep(8.0)
-    child.send("\r")
-    time.sleep(3.0)
-
-    print("[driver] closing telnet session", file=sys.stderr)
-    child.send("close\r")
-    time.sleep(2.0)
-    child.send("bye\r")
-    try:
-        child.expect("#", timeout=10)
-    except pexpect.TIMEOUT:
-        pass
-
-    child.sendcontrol("e")  # SIMH console escape
-    time.sleep(0.5)
-    child.sendline("quit")
-    try:
-        child.expect(pexpect.EOF, timeout=15)
-    except pexpect.TIMEOUT:
-        child.close(force=True)
-    pdp11_console.close()
-
-    print("[driver] stopping imp6/imp62/host106", file=sys.stderr)
-    for name, proc, log in procs:
+        child.sendline("quit")
         try:
-            proc.terminate()
-        except ProcessLookupError:
-            pass
-    time.sleep(1.0)
-    for name, proc, log in procs:
-        try:
-            proc.kill()
-        except ProcessLookupError:
-            pass
-        log.close()
+            child.expect(pexpect.EOF, timeout=15)
+        except pexpect.TIMEOUT:
+            child.close(force=True)
+    finally:
+        if child is not None and child.isalive():
+            child.close(force=True)
+        if pdp11_console is not None:
+            pdp11_console.close()
+        if procs:
+            print("[driver] stopping imp6/imp62/host106", file=sys.stderr)
+            stop_background(procs)
 
     print(f"[driver] done. results in {results}", file=sys.stderr)
     return 0

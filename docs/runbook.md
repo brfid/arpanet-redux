@@ -102,9 +102,10 @@ The read-only NCC adapter reads the formal manifest, controller outcome, and sen
 
 ```sh
 python3 scripts/ncc-summarize-two-its.py /absolute/path/to/arpanet-redux-lab/results/two-its-telnet-<run-id> > /tmp/two-its-ncc-summary.json
+python3 scripts/ncc-render-summary.py /tmp/two-its-ncc-summary.json > /tmp/two-its-ncc-viewer.html
 ```
 
-A derived summary reports a failed formal run without valid application evidence as incomplete; it does not turn missing evidence into a network-down claim. See [NCC observability](ncc.md) for the contract boundary.
+A derived summary reports a failed formal run without valid application evidence as incomplete; it does not turn missing evidence into a network-down claim. The static viewer provides fixed-topology, gate, provenance, and observation-replay views without opening external evidence locators. See [NCC observability](ncc.md) for the contract boundary.
 
 ## Cleanup and failures
 

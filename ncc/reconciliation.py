@@ -15,6 +15,7 @@ from enum import Enum
 import re
 
 from .events import NccEvent
+from .shared_topology import SharedTopology
 
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
@@ -189,6 +190,39 @@ class _EndpointObservation:
 class _ImpObservation:
     event: NccEvent
     observed_at: datetime
+
+
+def nominal_topology_from_shared(topology: SharedTopology) -> NominalTopology:
+    """Build the existing reducer input from explicit shared report-line mappings."""
+
+    lines = []
+    for binding in topology.modem_interfaces:
+        first_report_line = binding.first_report_line
+        second_report_line = binding.second_report_line
+        if first_report_line is None and second_report_line is None:
+            continue
+        if first_report_line is None or second_report_line is None:
+            raise ReconciliationError(
+                f"shared modem binding {binding.id!r} has a one-sided report-line mapping"
+            )
+        lines.append(
+            NominalLine(
+                binding.id,
+                Endpoint(
+                    imp=_shared_imp_number(binding.first_imp_id),
+                    interface=first_report_line,
+                ),
+                Endpoint(
+                    imp=_shared_imp_number(binding.second_imp_id),
+                    interface=second_report_line,
+                ),
+            )
+        )
+    if not lines:
+        raise ReconciliationError(
+            f"shared topology {topology.id!r} has no reciprocal report-line mapping"
+        )
+    return NominalTopology(tuple(lines))
 
 
 def reconcile(
@@ -403,3 +437,12 @@ def _timestamp(value: str, location: str) -> datetime:
         raise ReconciliationError(
             f"{location} must be an RFC 3339 UTC timestamp"
         ) from error
+
+
+def _shared_imp_number(identifier: str) -> int:
+    prefix, separator, number = identifier.partition(":")
+    if prefix != "imp" or separator != ":" or not number.isdecimal():
+        raise ReconciliationError(
+            f"shared report-line identity does not name an IMP: {identifier!r}"
+        )
+    return int(number)

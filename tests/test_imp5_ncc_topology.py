@@ -161,17 +161,21 @@ class Imp5NccTopologyTests(unittest.TestCase):
                 "first_imp_id": binding["first_imp_id"],
                 "first_endpoint": binding["first_endpoint"],
                 "first_simh_device": binding["first_simh_device"],
+                "first_report_line": binding["first_report_line"],
                 "second_imp_id": binding["second_imp_id"],
                 "second_endpoint": binding["second_endpoint"],
                 "second_simh_device": binding["second_simh_device"],
+                "second_report_line": binding["second_report_line"],
             },
             {
                 "first_imp_id": "imp:5",
                 "first_endpoint": "imp:5:mi1",
                 "first_simh_device": "mi1",
+                "first_report_line": 1,
                 "second_imp_id": "imp:6",
                 "second_endpoint": "imp:6:mi1",
                 "second_simh_device": "mi1",
+                "second_report_line": 1,
             },
         )
         first_config = self.config_text[binding["first_simh_config"]]

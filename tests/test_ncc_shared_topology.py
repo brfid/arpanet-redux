@@ -85,11 +85,13 @@ def imp5_host_interface_topology() -> dict[str, object]:
                 "first_imp_id": "imp:5",
                 "first_endpoint": "imp:5:mi1",
                 "first_simh_device": "mi1",
+                "first_report_line": 1,
                 "first_listen_environment": "BRFID_IMP5_MI1_PORT",
                 "first_simh_config": "config/imp/ncc-proof/imp5.simh",
                 "second_imp_id": "imp:6",
                 "second_endpoint": "imp:6:mi1",
                 "second_simh_device": "mi1",
+                "second_report_line": 1,
                 "second_listen_environment": "BRFID_IMP6_MI1_PORT",
                 "second_simh_config": "config/imp/ncc-proof/imp6.simh",
             }
@@ -134,8 +136,10 @@ class SharedTopologyTests(unittest.TestCase):
         modem = topology.modem_interfaces[0]
         self.assertEqual(modem.first_imp_id, "imp:5")
         self.assertEqual(modem.first_simh_device, "mi1")
+        self.assertEqual(modem.first_report_line, 1)
         self.assertEqual(modem.second_imp_id, "imp:6")
         self.assertEqual(modem.second_simh_device, "mi1")
+        self.assertEqual(modem.second_report_line, 1)
 
     def test_rejects_a_host_number_or_endpoint_that_disagrees_with_the_map(self) -> None:
         wrong_device = copy.deepcopy(imp5_host_interface_topology())
@@ -168,6 +172,20 @@ class SharedTopologyTests(unittest.TestCase):
 
         with self.assertRaisesRegex(SharedTopologyValidationError, "must not be empty"):
             shared_topology_from_mapping(host_only)
+
+    def test_requires_reciprocal_report_line_identities(self) -> None:
+        one_sided = copy.deepcopy(imp5_host_interface_topology())
+        del one_sided["modem_interfaces"][0]["second_report_line"]  # type: ignore[index]
+
+        with self.assertRaisesRegex(SharedTopologyValidationError, "both endpoints"):
+            shared_topology_from_mapping(one_sided)
+
+    def test_rejects_an_invalid_report_line_identity(self) -> None:
+        invalid = copy.deepcopy(imp5_host_interface_topology())
+        invalid["modem_interfaces"][0]["first_report_line"] = 6  # type: ignore[index]
+
+        with self.assertRaisesRegex(SharedTopologyValidationError, "integer in 1..5"):
+            shared_topology_from_mapping(invalid)
 
 
 if __name__ == "__main__":

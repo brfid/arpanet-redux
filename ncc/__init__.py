@@ -82,6 +82,7 @@ from .reconciliation import (
     ReconciledLine,
     Reconciliation,
     ReconciliationError,
+    nominal_topology_from_shared,
     reconcile,
 )
 from .replay import ReplayFrame, replay_frames
@@ -168,6 +169,7 @@ __all__ = [
     "observation_from_h316_transfer",
     "observation_from_ka10_imp_trace",
     "observation_from_pdp11_imp11a_trace",
+    "nominal_topology_from_shared",
     "parse_h316_trace",
     "run_summary_from_mapping",
     "read_live_observation_stream",

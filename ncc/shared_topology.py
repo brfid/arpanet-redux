@@ -22,6 +22,7 @@ SHARED_TOPOLOGY_SCHEMA_VERSION = 1
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 _ENVIRONMENT_NAME = re.compile(r"BRFID_[A-Z0-9_]+_PORT\Z")
 _SIMH_CONFIG = re.compile(r"config/[A-Za-z0-9._/-]+\.simh\Z")
+_REPORTING_IMP_ID = re.compile(r"imp:[1-9][0-9]*\Z")
 
 
 class SharedTopologyValidationError(ValueError):
@@ -52,11 +53,13 @@ class ModemInterfaceBinding:
     first_imp_id: str
     first_endpoint: str
     first_simh_device: str
+    first_report_line: int | None
     first_listen_environment: str
     first_simh_config: str
     second_imp_id: str
     second_endpoint: str
     second_simh_device: str
+    second_report_line: int | None
     second_listen_environment: str
     second_simh_config: str
 
@@ -291,6 +294,7 @@ def _modem_interfaces(
                 "second_simh_config",
                 "second_simh_device",
             },
+            optional={"first_report_line", "second_report_line"},
         )
         if binding["kind"] != "modem-interface":
             raise SharedTopologyValidationError(f"{location}.kind must be 'modem-interface'")
@@ -318,17 +322,32 @@ def _modem_interfaces(
             raise SharedTopologyValidationError(
                 f"{location} must join two distinct IMPs and endpoints"
             )
+        first_report_line = _report_line(binding, location, "first")
+        second_report_line = _report_line(binding, location, "second")
+        if (first_report_line is None) != (second_report_line is None):
+            raise SharedTopologyValidationError(
+                f"{location} must configure report-line identities for both endpoints"
+            )
+        if first_report_line is not None:
+            for side, imp_id in (("first", first[0]), ("second", second[0])):
+                if not _REPORTING_IMP_ID.fullmatch(imp_id):
+                    raise SharedTopologyValidationError(
+                        f"{location}.{side}_imp_id must be an imp:<positive-integer> "
+                        "identity when report-line mapping is configured"
+                    )
         bindings.append(
             ModemInterfaceBinding(
                 id=identifier,
                 first_imp_id=first[0],
                 first_endpoint=first[1],
                 first_simh_device=first[2],
+                first_report_line=first_report_line,
                 first_listen_environment=first[3],
                 first_simh_config=first[4],
                 second_imp_id=second[0],
                 second_endpoint=second[1],
                 second_simh_device=second[2],
+                second_report_line=second_report_line,
                 second_listen_environment=second[3],
                 second_simh_config=second[4],
             )
@@ -414,4 +433,17 @@ def _identifier(value: object, location: str) -> str:
 def _environment_name(value: object, location: str) -> str:
     if not isinstance(value, str) or not _ENVIRONMENT_NAME.fullmatch(value):
         raise SharedTopologyValidationError(f"{location} must be a BRFID_*_PORT name")
+    return value
+
+
+def _report_line(
+    binding: Mapping[str, Any], location: str, side: str
+) -> int | None:
+    value = binding.get(f"{side}_report_line")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 5:
+        raise SharedTopologyValidationError(
+            f"{location}.{side}_report_line must be an integer in 1..5"
+        )
     return value

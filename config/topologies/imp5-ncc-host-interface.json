@@ -102,11 +102,13 @@
       "first_imp_id": "imp:5",
       "first_endpoint": "imp:5:mi1",
       "first_simh_device": "mi1",
+      "first_report_line": 1,
       "first_listen_environment": "BRFID_IMP5_MI1_PORT",
       "first_simh_config": "config/imp/ncc-proof/imp5.simh",
       "second_imp_id": "imp:6",
       "second_endpoint": "imp:6:mi1",
       "second_simh_device": "mi1",
+      "second_report_line": 1,
       "second_listen_environment": "BRFID_IMP6_MI1_PORT",
       "second_simh_config": "config/imp/ncc-proof/imp6.simh"
     }

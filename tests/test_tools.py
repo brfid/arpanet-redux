@@ -601,6 +601,34 @@ class UtilityTests(unittest.TestCase):
             self.assertNotEqual(failing.returncode, 0)
             self.assertIn("expected embedded commit feb155fb", failing.stderr)
 
+    def test_simulator_binary_verifier_checks_pdp11_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            executable = Path(directory_name) / "fake-pdp11"
+            executable.write_text(
+                "#!/bin/sh\nprintf '%s\\n' 'git commit id: 2722eef4'\n",
+                encoding="ascii",
+            )
+            executable.chmod(0o755)
+            passing = run(
+                sys.executable,
+                SCRIPTS / "verify-simulator-binaries.py",
+                "--pdp11",
+                executable,
+            )
+            self.assertEqual(passing.returncode, 0, passing.stderr)
+            executable.write_text(
+                "#!/bin/sh\nprintf '%s\\n' 'git commit id: f1ca562e'\n",
+                encoding="ascii",
+            )
+            failing = run(
+                sys.executable,
+                SCRIPTS / "verify-simulator-binaries.py",
+                "--pdp11",
+                executable,
+            )
+            self.assertNotEqual(failing.returncode, 0)
+            self.assertIn("expected embedded commit 2722eef4", failing.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

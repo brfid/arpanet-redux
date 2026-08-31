@@ -32,15 +32,21 @@ Simulator checks independently require embedded source revisions. Per-run manife
 
 `its-build-receipt.py` applies the same principle to promoted ITS media. It binds the pinned main revision, exact recursive submodule status, clean tracked state, an up-to-date `make EMULATOR=pdp10-ka its` target, and the SHA-256 values of the bootstrap and four runtime disks. The two-ITS launcher verifies that receipt while holding the ITS build/use lease, then gives each guest a distinct copied workspace. A stamp alone is not accepted.
 
+`pdp11-build-receipt.py` binds the heterogeneous guest's complete two-stage build instead of treating a final disk hash as provenance. `build-pdp11-telnet.sh` records the base root and swap hashes, runs the preserved-source TELNET and companion-reader build under the pinned IMP11-A simulator, records the intermediate media, stages and builds the trace-only NCP daemon from the pinned Network UNIX checkout, then records the final media, both staged-source trees, both console logs, all builder hashes, and source and simulator identities. A smoke reacquires the build/use lease and revalidates every recorded path and hash before copying the final root and swap into its run directory.
+
 ## Controller states
 
 `two-its-controller.py` distinguishes `BOOTING`, `RUNNING`, `PROMPT`, and `STOPPED` for each KA10. Its standard-library PTY reader threads drain both consoles concurrently, while separate sent logs record every controller write as hexadecimal bytes with timestamps.
 
 The controller starts host `106` with an attach-only derivative of the tracked configuration so both guest UDP endpoints bind before the recovered IMPs can send their first host-link NOP. It boots host `106` only after both modem watchdogs are up. Cleanup sends the WRU character only to a simulator known to be running; a simulator already at `PROMPT` receives `quit`, and a stopped child receives neither. A PID that exists without current guest-level evidence remains unready.
 
+`pdp11-its-controller.py` imports and reuses that PTY, process, watchdog, and MI1 correlation implementation. It starts both host simulators in attach-only `PROMPT` state, waits for both IMP modem paths, boots ITS host `106`, proves a local ITS `:TIME`, boots the PDP-11, starts its preserved NCP, and waits for both latest watchdog states to reach `075400` plus the route hold-down. The committed PDP-11 configuration uses the same six-port topology and sets IMP 62's host interface to the already-proven short-leader `noconvert` mode; it does not change the shared two-ITS configuration.
+
 ## Evidence
 
 The manifest records repository and source revisions, tracked-dirty flags, executable and configuration hashes, ports, platform, timestamps, outcome, and exit status. Application assertions capture relevant log offsets immediately before the probe so startup traffic cannot satisfy a later gate.
+
+The heterogeneous reducer operates only on post-offset console and IMP bytes. It requires ordered connection, greeting, TTY, welcome, time, date, and uptime evidence; the ITS `HST176` service job; host-interface traffic on both IMPs; and exact significant MI1 packets correlated across the inter-IMP hop in both directions. It rejects application, modem, bind, and transport failures while explicitly preserving the known non-fatal legacy option diagnostic. The controller records child cleanup separately, and the shell layer does not mark the run passed until all internal children are gone, the outer runtime has released its sockets and locks, and the retained evidence files agree.
 
 Full console and protocol logs remain outside Git. The source-only tests cover the tempting false positives directly: partial remote output, a connection that closes before proof, startup IMP traffic before the captured offsets, and an attach-only host configuration that accidentally boots early.
 

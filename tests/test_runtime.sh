@@ -50,6 +50,12 @@ if [ "$collision_status" -ne 73 ]; then
   exit 1
 fi
 
+printf '%s\n' 'bind error: simulated occupied-port handoff' >"$run_dir/occupied-port.log"
+if brfid_assert_no_transport_errors "$run_dir/occupied-port.log" 2>"$run_dir/occupied-port.stderr"; then
+  echo "occupied-port handoff failure was accepted" >&2
+  exit 1
+fi
+
 if brfid_run_bounded 1 python3 -c 'import time; time.sleep(30)'; then
   echo "bounded command unexpectedly completed" >&2
   exit 1
@@ -152,7 +158,7 @@ if [ -e "$lease_dir" ]; then
   exit 1
 fi
 
-rm -f "$run_dir/stdout" "$run_dir/stderr" "$run_dir/collision.stderr" "$run_dir/ncp.pid" "$run_dir/lease.stderr" "$run_dir/hash-failure.env" "$run_dir/hash-failure.stderr" "$run_dir/nonzero-status.env"
+rm -f "$run_dir/stdout" "$run_dir/stderr" "$run_dir/collision.stderr" "$run_dir/occupied-port.log" "$run_dir/occupied-port.stderr" "$run_dir/ncp.pid" "$run_dir/lease.stderr" "$run_dir/hash-failure.env" "$run_dir/hash-failure.stderr" "$run_dir/nonzero-status.env"
 rmdir "$results_path"
 rmdir "$run_dir/results"
 rmdir "$space_tmp"

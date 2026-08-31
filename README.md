@@ -1,9 +1,10 @@
 # ARPANET Redux
 
-ARPANET Redux is a source-only laboratory for running real host applications through two simulated ARPANET IMPs. The first production-shaped target joins two KA10/PDP-10 hosts running ITS through recovered 1973 H316 IMP software.
+ARPANET Redux is a source-only laboratory for running real host applications through two simulated ARPANET IMPs. Its production-shaped targets join either two KA10/PDP-10 ITS hosts or ITS and SRI/NOSC Network UNIX on a PDP-11 through recovered 1973 H316 IMP software.
 
 ```text
 KA10 / ITS 106 ↔ H316 IMP 6 ↔ H316 IMP 62 ↔ KA10 / ITS 176
+PDP-11 / Network UNIX 176 ↔ H316 IMP 62 ↔ H316 IMP 6 ↔ KA10 / ITS 106
 ```
 
 The repository contains orchestration, project-authored SIMH configurations, source pins, checksums, documentation, and acceptance tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and run logs remain in a separate local laboratory.
@@ -16,6 +17,7 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: restored `UT` reached automatic `TELSER`, remote DDT, and `:TIME`, with two-way modem-link correlation. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md). |
 | Application payload through both vintage guests | Passing anti-bypass proof: host `106` injected a unique `:OSEND` sentinel and host `176` recovered it only through NCP TELNET. The evidence trail records the exact run and matching digest. |
+| PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Passing formal Gate 4H with receipt-bound guest media: the preserved TELNET client reached ITS `TELSER`, received the greeting, and executed remote `:TIME`, with post-probe traffic correlated through both IMPs and complete cleanup. See [the IMP11-A evidence record](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31). |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 
@@ -53,7 +55,7 @@ Start with the shortest document that answers the question:
 - **Understand the H316 buffer-fix pin:** [ADR-004](docs/adr/0004-h316-hi-conversion-buffer.md)
 - **Review the original feasibility evidence:** [phase-one feasibility report](docs/research/2026-08-28-phase-one-feasibility.md)
 - **Review the current two-ITS result and evidence trail:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
-- **Explore the heterogeneous follow-up:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
+- **Understand the formal heterogeneous endpoint:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
 - **Contribute safely:** [contributor guide](CONTRIBUTING.md)
 - **Working here as an agent:** [agent instructions](AGENTS.md)
 - **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)

@@ -12,7 +12,7 @@ This machine uses one Git repository with an integration checkout and a grouped 
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not begin feature work here |
 | `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-run-summary` | NCC event model, derived run summary, replay, and visualization |
-| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed SRI/NOSC PDP-11 TELNET application proof; optional formal-harness promotion |
+| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed SRI/NOSC PDP-11 TELNET application proof and formal Gate 4H harness |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/network-expansion` | Additional IMPs, hosts, topology, and the notes that establish those changes |
 
 The separate external laboratory is `/Users/brf/src/arpanet-redux-lab`; it is not a Git worktree, and the [runbook](runbook.md) owns its layout and handling. The GitHub `origin` remote is canonical. The `gitlab` remote is retained as historical/secondary state but is not the upstream for `main` or the active workstream branches.
@@ -46,7 +46,9 @@ The application proof is complete. Trace-only control run `imp11a-telnet-sktrace
 
 Fresh daemon build `imp11a-ncpd-sktrace-final-build-20260831T192000Z` and exact final run `imp11a-telnet-usable-final-20260831T193000Z`, built and run by the current hardened scripts, record the returned contact socket transition to open, both data sockets, kernel ready code zero, `Connection open`, the ITS `TTY 53` welcome banner, and a remote `:TIME` response with time, date, and uptime on the PDP-11 console. This closes the heterogeneous-host application criterion without changing adapter byte order, H316 topology, firmware, ITS configuration, NCC, or network expansion. See [the dated device record](research/imp11a-device.md#receive-continuation-root-cause-and-usable-telnet-proof-2026-08-31) for the complete evidence chain.
 
-The driver under `scripts/research/` remains exploratory rather than a formal harness: it still has no standard run manifest or port lease. It now fails closed on missing readiness, connection-open, or remote-response evidence and cleans up every child process. A future task may promote it into the formal artifact contract or investigate the non-fatal legacy TELNET option diagnostic; neither is required to reopen the completed proof.
+Formal build `pdp11-telnet-formal-build-20260831T200328Z` rebuilds the guest TELNET client and staged trace daemon under published simulator `2722eef4` and retains a receipt binding both build stages, their exact sources and logs, every input and output image, the pinned Network UNIX and IMP11-A revisions, and builder and simulator hashes. Exact formal run `pdp11-its-telnet-20260831T200436Z` used six leased ports and the production standard-library PTY controller, passed Gate 4H with the ITS `53TLNT` service job and structured remote `:TIME`, recorded correlated post-probe traffic through both IMPs in both directions, and left no owned process, socket namespace, port lock, or build lease. The exploratory driver remains available only for historical reproduction; `make smoke-pdp11-its` owns the production-shaped run.
+
+The formal promotion is complete. Remaining work is optional and must not reopen the accepted adapter, daemon, topology, firmware, or ITS findings without contradictory exact-run evidence: `TIMOUT`/error-summary handling, output buffer chaining, the `IMP: Phantom Out Int` anomaly, and the non-fatal legacy TELNET option diagnostic remain possible bounded investigations.
 
 ### Network expansion
 

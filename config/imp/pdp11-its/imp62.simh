@@ -1,0 +1,18 @@
+# Compose IMP 62 with the short-leader PDP-11 on its host interface.
+set debug stdout
+do impconfig.simh
+set imp num=62
+do impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP62_MI_PORT%:127.0.0.1:%BRFID_IMP6_MI_PORT%
+
+set hi1 disabled
+set hi2 enabled
+set hi2 debug
+attach -u hi2 %BRFID_IMP62_HI_PORT%:127.0.0.1:%BRFID_HOST_B_IMP_PORT%
+set hi2 noconvert
+
+set throttle 10000K
+go

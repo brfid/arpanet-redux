@@ -1,0 +1,12 @@
+# Attach the SRI/NOSC Network UNIX PDP-11 as host 176 on IMP 62.
+set console wru=034
+set cpu 11/34 256k
+set rl0 rl01
+set rl1 rl01
+attach rl0 images/ncp_root.rl01
+attach rl1 images/ncp_swap.rl01
+
+set imp enabled
+attach imp %BRFID_HOST_B_IMP_PORT%:127.0.0.1:%BRFID_IMP62_HI_PORT%
+set debug -n %BRFID_PDP11_DEBUG_LOG%
+set imp debug=reg;int;pkt

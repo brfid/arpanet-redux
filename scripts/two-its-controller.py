@@ -163,25 +163,41 @@ class PtyProcess:
                 self.condition.notify_all()
 
     def expect(self, pattern: bytes | str, timeout: float) -> re.Match[bytes]:
-        encoded = pattern.encode("latin-1") if isinstance(pattern, str) else pattern
-        expression = re.compile(encoded, re.DOTALL)
+        _, match = self.expect_any((pattern,), timeout)
+        return match
+
+    def expect_any(
+        self, patterns: tuple[bytes | str, ...], timeout: float
+    ) -> tuple[int, re.Match[bytes]]:
+        expressions = [
+            re.compile(
+                pattern.encode("latin-1") if isinstance(pattern, str) else pattern,
+                re.DOTALL,
+            )
+            for pattern in patterns
+        ]
         deadline = time.monotonic() + timeout
         with self.condition:
             while True:
-                match = expression.search(self.buffer, self.cursor)
-                if match is not None:
+                matches = [
+                    (match.start(), index, match)
+                    for index, expression in enumerate(expressions)
+                    if (match := expression.search(self.buffer, self.cursor)) is not None
+                ]
+                if matches:
+                    _, index, match = min(matches, key=lambda item: (item[0], item[1]))
                     self.cursor = match.end()
-                    return match
+                    return index, match
                 remaining = deadline - time.monotonic()
                 if self.eof or self.process is None or self.process.poll() is not None:
                     tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
                     raise RuntimeError(
-                        f"{self.name} exited while waiting for {pattern!r}; tail={tail!r}"
+                        f"{self.name} exited while waiting for {patterns!r}; tail={tail!r}"
                     )
                 if remaining <= 0:
                     tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
                     raise TimeoutError(
-                        f"{self.name} timed out waiting for {pattern!r}; tail={tail!r}"
+                        f"{self.name} timed out waiting for {patterns!r}; tail={tail!r}"
                     )
                 self.condition.wait(min(remaining, 0.5))
 
@@ -411,7 +427,7 @@ _MI_HEADER = re.compile(rb"MI1 MSG: message (sent|received) \(length=(\d+)\)")
 _MI_BODY = re.compile(rb"MI1 MSG: - (.*)")
 
 
-def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
+def mi_link_messages_from_bytes(data: bytes) -> dict[bytes, set[bytes]]:
     """Reconstruct exact modem-interface (MI1) packet contents by direction.
 
     MI1 is the simulated line between the two IMPs, distinct from each IMP's
@@ -423,7 +439,7 @@ def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
     direction: bytes | None = None
     remaining = 0
     words: list[bytes] = []
-    for line in path.read_bytes()[offset:].splitlines():
+    for line in data.splitlines():
         header = _MI_HEADER.search(line)
         if header is not None:
             direction, remaining = header.group(1), int(header.group(2))
@@ -442,6 +458,10 @@ def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
             messages[direction].add(b" ".join(words))
             direction = None
     return messages
+
+
+def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
+    return mi_link_messages_from_bytes(path.read_bytes()[offset:])
 
 
 def significant(contents: set[bytes]) -> set[bytes]:

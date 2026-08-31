@@ -39,6 +39,8 @@ The passing diagnostic targets expect these derived tools in the external labora
 
 Use an isolated virtual environment only for optional Python dependencies introduced by a controller. The currently committed source-only tests use the standard library and do not require one.
 
+The production PDP-11 controller also uses only the standard library. Rebuilding the guest media still calls the retained research-phase in-guest builders, which require `pexpect`; select an existing isolated interpreter with `PYTHON=/absolute/path/to/venv/bin/python3` for `build-pdp11-telnet`. The smoke itself does not use that dependency.
+
 ## Verify the laboratory
 
 Run identity checks before a simulator smoke:
@@ -72,11 +74,25 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab smoke-two-its
 
 The clean build is intentionally separate from the smoke and can take a long time. `build-its` holds the build/use lease while it cleans the generated output, builds `EMULATOR=pdp10-ka its`, repeats the target as a no-op rebuild, and writes the receipt. Receipt creation fails unless the pinned source and initialized submodules are clean, the target is up to date, and all five promoted runtime files exist. The smoke holds the same lease while it verifies and copies those files, so a cooperating rebuild cannot replace a running input.
 
+The heterogeneous PDP-11 gate uses a unique external build directory for its receipt-bound media. Use the same explicit build path for the build and smoke invocations:
+
+```sh
+build_root=/absolute/path/to/arpanet-redux-lab/results/pdp11-telnet-build-UNIQUE-ID
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab PYTHON=/absolute/path/to/venv/bin/python3 PDP11_BUILD_ROOT="$build_root" build-pdp11-telnet
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID PDP11_BUILD_ROOT="$build_root" smoke-pdp11-its
+```
+
+The default base media paths are `$LAB_ROOT/work/unix-v6-install/images/ncp_root.rl01` and `ncp_swap.rl01`; override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` when the laboratory uses another prepared base. The build creates its directory atomically and never overwrites an earlier one. Its receipt binds both base images, the pinned Network UNIX and IMP11-A revisions, the embedded PDP-11 revision and executable hash, exact staged TELNET and daemon sources, the intermediate and final media, build logs, and builder hashes. `smoke-pdp11-its` holds the same build/use lease, verifies the receipt and all source, asset, binary, firmware, and configuration identities, then copies the final guest media into a new run directory before launch.
+
+The formal topology is ITS host `106` on IMP 6 and Network UNIX host `176` on IMP 62. The controller waits for both modem and host-link states, the ITS console banner, a responsive local ITS command state, a booted PDP-11, and its preserved NCP before capturing application offsets and starting TELNET. Interpret its result against Gate 4H in the [test plan](test-plan.md); `Connection open` or `SKTRACE` without the service job, structured remote `:TIME`, and correlated traffic on both IMPs is a failure.
+
 Set `RUN_ID` to a unique value when a stable result-directory name is useful. Otherwise the Makefile creates a UTC timestamp plus UUID. A collision is an error; a prior result is never overwritten.
 
 ## Read the result
 
 Each smoke creates one directory beneath `$LAB_ROOT/results`. Its run manifest records source revisions, tracked-dirty flags, executable and configuration hashes, allocated ports, platform, timestamps, outcome, and exit status. Console, protocol, and IMP traces remain beside that manifest in the external result directory.
+
+The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
 
 Interpret evidence using the [test plan](test-plan.md). A successful process exit without the required application and IMP evidence is not a pass.
 

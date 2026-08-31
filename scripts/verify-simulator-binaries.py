@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--h316", type=Path)
     parser.add_argument("--pdp10-ka", type=Path)
+    parser.add_argument("--pdp11", type=Path)
     return parser.parse_args()
 
 
@@ -49,7 +50,7 @@ def verify_binary(label: str, path: Path, expected_revision: str) -> str | None:
 
 def main() -> int:
     args = parse_args()
-    if args.h316 is None and args.pdp10_ka is None:
+    if args.h316 is None and args.pdp10_ka is None and args.pdp11 is None:
         print("select at least one simulator binary", file=sys.stderr)
         return 64
 
@@ -60,6 +61,8 @@ def main() -> int:
         checks.append(("h316-simh", args.h316, revisions["h316-simh"]))
     if args.pdp10_ka is not None:
         checks.append(("ka10-simh", args.pdp10_ka, revisions["ka10-simh"]))
+    if args.pdp11 is not None:
+        checks.append(("imp11a-simh", args.pdp11, revisions["imp11a-simh"]))
 
     failures = [
         failure

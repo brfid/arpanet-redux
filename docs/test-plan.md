@@ -63,6 +63,25 @@ Capture the two IMP log offsets immediately before host `176` starts `UT` and co
 
 Boot traffic, reset messages, debugger symbol inspection, a live PID, or a bound UDP socket cannot satisfy this gate. `IMP: Interface-reset msg` is telemetry, not a readiness condition.
 
+## Gate 4H: Network UNIX PDP-11 to ITS
+
+Start IMPs 6 and 62 with ITS host `106` on IMP 6 and the SRI/NOSC Network UNIX PDP-11 as host `176` on IMP 62. Apply Gate 4's modem-up, host-link-ready, latest-watchdog, 60-second route-settle, and complete ITS system-console requirements to this heterogeneous topology. In addition to the common preconditions, require the pinned IMP11-A simulator to boot `green/unix`, reach a root shell, and start the preserved NCP before the application probe.
+
+Before launch, verify the receipt that binds the base PDP-11 media, exact staged TELNET sources, intermediate images, exact staged daemon sources, final root and swap images, build logs, builder hashes, Network UNIX revision, and IMP11-A source and executable identity. Hash the receipt, final run-specific media copies, all three simulator executables, both IMP configurations, both host configurations, recovered firmware, base IMP configuration, and external asset manifest into a newly created run manifest. Record all six leased UDP ports and every child PID.
+
+Capture both IMP debug-log offsets and both host console offsets immediately before the PDP-11 starts `/usr/bin/telnet - -h 106`. Accept only if:
+
+1. The PDP-11 prints `Connection open` after its captured console offset.
+2. ITS records an incoming `nnTLNT` service job from `HST176` after its captured console offset.
+3. The PDP-11 receives the ITS machine and monitor greeting, a TTY assignment, `Welcome to ITS!`, and a usable remote terminal state.
+4. A remote `:TIME` response contains time with a timezone, a full date, and ITS uptime, in that order after the connection opens.
+5. Both IMPs record host-interface send and receive traffic after their captured offsets, and exact significant MI1 packet content correlates across the inter-IMP link in both directions.
+6. Neither IMP's latest watchdog state regresses from `075400`, and no post-probe modem-line-dead transition occurs.
+7. No `Host is Unavailable`, premature close, transport error, early child exit, missing response, or other fatal condition occurs before the complete application verdict.
+8. Bounded cleanup leaves no owned process, control-socket namespace, UDP socket, cooperative port lock, or build/use lease.
+
+The legacy client diagnostic `Possible protocol error! command = 376, option = 3.` is retained as evidence but is not by itself a failure. It becomes relevant only if the session loses one of the required application behaviors. `SKTRACE` and `PBTRACE` may corroborate the guest path, but neither trace can replace the application and correlated IMP evidence above.
+
 ## Gate 5: Payload anti-bypass
 
 Generate a unique printable-ASCII sentinel. Inject it only through host A's console or guest application, transfer it using guest NCP, and extract it only through host B's console or guest application. The controller must have no operation that copies the payload between guest workspaces.
@@ -77,4 +96,4 @@ After the vintage-to-vintage and payload gates pass, the replacement stage must 
 
 ## Fault injection
 
-For each production-shaped topology, force at least one endpoint or IMP to exit after partial startup and force one readiness timeout. Both cases must produce a bounded nonzero result, a failed manifest, and complete cleanup. A result-directory collision and a noncooperating occupied port must fail without overwriting prior evidence.
+For each production-shaped topology, force at least one endpoint or IMP to exit after partial startup and force one readiness timeout. Both cases must produce a bounded nonzero result, a failed manifest, and complete cleanup. A result-directory collision and a noncooperating occupied port must fail without overwriting prior evidence. Gate 4H's source-only reducer fixtures additionally reject a missing open, explicit host-unavailable result, greeting without remote command output, partial `:TIME`, close after partial output, evidence that appears only before the captured offsets, missing traffic on either IMP, and substituted simulator or guest-image identity.

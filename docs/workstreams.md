@@ -52,9 +52,11 @@ The formal promotion is complete. Remaining work is optional and must not reopen
 
 ### Network expansion
 
-This branch begins with no unmerged network-expansion change. Before editing shared simulator configurations or controllers, define the intended IMP/host identities, endpoint ports, logical-map positions, expected route, and exact evidence that will prove the new path. Read [`docs/architecture.md`](architecture.md), [`docs/test-plan.md`](test-plan.md), and [`docs/harness.md`](harness.md) first.
+The bounded IMP 5/IMP 6 network-expansion slice is complete. [`config/topologies/imp5-ncc-host-interface.json`](../config/topologies/imp5-ncc-host-interface.json) is the project-authored nominal input for the NCC receiver as host 0 on IMP 5 HI1, the reciprocal IMP 5/IMP 6 MI1 link, stable component and endpoint identities, fixed display positions, port-environment names, the intended local route, and the passive host-interface proof requirements. The paired SIMH command files keep the generic H316 setup and recovered firmware behind the explicit external `BRFID_H316_MINI_ROOT` boundary.
 
-Nominal topology should become a shared project-authored input rather than being independently hard-coded by the harness, NCC reducer, and display. Until that contract is designed, keep experimental topology work isolated from the formal two-ITS controller.
+This input proves only that the project composition consistently maps NCC host 0 to IMP 5, supplies a live adjacent IMP peer, and defines the ready/complete-message boundary expected from a later isolated proof. It does not identify either IMP as a historical site, reconstruct a historical route, establish an NCP application exchange, implement the pending NCC reducer or viewer, or turn configured topology into observed network evidence. The formal two-ITS and PDP-11 harnesses remain unchanged.
+
+After this slice is present on `main`, the next NCC handoff is to rebase and evaluate the pending `codex/ncc-run-summary` work against it. Do not integrate or modify that branch as part of network expansion.
 
 ## Integration procedure
 

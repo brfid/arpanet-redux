@@ -44,9 +44,9 @@ The steady-state layout should be explicitly authored or deterministically gener
 
 ## Report-format boundary
 
-The report number is version-dependent. The recovered 1973 IMP listing sends a Type 301 trouble report and a Type 302 throughput report. TIR 90's November 1976 description documents the evolved Type 304 status report and Type 305 throughput report. These formats must not be treated as interchangeable merely because they serve the same functions.
+The report number is version-dependent. The recovered 1973 IMP listing's original trouble-report code is Type 301 and its throughput-report code is Type 302. A preserved 1973 patch sheet changes the trouble-report code to Type 303, and the project's pinned external firmware applies that patch. TIR 90's November 1976 description documents the evolved Type 304 status report and Type 305 throughput report. These formats must not be treated as interchangeable merely because they serve the same functions.
 
-The first implementation decodes only the 1973 Type 301 form emitted by the project's currently recovered firmware. It accepts 31 semantic 16-bit words plus an optional pad word, preserves the checksum without claiming to validate it, and exposes five local modem-line observations. It does not copy recovered source or commit a raw historical message fixture; tests construct synthetic words from the documented field layout.
+The first implementation decodes the original Type 301 and patched Type 303 forms of the one 1973 trouble-report layout. It accepts 31 semantic 16-bit words plus an optional pad word, preserves the actual on-wire code and checksum without claiming to validate the latter, and exposes five local modem-line observations. It does not copy recovered source or commit a raw historical message fixture; tests construct synthetic words from the documented field layout.
 
 The buffer-count order is taken from the actual indexed memory order in the 1973 listing: free, store-and-forward, reassembly, allocate. This resolves an ambiguity in a nearby prose comment whose middle two terms appear in the opposite order.
 
@@ -97,8 +97,8 @@ The first slice is additive: `ncc/`, its tests, and this note. It does not edit 
 ## Open evidence questions
 
 - Establish the exact Type 301 software-checksum algorithm and whether the on-wire final word is padding, transport framing, or part of the checksum domain.
-- Capture a genuine Type 301 report from the recovered firmware and compare all decoded fields against IMP-side state without committing the restricted raw log.
-- Determine the minimal 1822 receive/send behavior required for a passive NCC host, including RFNM handling and any leader conversion at the selected simulator interface.
+- Compare future genuine reports against independently observable IMP-side state without committing restricted raw logs.
+- Determine the minimal 1822 receive/send behavior required for an active NCC host, including RFNM handling and any necessary leader conversion. The passive ingress proof sends only the simulator's required ready flag.
 - Decide whether the dedicated topology should initially model the documented BBN path through IMPs 5 and 31 or use the smallest valid route from the project's current network. Historical site identity and the number of simulated hops are separate fidelity decisions.
 - Locate primary format documentation for the Type 304/305 generation before adding those decoders.
 

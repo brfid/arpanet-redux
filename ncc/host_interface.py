@@ -3,7 +3,7 @@
 This module deliberately stops at the transport boundary.  It proves that a
 project-authored NCC receiver can maintain the host-ready signal and preserve
 complete IMP-to-host messages without sending an NCP or 1822 control message.
-The later receiver owns leader interpretation and Type 301 decoding.
+The later receiver owns leader interpretation and 1973 trouble-report decoding.
 """
 
 from __future__ import annotations

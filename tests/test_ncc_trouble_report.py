@@ -83,7 +83,7 @@ class TroubleReportTests(unittest.TestCase):
 
         wrong_type = sample_words()
         wrong_type[0] = 0o302
-        with self.assertRaisesRegex(ValueError, "expected Type 301"):
+        with self.assertRaisesRegex(ValueError, "expected a 1973 trouble-report"):
             decode_trouble_report(wrong_type)
 
         invalid_word = sample_words()

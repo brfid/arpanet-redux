@@ -1,6 +1,6 @@
 """Topology-aware reconciliation of direct historical NCC observations.
 
-The Type 301 decoder deliberately reports only an IMP's local line endpoint.
+The 1973 trouble-report decoder deliberately reports only an IMP's local line endpoint.
 This module owns the separate inference step that pairs those endpoints against
 project-authored nominal topology. It never reads raw simulator output or
 substitutes modern harness state for a missing historical report.
@@ -51,7 +51,7 @@ class ImpState(str, Enum):
 
 @dataclass(frozen=True, order=True)
 class Endpoint:
-    """One configured Type 301 line endpoint."""
+    """One configured 1973 trouble-report line endpoint."""
 
     imp: int
     interface: int
@@ -66,7 +66,7 @@ class Endpoint:
 
     @property
     def subject(self) -> str:
-        """Return the direct-event subject used by the Type 301 decoder."""
+        """Return the direct-event subject used by the trouble-report decoder."""
 
         return f"imp:{self.imp}:line:{self.interface}"
 
@@ -241,7 +241,7 @@ def reconcile(
                 )
             if event.source.kind != "imp-trouble-report" or event.state != "received":
                 raise ReconciliationError(
-                    f"IMP report event {event.sequence} is not a direct Type 301 report"
+                    f"IMP report event {event.sequence} is not a direct trouble report"
                 )
             if event.source.imp in topology.imps:
                 imp_observations[event.source.imp] = _ImpObservation(
@@ -366,7 +366,7 @@ def _validate_event_order(events: tuple[NccEvent, ...], current: datetime) -> No
 def _validate_endpoint_event(event: NccEvent, endpoint: Endpoint) -> None:
     if event.source.kind != "imp-trouble-report":
         raise ReconciliationError(
-            f"line endpoint event {event.sequence} is not a direct Type 301 observation"
+            f"line endpoint event {event.sequence} is not a direct trouble-report observation"
         )
     if event.source.imp != endpoint.imp:
         raise ReconciliationError(

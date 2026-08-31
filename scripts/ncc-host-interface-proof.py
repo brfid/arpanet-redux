@@ -31,7 +31,13 @@ from ncc.host_interface import (
     IngressMessage,
     PassiveHostIngress,
 )
+from ncc.imp_to_host import (
+    ImpToHostMessageError,
+    decode_imp_to_host_message,
+    trouble_report_events_from_imp_to_host_message,
+)
 from ncc.shared_topology import SharedTopologyValidationError, load_shared_topology
+from ncc.trouble_report import TROUBLE_REPORT_TYPES
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--duration", type=float, default=30.0)
     parser.add_argument("--ready-interval", type=float, default=1.0)
     parser.add_argument("--require-message", action="store_true")
+    parser.add_argument("--require-trouble-report", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if bool(args.topology) != bool(args.interface_id):
@@ -109,7 +116,7 @@ def main() -> int:
         return 1
     ingress = PassiveHostIngress()
     packets: list[dict[str, int | bool]] = []
-    messages: list[dict[str, int | str]] = []
+    messages: list[tuple[IngressMessage, str]] = []
     ready_sent = 0
     imp_ready_received = 0
     started_at = datetime.now(timezone.utc)
@@ -154,17 +161,53 @@ def main() -> int:
                 }
             )
             if receipt.message is not None:
-                messages.append(message_record(receipt.message))
+                messages.append(
+                    (
+                        receipt.message,
+                        datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    )
+                )
+
+    trouble_reports = []
+    next_event_sequence = 1
+    for message, observed_at in messages:
+        try:
+            parsed = decode_imp_to_host_message(message)
+        except ImpToHostMessageError:
+            continue
+        if not parsed.body_words or parsed.body_words[0] not in TROUBLE_REPORT_TYPES:
+            continue
+        try:
+            events = trouble_report_events_from_imp_to_host_message(
+                message,
+                observed_at=observed_at,
+                sequence_start=next_event_sequence,
+            )
+        except ImpToHostMessageError as error:
+            print(f"host-interface proof rejected a trouble report: {error}", file=sys.stderr)
+            return 1
+        next_event_sequence += len(events)
+        trouble_reports.append(
+            {
+                "first_sequence": message.first_sequence,
+                "final_sequence": message.final_sequence,
+                "observed_at": observed_at,
+                "source_imp": parsed.leader.source_imp,
+                "message_type": parsed.body_words[0],
+                "events": [event.to_dict() for event in events],
+            }
+        )
 
     result = {
-        "version": 1,
+        "version": 2,
         "kind": "passive-h316-host-interface-proof",
         "started_at": started_at.isoformat().replace("+00:00", "Z"),
         "duration_seconds": args.duration,
         "host_ready_packets_sent": ready_sent,
         "imp_ready_packets_received": imp_ready_received,
         "received_packets": packets,
-        "complete_messages": messages,
+        "complete_messages": [message_record(message) for message, _ in messages],
+        "trouble_reports": trouble_reports,
     }
     result.update(binding_metadata)
     rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
@@ -183,6 +226,9 @@ def main() -> int:
         return 1
     if require_message and not messages:
         print("host-interface proof did not receive a complete IMP message", file=sys.stderr)
+        return 1
+    if args.require_trouble_report and not trouble_reports:
+        print("host-interface proof did not decode a 1973 trouble report", file=sys.stderr)
         return 1
     return 0
 

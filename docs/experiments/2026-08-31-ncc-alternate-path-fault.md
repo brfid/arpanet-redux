@@ -52,6 +52,12 @@ This is not missing evidence and should not be hidden by weakening the run gate.
 
 The next checkpoint is therefore a narrow source-only reconciliation decision and test: an absent reported neighbor may be compatible with an explicitly mapped endpoint when the direct state is `down`, while a present wrong neighbor must remain contradictory. That change must not make configured topology substitute for the direct state, permit a one-sided line conclusion, change decoder output, or alter a persisted contract. The retained sidecar can then be re-read without modifying it to prove whether the genuine final pair reduces to `down`.
 
+## Read-only reconciliation after ADR-010
+
+[ADR-010](../adr/0010-ncc-down-report-neighbor-absence.md) accepts only the exact missing-neighbor/down case exposed above. With that source-only rule applied, the unchanged external analysis helper re-read the original topology, relay record, receiver result, and historical-event sidecar from `ncc-alternate-fault-20260831T224448Z`, writing its new derived output outside the immutable result directory. All six analysis checks passed. The same pre-cut support sequences 80 and 101 reduce to `up`, and the same final support sequences 377 and 399 reduce to `down`.
+
+This is a new interpretation under a tested rule, not a relabelled run. The exact run's manifest and original `verdict.json` remain failed, and no byte in its result directory changed. Focused tests additionally prove that a supplied wrong neighbor remains contradictory and that an up report with an absent neighbor is contradictory.
+
 ## Limits
 
 The experiment establishes one project-authored fault composition and one observed failover path. It does not identify IMP 7 or either endpoint as a historical site, establish a universal simulator-device-to-report-line relationship, prove loopback behavior, infer that a missing report means down, or authorize durable reducer output. The first fault-run manifest remains `outcome=failed` because its exact accepted analysis rejected the reducer mismatch; it must not be relabelled after the fact.

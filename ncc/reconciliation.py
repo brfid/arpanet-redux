@@ -415,7 +415,13 @@ def _validate_endpoint_event(event: NccEvent, endpoint: Endpoint) -> None:
 def _matches_expected_peer(event: NccEvent, line: NominalLine, endpoint: Endpoint) -> bool:
     if event.state == "unknown":
         return True
-    return event.details.get("neighbor_imp") == line.peer(endpoint).imp
+    reported_peer = event.details.get("neighbor_imp")
+    if event.state == "down" and reported_peer is None:
+        # The recovered firmware clears its remembered neighbor when it kills a
+        # line. The explicitly mapped source endpoint still supplies identity;
+        # any neighbor that is present must continue to match the configured peer.
+        return True
+    return reported_peer == line.peer(endpoint).imp
 
 
 def _support_sequences(*observations: _EndpointObservation | _ImpObservation | None) -> tuple[int, ...]:

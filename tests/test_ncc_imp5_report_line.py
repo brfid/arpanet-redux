@@ -25,7 +25,7 @@ def line_event(
     *,
     imp: int,
     state: str,
-    neighbor_imp: int,
+    neighbor_imp: int | None,
     sequence: int,
     observed_at: str = "2026-08-31T12:00:40Z",
 ) -> NccEvent:
@@ -65,6 +65,27 @@ class Imp5ReportLineTests(unittest.TestCase):
 
         self.assertEqual(result.lines[0].state, LineState.UP)
         self.assertEqual(result.lines[0].supporting_sequences, (1, 2))
+
+    def test_reconciles_firmware_down_reports_without_remembered_neighbors(self) -> None:
+        result = self._reconcile(
+            [
+                line_event(imp=5, state="down", neighbor_imp=None, sequence=1),
+                line_event(imp=6, state="down", neighbor_imp=None, sequence=2),
+            ]
+        )
+
+        self.assertEqual(result.lines[0].state, LineState.DOWN)
+        self.assertEqual(result.lines[0].supporting_sequences, (1, 2))
+
+    def test_requires_the_configured_neighbor_when_an_up_report_omits_it(self) -> None:
+        result = self._reconcile(
+            [
+                line_event(imp=5, state="up", neighbor_imp=None, sequence=1),
+                line_event(imp=6, state="up", neighbor_imp=5, sequence=2),
+            ]
+        )
+
+        self.assertEqual(result.lines[0].state, LineState.CONTRADICTORY)
 
     def test_reconciles_contradiction_without_relabeling_it_as_down(self) -> None:
         result = self._reconcile(

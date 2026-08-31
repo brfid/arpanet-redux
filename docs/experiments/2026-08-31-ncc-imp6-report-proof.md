@@ -44,6 +44,12 @@ The direct line pair did not depend on configured peer identity: six IMP 5 Type 
 
 The run manifest records `outcome=passed`, `exit_status=0`, clean repository and external-source markers, six leased UDP ports, every child PID, exact hashes, and `cleanup.completed=1`. A post-run dual-stack bind check confirmed that all six IPv4 and IPv6 UDP ports were free, and the cooperative lock root was absent.
 
+## Shared mapping and reducer exercise
+
+Evidence-only checkpoint `4d32996` recorded the exact run before any topology change. Commit `78e8220` then added `first_report_line: 1` and `second_report_line: 1` to the existing shared IMP 5/IMP 6 modem binding and an adapter into the already accepted in-memory `NominalTopology`; it added no second topology schema or reducer.
+
+A read-only check loaded the canonical run's validated `historical-events.jsonl` through the committed shared mapping and reconciled all 119 direct events at the final observation time with a 30-second report interval. The configured line `binding:imp5-mi1-imp6-mi1` reduced to `up`, supported by event 103 (`imp:5:line:1`, neighbor IMP 6) and event 114 (`imp:6:line:1`, neighbor IMP 5). Project-topology fixtures separately exercise agreement, contradiction, one-sided missing evidence, and expired evidence; no derived reducer output is written back to the sidecar or adapted into the accepted completed-run or live-stream contracts.
+
 ## Conclusion and limits
 
 The experimental prerequisite in ADR-009 is satisfied. IMP 6 can originate ordinary scheduled patched Type 303 and Type 302 reports through the existing proof network without a firmware change or an active request. The smallest trigger is time: retain the original IMP 6 configuration and observe beyond the earlier 25-second window. The source leader, checksum-valid body, and reciprocal `imp:6:line:1` observation jointly distinguish an independently attributed IMP 6 report from transport arrival or configured-peer identity.

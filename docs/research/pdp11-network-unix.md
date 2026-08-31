@@ -1,6 +1,6 @@
 # SRI/NOSC Network UNIX V6 as the first heterogeneous host
 
-**Observed through 2026-08-30:** The IMP11-A device, bootable `green/unix` system, live daemon, two-IMP attachment, and guest-built TELNET client were demonstrated. The guest RFC/ICP reached IMP 62 but did not reach IMP 6 or ITS host 106, leaving the guest-visible application proof open. [The IMP11-A device record](imp11a-device.md) retains the detailed evidence; [workstreams](../workstreams.md) owns the active task.
+**Observed through 2026-08-30:** The IMP11-A device, bootable `green/unix` system, live daemon, two-IMP attachment, and guest-built TELNET client were demonstrated. The guest's connection-setup message reached IMP 62 well-formed and correctly addressed but did not reach IMP 6 or ITS host 106; timing, the device model, the guest driver, and IMP 62's leader conversion are all ruled out, narrowing the gap to the emulated IMP firmware's own acceptance of the leader shape, leaving the guest-visible application proof open. [The IMP11-A device record](imp11a-device.md) retains the detailed evidence; [workstreams](../workstreams.md) owns the active task.
 
 This research selected SRI/NOSC Network UNIX V6 as the strongest first heterogeneous endpoint. It contains a genuine PDP-11 guest NCP, prelinked daemon binaries, source for guest TELNET and FTP, kernel source for period host/IMP interfaces, and prelinked network kernels. The detailed device and RFC investigation belongs in [the IMP11-A record](imp11a-device.md), not this selection note.
 

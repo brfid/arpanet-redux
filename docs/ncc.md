@@ -4,7 +4,7 @@
 
 The NCC work adds a historically grounded observability layer to ARPANET Redux without weakening the project's evidence boundary or turning the first version into a remote-control console.
 
-The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report into topology-neutral events, validates a derived completed-run summary, adapts formal two-ITS result artifacts, renders deterministic local replay and a static viewer, and publishes the formal controller's existing lifecycle observations as a bounded JSON Lines stream. A passive snapshot reader marks expired observations stale without moving or discarding nominal topology. Synthetic unit tests establish each boundary. No live IMP attachment, topology reducer, historical event recorder, or browser-based live display exists yet.
+The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report into topology-neutral events, reconciles synthetic paired historical line endpoints against a typed nominal topology, validates a derived completed-run summary, adapts formal two-ITS result artifacts, renders deterministic local replay and a static viewer, and publishes the formal controller's existing lifecycle observations as a bounded JSON Lines stream. A passive snapshot reader marks expired observations stale without moving or discarding nominal topology. Synthetic unit tests establish each boundary. No live IMP attachment, historical event recorder, shared network topology, or browser-based live display exists yet.
 
 The detailed historical evidence, format derivation, and visual references are in the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md). This page owns current product scope and next steps; the dated note should not be edited merely to reflect implementation progress.
 
@@ -59,7 +59,7 @@ The accepted version-1 contract and its alternatives are in [ADR-005](adr/0005-n
 
 `ncc.live` writes one controller-owned header followed by flushed JSON Lines observations. The header carries the same version-1 nominal topology, run identity, provenance, and a staleness interval; each later line uses the version-1 direct-observation envelope and is validated against that topology. It has no derived states or gate verdicts, because those require the completed formal result and remain the adapter's responsibility. A reader ignores an incomplete final line, retains the nominal topology and last direct state, and marks only expired direct states as stale. It never attaches to or controls the simulator.
 
-The existing `NccEvent` is one input form, not yet the complete run-summary schema. A topology reducer should pair endpoint observations and derive historical plus/minus line state; it should not be embedded in the decoder or the browser.
+The existing `NccEvent` is one input form, not yet the complete run-summary schema. `ncc.reconciliation` now pairs direct Type 301 endpoint observations against a typed nominal topology and makes plus/minus direction, staleness, neighbor/configuration contradiction, and a narrow partition inference explicit. It is a pure source-only boundary, not a new completed-run schema or controller configuration. [ADR-006](adr/0006-ncc-line-reconciliation.md) owns the exact rules; the reducer must not be embedded in the decoder or browser.
 
 ## Implementation sequence
 
@@ -67,7 +67,7 @@ The existing `NccEvent` is one input form, not yet the complete run-summary sche
 2. Add a read-only adapter from the current controller's manifest and existing evidence parsers into that schema. **Implemented for formal two-ITS results** without changing acceptance semantics.
 3. Add deterministic replay and a local viewer for completed summaries. **Implemented** with Python's standard library plus project-authored HTML, CSS, JavaScript, and SVG; the viewer reads one summary and has no process-control authority.
 4. Add live publication of the same normalized events from the controller without granting the viewer process-control authority. **Implemented as a bounded JSON Lines publisher and passive snapshot reader.**
-5. Add nominal-topology reconciliation, paired line state, report timeouts, recording, and replay for genuine IMP reports.
+5. Add nominal-topology reconciliation, paired line state, report timeouts, recording, and replay for genuine IMP reports. **The source-only paired-line and report-timeout reducer is implemented; recording and replay of actual reports remain.**
 6. Attach the receiver at BBN IMP 5 after the current topology work is integrated and the required host-interface behavior is proven in isolation.
 
 ## Documentation ownership
@@ -76,7 +76,7 @@ Use each repository document for one kind of memory:
 
 - This page is the living entry point: current scope, implemented state, boundaries, live-stream seam, and next step.
 - [`docs/research/`](research/) records dated historical or experimental evidence and unresolved questions.
-- [`docs/adr/`](adr/) records decisions after alternatives are explicit. [ADR-005](adr/0005-ncc-run-summary-contract.md) accepts the run-summary contract and read-only first-release boundary.
+- [`docs/adr/`](adr/) records decisions after alternatives are explicit. [ADR-005](adr/0005-ncc-run-summary-contract.md) accepts the run-summary contract and read-only first-release boundary; [ADR-006](adr/0006-ncc-line-reconciliation.md) owns paired historical-line inference.
 - [`docs/architecture.md`](architecture.md) should gain the NCC component only when its boundary is stable enough to describe as project architecture.
 - [`docs/test-plan.md`](test-plan.md) should gain NCC gates when there is a runnable artifact and an exact pass/fail contract.
 - [`docs/runbook.md`](runbook.md) should gain commands only when those commands exist and have been exercised.
@@ -85,4 +85,4 @@ Do not commit generated prompts, raw archive images, or a second free-standing r
 
 ## Next decision
 
-The next engineering task is to define nominal-topology reconciliation, paired-line state, and report-timeout rules for genuine IMP reports before attaching a passive host-interface receiver. It must preserve the distinction between direct historical reports, modern harness observations, and derived conclusions; it must not add viewer process control or reuse the two-ITS controller as a second topology configuration.
+The next engineering task is to prove the passive host-interface ingress requirements in isolation, then attach a receiver only through the shared-topology work that establishes IMP 5's identity and interfaces. It must emit direct Type 301 observations into the accepted boundaries, preserve the distinction between historical reports, modern harness observations, and derived conclusions, and add no viewer process control or two-ITS controller configuration.

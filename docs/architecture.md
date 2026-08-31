@@ -31,7 +31,7 @@ Loopback UDP models the point-to-point electrical links between simulator device
 | Simulated network | KA10 IMP devices and H316 firmware | Converts 1822 leaders, routes packets, and reports network failures |
 | Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children |
 | Evidence plane | Test assertions and run manifests | Correlates application output with post-start IMP traffic and pinned inputs |
-| NCC observation plane | Versioned completed summary, bounded controller stream, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; live consumers retain stale state without simulator authority |
+| NCC observation plane | Versioned completed summary, bounded controller stream, topology-aware historical reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; live consumers retain stale state without simulator authority |
 | Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
 
 The repository never uses a guest-media directory as a transfer channel between endpoints. Guest workspaces are distinct, and a payload test is invalid if the controller can satisfy it by copying a host file.

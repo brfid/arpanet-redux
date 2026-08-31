@@ -29,6 +29,8 @@ Synthetic fixtures must cover a passing run, missing evidence, a partition-like 
 
 The bounded live stream must have one validated header containing the version-1 nominal topology, run identity, provenance, and a positive staleness interval. Every complete later line must validate as the same direct-observation envelope used by a summary; it may not introduce a separate controller-specific subject namespace. A passive reader must ignore a partially written final line, retain nominal topology and the last direct state, and label only expired direct observations as stale. Live publication has no derived-state or acceptance-gate authority and must add no raw-log parsing beyond the formal controller's existing readiness and acceptance observations.
 
+The source-only historical-line reducer accepts only strictly ordered direct Type 301 observations and a project-authored typed nominal topology that pairs two distinct `(IMP, interface)` endpoints per line. It must identify lower-numbered IMPs as the minus end, require matching source and configured-neighbor identity, and retain supporting event sequences for every conclusion. Two fresh matching endpoints may establish up, complete down/looped, or a directional plus/minus condition. Missing evidence is unknown and expired evidence is stale; neither is down. A configuration/report mismatch is contradictory. A partitioned IMP requires a missing or stale report and fresh down observations from every incident line through at least two independent peers, and remains a reachability inference rather than a hardware diagnosis.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

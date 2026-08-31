@@ -67,6 +67,14 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID smoke-ncc
 
 The target verifies the pinned H316 sources, simulator, firmware, and project inputs; leases ten UDP ports; starts the NCC receiver, three IMPs, and the owned direct-line relay; and performs bounded cleanup. `NCC_DIRECT_FORWARD_SECONDS` and `NCC_ALTERNATE_DURATION` are diagnostic overrides, but the forwarding interval must be positive and shorter than the receiver duration. Interpret the result against the NCC alternate-path line-fault gate in the [test plan](test-plan.md).
 
+The NCC line-loopback smoke reuses that alternate report route, then changes the direct instrument from cross-forwarding to byte-exact self-reflection. It runs for about 130 seconds so both recovered IMPs can report the initial up state and repeat their self-neighbor loop indications:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID smoke-ncc-line-loopback
+```
+
+The target verifies the same pinned inputs, leases ten ports, starts the passive receiver, three IMPs, and the owned reflector, and performs bounded cleanup. `NCC_DIRECT_FORWARD_SECONDS` and `NCC_LOOPBACK_DURATION` are diagnostic overrides with the same ordering constraint. Interpret the result against the NCC alternate-path line-loopback gate in the [test plan](test-plan.md); the reflector phase alone is never accepted as line-state evidence.
+
 The mixed smoke proves that native ITS NCP interoperates with the two-IMP path:
 
 ```sh
@@ -101,6 +109,8 @@ Set `RUN_ID` to a unique value when a stable result-directory name is useful. Ot
 Each smoke creates one directory beneath `$LAB_ROOT/results`. Its run manifest records source revisions, tracked-dirty flags, executable and configuration hashes, allocated ports, platform, timestamps, outcome, and exit status. Console, protocol, and IMP traces remain beside that manifest in the external result directory.
 
 An NCC alternate-path result is named `ncc-alternate-path-fault-<run-id>`. `verdict.json` records every acceptance check, report counts by source IMP, post-cut report counts for IMPs 5 and 6, relay forward/drop counts, and the direct line's pre-cut and final supporting event sequences. `direct-relay.json`, `receiver.json`, and `historical-events.jsonl` are its structured direct inputs. A pass additionally requires `outcome=passed`, `exit_status=0`, both owned controllers to exit successfully, `cleanup.completed=1`, and no transport error in any IMP log. Do not edit a result or rerun the evaluator into its directory; write any read-only reevaluation to a separate temporary path.
+
+An NCC loopback result is named `ncc-line-loopback-<run-id>`. Its `verdict.json` additionally retains each raw final direct endpoint, its self-neighbor, post-loop report counts, reflector forward/reflection counts, and pre-loop/final reducer support. `direct-reflector.json`, `receiver.json`, and `historical-events.jsonl` are its structured direct inputs. The same manifest, controller-exit, cleanup, transport, and immutability requirements apply.
 
 The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
 

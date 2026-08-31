@@ -18,6 +18,7 @@ The repository contains orchestration, project-authored SIMH configurations, sou
 | KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: restored `UT` reached automatic `TELSER`, remote DDT, and `:TIME`, with two-way modem-link correlation. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md). |
 | Application payload through both vintage guests | Passing anti-bypass proof: host `106` injected a unique `:OSEND` sentinel and host `176` recovered it only through NCP TELNET. The evidence trail records the exact run and matching digest. |
 | PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Passing formal Gate 4H with receipt-bound guest media: the preserved TELNET client reached ITS `TELSER`, received the greeting, and executed remote `:TIME`, with post-probe traffic correlated through both IMPs and complete cleanup. See [the IMP11-A evidence record](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31). |
+| NCC receiver ↔ IMP 5 ↔ IMP 6 with alternate path through IMP 7 | Passing direct-line fault gate: both endpoints were observed `up`, the owned relay then dropped their direct cable in both directions, and both remained observable—with IMP 6 delivered through IMP 7—until fresh reciprocal reports established `down`. See [the alternate-path experiment](docs/experiments/2026-08-31-ncc-alternate-path-fault.md). |
 
 `linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
 

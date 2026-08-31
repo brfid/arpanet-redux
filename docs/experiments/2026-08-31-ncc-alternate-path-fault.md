@@ -58,6 +58,22 @@ The next checkpoint is therefore a narrow source-only reconciliation decision an
 
 This is a new interpretation under a tested rule, not a relabelled run. The exact run's manifest and original `verdict.json` remain failed, and no byte in its result directory changed. Focused tests additionally prove that a supplied wrong neighbor remains contradictory and that an up report with an absent neighbor is contradictory.
 
+## Promoted canonical gate
+
+The proved composition was promoted without importing any external artifact: a shared three-IMP topology, three SIMH command files, an owned two-ended relay, a structured evaluator, a bounded smoke runner, focused tests, and the matching test-plan/runbook contract. Commit `25277818617077c8b70ab2d936b6a5ffad30d7cf` is the clean repository identity recorded by the canonical run. It retained clean ARPANET-in-a-Box source `78123c77b20dadd9b5967b184dbcb4195185eea6`, clean H316 SIMH source `feb155fbc49333e879ab082d481e6dcce27d2d91`, H316 executable SHA-256 `bdbcdffc63ada17c9ec6c7151aba42fd96388ff33d41ec6d42c5b27f47cfb994`, firmware SHA-256 `bc4870059b9131636a49dec53399b8f654ba5c146bd09c32d48ab65d5309c771`, and base-configuration SHA-256 `b3c4fe408c3ec2515f629eea327f4e2f33f692997d4c45e423853da6d1800d78`.
+
+Exact run `ncc-alternate-path-fault-canonical-20260831T230203Z` used the committed entry point:
+
+```sh
+make LAB_ROOT=/Users/brf/src/arpanet-redux-lab RUN_ID=canonical-20260831T230203Z smoke-ncc-alternate-path
+```
+
+The relay began dropping the direct cable at `2026-08-31T23:03:06.638590Z`. Before that boundary it forwarded 540 datagrams from IMP 5 and 538 from IMP 6. It then remained bound while dropping 1,254 and 1,310 datagrams respectively, with no unexpected source. The evaluator reconciled the last pre-cut direct observations as `up` from sequences 80 and 91. IMP 6 first reported line 1 down at sequence 146 and `2026-08-31T23:03:18.335295Z`; IMP 5 followed at sequence 156 and `2026-08-31T23:03:18.340787Z`. The final direct pair was `down`, supported by sequences 377 and 387.
+
+The receiver recorded 75 complete messages and 404 direct events. Its checksum-valid stream contained 13 IMP 5, 12 IMP 6, and 12 IMP 7 trouble reports plus 12 IMP 5, 11 IMP 6, and 11 IMP 7 throughput reports. Nine trouble reports from each of IMPs 5 and 6 arrived after the cut. All seven structured evaluator checks passed. The manifest records `repository.tracked_dirty=0`, both source trees clean, both owned controller exit statuses zero, `cleanup.completed=1`, `outcome=passed`, and `exit_status=0`. A separate post-run audit found none of the five recorded PIDs, ten sockets, or cooperative port locks alive.
+
+This passing canonical run supersedes neither the control nor the intentionally failed exploratory verdict. Together they retain the experimental progression: the control established the uncut baseline, the first fault exposed the reducer mismatch, ADR-010 narrowed the rule, and the promoted clean run exercised the accepted rule and complete lifecycle through the supported target.
+
 ## Limits
 
 The experiment establishes one project-authored fault composition and one observed failover path. It does not identify IMP 7 or either endpoint as a historical site, establish a universal simulator-device-to-report-line relationship, prove loopback behavior, infer that a missing report means down, or authorize durable reducer output. The first fault-run manifest remains `outcome=failed` because its exact accepted analysis rejected the reducer mismatch; it must not be relabelled after the fact.

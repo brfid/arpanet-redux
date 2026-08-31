@@ -1,0 +1,18 @@
+# Project-authored peer for the NCC host-interface proof's live modem path.
+#
+# This IMP has no attached host. Its only job is to make the configured IMP 5
+# MI1 path live without claiming that this local two-IMP composition recreates
+# a historical route.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=6
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP6_MI1_PORT%:127.0.0.1:%BRFID_IMP5_MI1_PORT%
+
+set hi1 disabled
+
+set throttle 10000K
+go

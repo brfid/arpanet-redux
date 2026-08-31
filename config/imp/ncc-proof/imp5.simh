@@ -1,0 +1,19 @@
+# Project-authored NCC host-interface proof ingress point at IMP 5.
+#
+# The accompanying shared topology binds host 0 to HI1 and MI1 to IMP 6. The
+# local peer supplies the firmware with a live IMP path, but this is not a
+# historical site-route reconstruction.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=5
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP5_MI1_PORT%:127.0.0.1:%BRFID_IMP6_MI1_PORT%
+set hi1 enabled
+set hi1 debug
+attach -u hi1 %BRFID_IMP5_HI_PORT%:127.0.0.1:%BRFID_NCC_HI_PORT%
+
+set throttle 10000K
+go

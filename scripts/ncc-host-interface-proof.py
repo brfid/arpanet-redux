@@ -39,6 +39,7 @@ from ncc.historical_events import (
 from ncc.imp_to_host import (
     ImpToHostMessageError,
     decode_imp_to_host_message,
+    throughput_report_events_from_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
 from ncc.shared_topology import (
@@ -47,6 +48,7 @@ from ncc.shared_topology import (
     load_shared_topology,
 )
 from ncc.trouble_report import TROUBLE_REPORT_TYPES
+from ncc.throughput_report import THROUGHPUT_REPORT_TYPE
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ready-interval", type=float, default=1.0)
     parser.add_argument("--require-message", action="store_true")
     parser.add_argument("--require-trouble-report", action="store_true")
+    parser.add_argument("--require-throughput-report", action="store_true")
     parser.add_argument("--event-record", type=Path)
     parser.add_argument("--run-id")
     parser.add_argument("--output", type=Path)
@@ -187,6 +190,7 @@ def main() -> int:
                 )
 
     trouble_reports = []
+    throughput_reports = []
     report_events = []
     next_event_sequence = 1
     for message, observed_at in messages:
@@ -194,20 +198,45 @@ def main() -> int:
             parsed = decode_imp_to_host_message(message)
         except ImpToHostMessageError:
             continue
-        if not parsed.body_words or parsed.body_words[0] not in TROUBLE_REPORT_TYPES:
+        if not parsed.body_words:
+            continue
+        if parsed.body_words[0] in TROUBLE_REPORT_TYPES:
+            try:
+                events = trouble_report_events_from_imp_to_host_message(
+                    message,
+                    observed_at=observed_at,
+                    sequence_start=next_event_sequence,
+                )
+            except ImpToHostMessageError as error:
+                print(f"host-interface proof rejected a trouble report: {error}", file=sys.stderr)
+                return 1
+            next_event_sequence += len(events)
+            report_events.extend(events)
+            trouble_reports.append(
+                {
+                    "first_sequence": message.first_sequence,
+                    "final_sequence": message.final_sequence,
+                    "observed_at": observed_at,
+                    "source_imp": parsed.leader.source_imp,
+                    "message_type": parsed.body_words[0],
+                    "events": [event.to_dict() for event in events],
+                }
+            )
+            continue
+        if parsed.body_words[0] != THROUGHPUT_REPORT_TYPE:
             continue
         try:
-            events = trouble_report_events_from_imp_to_host_message(
+            events = throughput_report_events_from_imp_to_host_message(
                 message,
                 observed_at=observed_at,
                 sequence_start=next_event_sequence,
             )
         except ImpToHostMessageError as error:
-            print(f"host-interface proof rejected a trouble report: {error}", file=sys.stderr)
+            print(f"host-interface proof rejected a Type 302 report: {error}", file=sys.stderr)
             return 1
         next_event_sequence += len(events)
         report_events.extend(events)
-        trouble_reports.append(
+        throughput_reports.append(
             {
                 "first_sequence": message.first_sequence,
                 "final_sequence": message.final_sequence,
@@ -249,7 +278,7 @@ def main() -> int:
         }
 
     result = {
-        "version": 2,
+        "version": 3,
         "kind": "passive-h316-host-interface-proof",
         "started_at": started_at.isoformat().replace("+00:00", "Z"),
         "duration_seconds": args.duration,
@@ -258,6 +287,7 @@ def main() -> int:
         "received_packets": packets,
         "complete_messages": [message_record(message) for message, _ in messages],
         "trouble_reports": trouble_reports,
+        "throughput_reports": throughput_reports,
     }
     result.update(binding_metadata)
     result.update(event_record_metadata)
@@ -280,6 +310,9 @@ def main() -> int:
         return 1
     if args.require_trouble_report and not trouble_reports:
         print("host-interface proof did not decode a 1973 trouble report", file=sys.stderr)
+        return 1
+    if args.require_throughput_report and not throughput_reports:
+        print("host-interface proof did not decode a Type 302 throughput report", file=sys.stderr)
         return 1
     return 0
 

@@ -7,7 +7,9 @@ from ncc.imp_to_host import (
     ImpToHostMessageError,
     decode_imp_to_host_message,
     decode_old_style_imp_to_host_leader,
+    decode_throughput_report_imp_to_host_message,
     decode_trouble_report_imp_to_host_message,
+    throughput_report_events_from_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
 
@@ -44,6 +46,15 @@ def trouble_report_message(
         final_sequence=19,
         words=old_style_imp_leader(**leader_kwargs)
         + trouble_report_body(message_type=report_message_type),
+    )
+
+
+def throughput_report_message(**leader_kwargs: int | bool) -> IngressMessage:
+    body = (0o302,) + (0,) * 51 + (0,)
+    return IngressMessage(
+        first_sequence=20,
+        final_sequence=24,
+        words=old_style_imp_leader(**leader_kwargs) + body,
     )
 
 
@@ -124,6 +135,24 @@ class TroubleReportImpToHostMessageTests(unittest.TestCase):
 
         self.assertEqual(decoded.report.message_type, 0o303)
         self.assertEqual(events[0].details["message_type"], 0o303)
+
+    def test_decodes_type302_throughput_after_the_two_word_leader(self) -> None:
+        message = throughput_report_message()
+
+        decoded = decode_throughput_report_imp_to_host_message(message)
+        events = throughput_report_events_from_imp_to_host_message(
+            message,
+            observed_at="1975-01-01T00:00:00Z",
+            sequence_start=60,
+        )
+
+        self.assertEqual(decoded.message.leader.source_imp, 5)
+        self.assertEqual(decoded.report.message_type, 0o302)
+        self.assertEqual(len(decoded.report.lines), 5)
+        self.assertEqual(len(decoded.report.hosts), 4)
+        self.assertEqual(events[0].sequence, 60)
+        self.assertEqual(events[0].event_type, "imp.throughput-report")
+        self.assertEqual(events[0].source.imp, 5)
 
 
 if __name__ == "__main__":

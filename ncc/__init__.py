@@ -1,6 +1,6 @@
 """Network Control Center telemetry primitives."""
 
-from .events import EventSource, NccEvent, trouble_report_events
+from .events import EventSource, NccEvent, throughput_report_events, trouble_report_events
 from .run_summary import (
     RUN_SUMMARY_SCHEMA_VERSION,
     RunSummary,
@@ -32,10 +32,13 @@ from .imp_to_host import (
     ImpToHostMessage,
     ImpToHostMessageError,
     ImpToHostTroubleReport,
+    ImpToHostThroughputReport,
     OldStyleImpToHostLeader,
     decode_imp_to_host_message,
     decode_old_style_imp_to_host_leader,
+    decode_throughput_report_imp_to_host_message,
     decode_trouble_report_imp_to_host_message,
+    throughput_report_events_from_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
 from .reconciliation import (
@@ -53,6 +56,12 @@ from .reconciliation import (
 from .replay import ReplayFrame, replay_frames
 from .two_its_summary import TwoItsSummaryError, summarize_two_its_result
 from .trouble_report import LineReport, LineState, TroubleReport, decode_trouble_report
+from .throughput_report import (
+    HostThroughput,
+    LineThroughput,
+    ThroughputReport,
+    decode_throughput_report,
+)
 from .viewer import render_summary_html
 
 __all__ = [
@@ -63,12 +72,15 @@ __all__ = [
     "HistoricalEventStream",
     "HistoricalEventStreamError",
     "HistoricalReplayFrame",
+    "HostThroughput",
     "ImpState",
     "ImpToHostMessage",
     "ImpToHostMessageError",
     "ImpToHostTroubleReport",
+    "ImpToHostThroughputReport",
     "LineReport",
     "LineState",
+    "LineThroughput",
     "LIVE_OBSERVATION_STREAM_SCHEMA_VERSION",
     "LiveObservationPublisher",
     "LiveObservationSnapshot",
@@ -89,10 +101,13 @@ __all__ = [
     "RunSummary",
     "RunSummaryValidationError",
     "TroubleReport",
+    "ThroughputReport",
     "TwoItsSummaryError",
     "decode_trouble_report",
     "decode_imp_to_host_message",
     "decode_old_style_imp_to_host_leader",
+    "decode_throughput_report",
+    "decode_throughput_report_imp_to_host_message",
     "decode_trouble_report_imp_to_host_message",
     "load_run_summary",
     "run_summary_from_mapping",
@@ -105,6 +120,8 @@ __all__ = [
     "summarize_two_its_result",
     "trouble_report_events",
     "trouble_report_events_from_imp_to_host_message",
+    "throughput_report_events",
+    "throughput_report_events_from_imp_to_host_message",
     "validate_normalized_observations",
     "validate_normalized_topology",
 ]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -56,6 +57,18 @@ def event(
     )
 
 
+def throughput_event(sequence: int) -> NccEvent:
+    return NccEvent(
+        sequence=sequence,
+        observed_at="2026-08-31T12:00:01Z",
+        event_type="imp.throughput-report",
+        subject="imp:5",
+        state="received",
+        source=EventSource(kind="imp-throughput-report", imp=5),
+        details={"message_type": 0o302},
+    )
+
+
 class HistoricalEventStreamTests(unittest.TestCase):
     def _recorder(self, path: Path) -> HistoricalEventRecorder:
         return HistoricalEventRecorder(
@@ -77,6 +90,7 @@ class HistoricalEventStreamTests(unittest.TestCase):
                     event(1, "imp.report", "imp:5", "received"),
                     event(2, "host-interface.state", "imp:5:host:0", "up"),
                     event(3, "line-endpoint.state", "imp:5:line:1", "unknown"),
+                    throughput_event(4),
                 )
             )
             recorder.close()
@@ -85,10 +99,45 @@ class HistoricalEventStreamTests(unittest.TestCase):
             frames = replay_historical_event_stream(stream)
 
             self.assertEqual(stream.run_id, "run:passive-report-fixture")
-            self.assertEqual([item.sequence for item in stream.events], [1, 2, 3])
+            self.assertEqual([item.sequence for item in stream.events], [1, 2, 3, 4])
             self.assertEqual(frames[-1].known_states["imp:5:host:0"], "up")
             self.assertEqual(frames[-1].known_states["imp:5:line:1"], "unknown")
             self.assertEqual(frames[0].details["message_type"], 0o303)
+            self.assertEqual(frames[-1].event_type, "imp.throughput-report")
+            self.assertEqual(frames[-1].source.kind, "imp-throughput-report")
+
+    def test_reads_existing_version_one_trouble_report_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "historical-events.jsonl"
+            recorder = self._recorder(path)
+            recorder.append((event(1, "imp.report", "imp:5", "received"),))
+            recorder.close()
+            lines = path.read_text(encoding="utf-8").splitlines()
+            header = json.loads(lines[0])
+            header["schema_version"] = 1
+            path.write_text(
+                "\n".join((json.dumps(header), *lines[1:])) + "\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(len(read_historical_event_stream(path).events), 1)
+
+    def test_rejects_a_throughput_event_claimed_as_version_one(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "historical-events.jsonl"
+            recorder = self._recorder(path)
+            recorder.append((throughput_event(1),))
+            recorder.close()
+            lines = path.read_text(encoding="utf-8").splitlines()
+            header = json.loads(lines[0])
+            header["schema_version"] = 1
+            path.write_text(
+                "\n".join((json.dumps(header), *lines[1:])) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(HistoricalEventStreamError, "schema version 2"):
+                read_historical_event_stream(path)
 
     def test_rejects_event_order_and_preserves_the_prior_valid_record(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:

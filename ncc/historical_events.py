@@ -22,7 +22,8 @@ from .events import EventSource, NccEvent
 from .run_summary import RunSummaryValidationError, validate_normalized_topology
 
 
-HISTORICAL_EVENT_STREAM_SCHEMA_VERSION = 1
+HISTORICAL_EVENT_STREAM_SCHEMA_VERSION = 2
+_SUPPORTED_SCHEMA_VERSIONS = frozenset((1, HISTORICAL_EVENT_STREAM_SCHEMA_VERSION))
 _STREAM_KIND = "ncc-historical-event-stream"
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 _HOST_SUBJECT = re.compile(r"imp:([1-9][0-9]*):host:([0-3])\Z")
@@ -102,7 +103,11 @@ class HistoricalEventRecorder:
             },
             "topology": _copy_json_value(topology),
         }
-        self._started_at, self._component_ids = _validate_header(self._header)
+        (
+            self._schema_version,
+            self._started_at,
+            self._component_ids,
+        ) = _validate_header(self._header)
         self._records: list[dict[str, Any]] = []
         self._closed = False
         try:
@@ -126,7 +131,12 @@ class HistoricalEventRecorder:
         if not records:
             return
         candidate = [*self._records, *records]
-        _validate_event_records(candidate, self._started_at, self._component_ids)
+        _validate_event_records(
+            candidate,
+            self._schema_version,
+            self._started_at,
+            self._component_ids,
+        )
         self._records.extend(records)
         for record in records:
             self._write(record)
@@ -167,9 +177,9 @@ def read_historical_event_stream(path: str | Path) -> HistoricalEventStream:
                 f"historical event stream line {number} is not JSON: {error}"
             ) from error
     header = records[0]
-    started_at, component_ids = _validate_header(header)
+    schema_version, started_at, component_ids = _validate_header(header)
     event_records = records[1:]
-    _validate_event_records(event_records, started_at, component_ids)
+    _validate_event_records(event_records, schema_version, started_at, component_ids)
     return HistoricalEventStream(
         _header=MappingProxyType(_copy_json_value(header)),
         _records=tuple(MappingProxyType(_copy_json_value(record)) for record in event_records),
@@ -200,20 +210,22 @@ def replay_historical_event_stream(
     return tuple(frames)
 
 
-def _validate_header(header: object) -> tuple[datetime, set[str]]:
+def _validate_header(header: object) -> tuple[int, datetime, set[str]]:
     value = _mapping(header, "historical event stream header")
     _fields(
         value,
         "historical event stream header",
         required={"schema_version", "kind", "run", "topology"},
     )
+    schema_version = value["schema_version"]
     if (
-        isinstance(value["schema_version"], bool)
-        or value["schema_version"] != HISTORICAL_EVENT_STREAM_SCHEMA_VERSION
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version not in _SUPPORTED_SCHEMA_VERSIONS
     ):
         raise HistoricalEventStreamError(
             "historical event stream has unsupported schema version "
-            f"{value['schema_version']!r}"
+            f"{schema_version!r}"
         )
     if value["kind"] != _STREAM_KIND:
         raise HistoricalEventStreamError("historical event stream has unexpected kind")
@@ -234,7 +246,7 @@ def _validate_header(header: object) -> tuple[datetime, set[str]]:
         raise HistoricalEventStreamError(
             f"historical event stream has invalid topology: {error}"
         ) from error
-    return started_at, component_ids
+    return schema_version, started_at, component_ids
 
 
 def _validate_provenance(value: object) -> None:
@@ -255,6 +267,7 @@ def _validate_provenance(value: object) -> None:
 
 def _validate_event_records(
     records: Sequence[object],
+    schema_version: int,
     started_at: datetime,
     component_ids: set[str],
 ) -> None:
@@ -277,7 +290,7 @@ def _validate_event_records(
                 f"historical event {index}.observed_at is earlier than the preceding event"
             )
         previous_at = observed_at
-        _validate_event_shape(event, index, component_ids)
+        _validate_event_shape(event, index, component_ids, schema_version)
 
 
 def _event_from_record(record: object) -> NccEvent:
@@ -319,24 +332,33 @@ def _event_from_record(record: object) -> NccEvent:
     )
 
 
-def _validate_event_shape(event: NccEvent, index: int, component_ids: set[str]) -> None:
+def _validate_event_shape(
+    event: NccEvent,
+    index: int,
+    component_ids: set[str],
+    schema_version: int,
+) -> None:
     location = f"historical event {index}"
-    if event.source.kind != "imp-trouble-report":
-        raise HistoricalEventStreamError(
-            f"{location}.source.kind must be 'imp-trouble-report'"
-        )
     imp_id = f"imp:{event.source.imp}"
     if imp_id not in component_ids:
         raise HistoricalEventStreamError(
             f"{location}.source.imp refers to unknown topology IMP {event.source.imp}"
         )
     if event.event_type == "imp.report":
+        if event.source.kind != "imp-trouble-report":
+            raise HistoricalEventStreamError(
+                f"{location}.source.kind must be 'imp-trouble-report'"
+            )
         if event.subject != imp_id or event.state != "received":
             raise HistoricalEventStreamError(
                 f"{location} has an invalid IMP report subject or state"
             )
         return
     if event.event_type == "host-interface.state":
+        if event.source.kind != "imp-trouble-report":
+            raise HistoricalEventStreamError(
+                f"{location}.source.kind must be 'imp-trouble-report'"
+            )
         subject = _HOST_SUBJECT.fullmatch(event.subject)
         if subject is None or int(subject.group(1)) != event.source.imp:
             raise HistoricalEventStreamError(
@@ -348,6 +370,10 @@ def _validate_event_shape(event: NccEvent, index: int, component_ids: set[str]) 
             )
         return
     if event.event_type == "line-endpoint.state":
+        if event.source.kind != "imp-trouble-report":
+            raise HistoricalEventStreamError(
+                f"{location}.source.kind must be 'imp-trouble-report'"
+            )
         subject = _LINE_SUBJECT.fullmatch(event.subject)
         if subject is None or int(subject.group(1)) != event.source.imp:
             raise HistoricalEventStreamError(
@@ -356,6 +382,20 @@ def _validate_event_shape(event: NccEvent, index: int, component_ids: set[str]) 
         if event.state not in {"up", "down", "looped", "unknown"}:
             raise HistoricalEventStreamError(
                 f"{location} has an invalid line-endpoint state {event.state!r}"
+            )
+        return
+    if event.event_type == "imp.throughput-report":
+        if schema_version < 2:
+            raise HistoricalEventStreamError(
+                f"{location} requires historical event stream schema version 2"
+            )
+        if event.source.kind != "imp-throughput-report":
+            raise HistoricalEventStreamError(
+                f"{location}.source.kind must be 'imp-throughput-report'"
+            )
+        if event.subject != imp_id or event.state != "received":
+            raise HistoricalEventStreamError(
+                f"{location} has an invalid IMP throughput-report subject or state"
             )
         return
     raise HistoricalEventStreamError(

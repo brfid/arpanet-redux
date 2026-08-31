@@ -12,8 +12,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .events import NccEvent, trouble_report_events
+from .events import NccEvent, throughput_report_events, trouble_report_events
 from .host_interface import IngressMessage
+from .throughput_report import ThroughputReport, decode_throughput_report
 from .trouble_report import TroubleReport, decode_trouble_report
 
 
@@ -77,6 +78,14 @@ class ImpToHostTroubleReport:
     report: TroubleReport
 
 
+@dataclass(frozen=True)
+class ImpToHostThroughputReport:
+    """A Type 302 report with its separately validated IMP-to-host leader."""
+
+    message: ImpToHostMessage
+    report: ThroughputReport
+
+
 def decode_old_style_imp_to_host_leader(words: Iterable[int]) -> OldStyleImpToHostLeader:
     """Decode exactly the two words of the 1973-compatible IMP-to-host leader."""
 
@@ -122,20 +131,26 @@ def decode_trouble_report_imp_to_host_message(
     """
 
     decoded = decode_imp_to_host_message(message)
-    leader = decoded.leader
-    if not leader.from_imp:
-        raise ImpToHostMessageError("trouble report requires an IMP-originated leader")
-    if leader.message_type != 0:
-        raise ImpToHostMessageError(
-            "trouble report requires a regular IMP-to-host leader message type"
-        )
-    if leader.source_imp == 0:
-        raise ImpToHostMessageError("trouble-report leader omits a source IMP")
+    _require_reporting_imp(decoded, "trouble report")
     try:
         report = decode_trouble_report(decoded.body_words)
     except (TypeError, ValueError) as error:
         raise ImpToHostMessageError(f"invalid 1973 trouble-report body: {error}") from error
     return ImpToHostTroubleReport(message=decoded, report=report)
+
+
+def decode_throughput_report_imp_to_host_message(
+    message: IngressMessage,
+) -> ImpToHostThroughputReport:
+    """Decode one genuine Type 302 report and retain its source leader."""
+
+    decoded = decode_imp_to_host_message(message)
+    _require_reporting_imp(decoded, "throughput report")
+    try:
+        report = decode_throughput_report(decoded.body_words)
+    except (TypeError, ValueError) as error:
+        raise ImpToHostMessageError(f"invalid Type 302 body: {error}") from error
+    return ImpToHostThroughputReport(message=decoded, report=report)
 
 
 def trouble_report_events_from_imp_to_host_message(
@@ -153,6 +168,35 @@ def trouble_report_events_from_imp_to_host_message(
         observed_at=observed_at,
         sequence_start=sequence_start,
     )
+
+
+def throughput_report_events_from_imp_to_host_message(
+    message: IngressMessage,
+    *,
+    observed_at: str,
+    sequence_start: int = 1,
+) -> tuple[NccEvent, ...]:
+    """Emit a direct Type 302 observation using the leader's source IMP."""
+
+    decoded = decode_throughput_report_imp_to_host_message(message)
+    return throughput_report_events(
+        decoded.report,
+        source_imp=decoded.message.leader.source_imp,
+        observed_at=observed_at,
+        sequence_start=sequence_start,
+    )
+
+
+def _require_reporting_imp(decoded: ImpToHostMessage, label: str) -> None:
+    leader = decoded.leader
+    if not leader.from_imp:
+        raise ImpToHostMessageError(f"{label} requires an IMP-originated leader")
+    if leader.message_type != 0:
+        raise ImpToHostMessageError(
+            f"{label} requires a regular IMP-to-host leader message type"
+        )
+    if leader.source_imp == 0:
+        raise ImpToHostMessageError(f"{label} leader omits a source IMP")
 
 
 def _leader_words(words: Iterable[int]) -> tuple[int, int]:

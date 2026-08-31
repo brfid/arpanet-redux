@@ -206,7 +206,7 @@ def read_live_observation_stream(path: str | Path) -> LiveObservationStream:
     stream_path = Path(path)
     try:
         contents = stream_path.read_text(encoding="utf-8")
-    except OSError as error:
+    except (OSError, UnicodeError) as error:
         raise LiveObservationStreamError(
             f"could not read live observation stream {stream_path}: {error}"
         ) from error
@@ -258,10 +258,15 @@ def _validate_header(header: object) -> None:
         raise LiveObservationStreamError(
             "live observation stream header fields must be " + ", ".join(sorted(expected))
         )
-    if header["schema_version"] != LIVE_OBSERVATION_STREAM_SCHEMA_VERSION:
+    schema_version = header["schema_version"]
+    if (
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version != LIVE_OBSERVATION_STREAM_SCHEMA_VERSION
+    ):
         raise LiveObservationStreamError(
             "live observation stream has unsupported schema version "
-            f"{header['schema_version']!r}"
+            f"{schema_version!r}"
         )
     if header["kind"] != _STREAM_KIND:
         raise LiveObservationStreamError("live observation stream header has unexpected kind")

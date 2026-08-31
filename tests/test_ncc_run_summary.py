@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import unittest
 
@@ -70,6 +71,23 @@ class RunSummaryTests(unittest.TestCase):
         document["observations"][1]["sequence"] = 2
         document["schema_version"] = True
         with self.assertRaisesRegex(RunSummaryValidationError, "schema_version must be"):
+            run_summary_from_mapping(document)
+
+    def test_rejects_non_integer_sequence_and_non_json_details(self) -> None:
+        document = json.loads(
+            (FIXTURES / "run-summary-passing.json").read_text(encoding="utf-8")
+        )
+        document["observations"][0]["sequence"] = True
+        with self.assertRaisesRegex(RunSummaryValidationError, "sequence must be 1"):
+            run_summary_from_mapping(document)
+
+        document["observations"][0]["sequence"] = 1
+        document["observations"][0]["details"] = {"rate": math.inf}
+        with self.assertRaisesRegex(RunSummaryValidationError, "non-finite"):
+            run_summary_from_mapping(document)
+
+        document["observations"][0]["details"] = {"words": (1, 2)}
+        with self.assertRaisesRegex(RunSummaryValidationError, "only JSON values"):
             run_summary_from_mapping(document)
 
 

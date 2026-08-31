@@ -64,7 +64,7 @@ def load_run_summary(path: str | Path) -> RunSummary:
     summary_path = Path(path)
     try:
         document = json.loads(summary_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise RunSummaryValidationError(
             f"could not load run summary {summary_path}: {error}"
         ) from error
@@ -75,7 +75,10 @@ def run_summary_from_mapping(document: object) -> RunSummary:
     """Validate a mapping and return its deterministic, immutable representation."""
 
     _validate_document(document)
-    return RunSummary(json.dumps(document, indent=2, sort_keys=True) + "\n")
+    canonical_document = _copy_json_value(document)
+    return RunSummary(
+        json.dumps(canonical_document, allow_nan=False, indent=2, sort_keys=True) + "\n"
+    )
 
 
 def validate_normalized_observations(
@@ -169,6 +172,7 @@ def _validate_document(document: object) -> None:
         raise RunSummaryValidationError(
             "a failed run requires at least one failed acceptance gate"
         )
+    _validate_json_value(root, "summary")
 
 
 def _validate_run(value: object) -> tuple[datetime, datetime, str]:
@@ -350,9 +354,14 @@ def _validate_observations(
             raise RunSummaryValidationError(
                 f"{location}.id duplicates observation {observation_id!r}"
             )
-        if observation["sequence"] != index + 1:
+        sequence = observation["sequence"]
+        if (
+            isinstance(sequence, bool)
+            or not isinstance(sequence, int)
+            or sequence != index + 1
+        ):
             raise RunSummaryValidationError(
-                f"{location}.sequence must be {index + 1}, got {observation['sequence']!r}"
+                f"{location}.sequence must be {index + 1}, got {sequence!r}"
             )
         observed_at = _timestamp(observation["observed_at"], f"{location}.observed_at")
         if not run_started <= observed_at <= run_finished:
@@ -569,3 +578,35 @@ def _unique(identifier: str, known: set[str], location: str) -> None:
     if identifier in known:
         raise RunSummaryValidationError(f"{location} duplicates identifier {identifier!r}")
     known.add(identifier)
+
+
+def _validate_json_value(value: object, location: str) -> None:
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if math.isfinite(value):
+            return
+        raise RunSummaryValidationError(
+            f"{location} must not contain a non-finite number"
+        )
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_json_value(item, f"{location}[{index}]")
+        return
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise RunSummaryValidationError(
+                    f"{location} must have string object keys"
+                )
+            _validate_json_value(item, f"{location}.{key}")
+        return
+    raise RunSummaryValidationError(f"{location} must contain only JSON values")
+
+
+def _copy_json_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _copy_json_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_copy_json_value(item) for item in value]
+    return value

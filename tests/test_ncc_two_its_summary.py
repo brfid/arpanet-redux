@@ -66,6 +66,41 @@ class TwoItsSummaryTests(unittest.TestCase):
             with self.assertRaisesRegex(TwoItsSummaryError, "does not match"):
                 summarize_two_its_result(result)
 
+    def test_rejects_incomplete_or_dirty_manifest_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            result = Path(directory_name) / "two-its-result-passing"
+            shutil.copytree(FIXTURES / "two-its-result-passing", result)
+            manifest = result / "runtime" / "run.env"
+            original = manifest.read_text(encoding="ascii")
+            manifest.write_text(
+                original.replace("repository.tracked_dirty=0", "repository.tracked_dirty=1"),
+                encoding="ascii",
+            )
+            with self.assertRaisesRegex(TwoItsSummaryError, "clean project repository"):
+                summarize_two_its_result(result)
+
+            manifest.write_text(
+                original.replace(
+                    "source.h316-simh.tracked_dirty=0",
+                    "source.h316-simh.tracked_dirty=1",
+                ),
+                encoding="ascii",
+            )
+            with self.assertRaisesRegex(TwoItsSummaryError, "clean source"):
+                summarize_two_its_result(result)
+
+            manifest.write_text(
+                "\n".join(
+                    line
+                    for line in original.splitlines()
+                    if not line.startswith("finished_utc=")
+                )
+                + "\n",
+                encoding="ascii",
+            )
+            with self.assertRaisesRegex(TwoItsSummaryError, "finished_utc"):
+                summarize_two_its_result(result)
+
     def test_accepts_an_interrupted_nonzero_formal_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             result = Path(directory_name) / "two-its-result-incomplete"

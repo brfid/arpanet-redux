@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 import unittest
 
 from ncc.shared_topology import (
     SharedTopologyValidationError,
+    load_shared_topology,
     shared_topology_from_mapping,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
+PROJECT_TOPOLOGY = ROOT / "config" / "topologies" / "imp5-ncc-host-interface.json"
 
 
 def imp5_host_interface_topology() -> dict[str, object]:
@@ -100,6 +106,13 @@ def imp5_host_interface_topology() -> dict[str, object]:
 
 
 class SharedTopologyTests(unittest.TestCase):
+    def test_loads_the_integrated_project_topology_contract(self) -> None:
+        topology = load_shared_topology(PROJECT_TOPOLOGY)
+
+        self.assertEqual(topology.id, "topology:imp5-ncc-host-interface-proof")
+        self.assertEqual(topology.interface("binding:ncc-host0-imp5").simh_device, "hi1")
+        self.assertEqual(len(topology.modem_interfaces), 1)
+
     def test_binds_host_zero_to_imp5_hi1_without_a_second_port_map(self) -> None:
         topology = shared_topology_from_mapping(imp5_host_interface_topology())
 

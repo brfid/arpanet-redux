@@ -159,7 +159,7 @@ def read_historical_event_stream(path: str | Path) -> HistoricalEventStream:
     stream_path = Path(path)
     try:
         contents = stream_path.read_text(encoding="utf-8")
-    except OSError as error:
+    except (OSError, UnicodeError) as error:
         raise HistoricalEventStreamError(
             f"could not read historical event stream {stream_path}: {error}"
         ) from error

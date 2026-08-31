@@ -274,10 +274,19 @@ def _validate_manifest(manifest: dict[str, str]) -> None:
     exit_status = int(manifest["exit_status"])
     if (manifest["outcome"] == "passed") != (exit_status == 0):
         raise TwoItsSummaryError("run manifest outcome and exit status disagree")
+    if manifest["repository.tracked_dirty"] != "0":
+        raise TwoItsSummaryError(
+            "run manifest does not identify a clean project repository"
+        )
     _revision(manifest["repository.revision"], "repository revision")
     for key, value in manifest.items():
         if key.startswith("source.") and key.endswith(".revision"):
             _revision(value, key)
+            dirty_key = key.removesuffix(".revision") + ".tracked_dirty"
+            if manifest.get(dirty_key) != "0":
+                raise TwoItsSummaryError(
+                    f"run manifest does not identify a clean source for {key!r}"
+                )
 
 
 def _load_outcome(path: Path) -> str:

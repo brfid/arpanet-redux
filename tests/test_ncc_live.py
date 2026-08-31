@@ -102,6 +102,18 @@ class LiveObservationTests(unittest.TestCase):
             stream = read_live_observation_stream(path)
             self.assertEqual(stream.to_dict()["observations"], [])
 
+    def test_reader_rejects_a_boolean_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "ncc-observations.jsonl"
+            publisher = self._publisher(path)
+            publisher.close()
+            header = json.loads(path.read_text(encoding="utf-8"))
+            header["schema_version"] = True
+            path.write_text(json.dumps(header) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(LiveObservationStreamError, "schema version"):
+                read_live_observation_stream(path)
+
     def test_snapshot_command_is_passive_and_deterministic_at_a_given_time(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             path = Path(directory_name) / "ncc-observations.jsonl"

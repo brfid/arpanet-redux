@@ -8,6 +8,7 @@ from .run_summary import (
     load_run_summary,
     run_summary_from_mapping,
 )
+from .two_its_summary import TwoItsSummaryError, summarize_two_its_result
 from .trouble_report import LineReport, LineState, TroubleReport, decode_trouble_report
 
 __all__ = [
@@ -19,8 +20,10 @@ __all__ = [
     "RunSummary",
     "RunSummaryValidationError",
     "TroubleReport",
+    "TwoItsSummaryError",
     "decode_trouble_report",
     "load_run_summary",
     "run_summary_from_mapping",
+    "summarize_two_its_result",
     "trouble_report_events",
 ]

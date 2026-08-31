@@ -4,7 +4,7 @@
 
 The NCC work adds a historically grounded observability layer to ARPANET Redux without weakening the project's evidence boundary or turning the first version into a remote-control console.
 
-The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report into topology-neutral events and validates a fixture-only, derived completed-run summary. Synthetic unit tests establish both boundaries. No adapter from real results, live IMP attachment, topology reducer, event recorder, or user interface exists yet.
+The implemented source-only slice is intentionally small: `ncc/` decodes the recovered 1973 IMP firmware's Type 301 trouble report into topology-neutral events, validates a derived completed-run summary, and adapts formal two-ITS result artifacts. Synthetic unit tests establish each boundary. No live IMP attachment, topology reducer, event recorder, replay, or user interface exists yet.
 
 The detailed historical evidence, format derivation, and visual references are in the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md). This page owns current product scope and next steps; the dated note should not be edited merely to reflect implementation progress.
 
@@ -45,7 +45,7 @@ The completed-run summary should contain only project-authored or safely derived
 
 ## Normalized contract
 
-The contract is not finalized, but its stable concerns are:
+Version 1 is accepted for completed formal runs. Its stable concerns are:
 
 - schema version, run identity, observation clock, and source provenance;
 - nominal topology with stable component and endpoint identities plus fixed display positions;
@@ -55,14 +55,14 @@ The contract is not finalized, but its stable concerns are:
 - explicit unknown, stale, incomplete, and contradictory states;
 - optional external evidence references that are never required repository fixtures.
 
-The proposed version-1 contract and its alternatives are in [ADR-005](adr/0005-ncc-run-summary-contract.md). `ncc.run_summary` validates only project-authored synthetic fixtures at present: a passing run, explicit missing evidence, a partition-like failure, and a rejected assertion/evidence mismatch. It performs no laboratory reads and gives an unavailable external-evidence locator no semantic effect.
+The accepted version-1 contract and its alternatives are in [ADR-005](adr/0005-ncc-run-summary-contract.md). `ncc.run_summary` validates project-authored synthetic fixtures: a passing run, explicit missing evidence, a partition-like failure, and a rejected assertion/evidence mismatch. `ncc.two_its_summary` then adapts only the formal two-ITS manifest, outcome, and sentinel evidence; its project-authored nominal topology input is `ncc.topology`, not a second controller configuration. It does not parse raw logs, control processes, or give an unavailable external-evidence locator semantic effect.
 
 The existing `NccEvent` is one input form, not yet the complete run-summary schema. A topology reducer should pair endpoint observations and derive historical plus/minus line state; it should not be embedded in the decoder or the browser.
 
 ## Implementation sequence
 
-1. Define and test a minimal derived run-summary schema using only synthetic fixtures. **Implemented as a proposed version-1 contract** with a small passing run, a missing-observation run, a partition-like run, and an assertion/evidence mismatch.
-2. Add a read-only adapter from the current controller's manifest and existing evidence parsers into that schema. Do not change acceptance semantics merely to make the display convenient.
+1. Define and test a minimal derived run-summary schema using only synthetic fixtures. **Implemented as accepted version 1** with a small passing run, a missing-observation run, a partition-like run, and an assertion/evidence mismatch.
+2. Add a read-only adapter from the current controller's manifest and existing evidence parsers into that schema. **Implemented for formal two-ITS results** without changing acceptance semantics.
 3. Add deterministic replay and a local viewer for completed summaries. The initial implementation can use Python's standard library plus project-authored HTML, CSS, JavaScript, and SVG.
 4. Add live publication of the same normalized events from the controller without granting the viewer process-control authority.
 5. Add nominal-topology reconciliation, paired line state, report timeouts, recording, and replay for genuine IMP reports.
@@ -74,7 +74,7 @@ Use each repository document for one kind of memory:
 
 - This page is the living entry point: current scope, implemented state, boundaries, and next step.
 - [`docs/research/`](research/) records dated historical or experimental evidence and unresolved questions.
-- [`docs/adr/`](adr/) records decisions after alternatives are explicit. [ADR-005](adr/0005-ncc-run-summary-contract.md) proposes the run-summary contract and read-only first-release boundary for review.
+- [`docs/adr/`](adr/) records decisions after alternatives are explicit. [ADR-005](adr/0005-ncc-run-summary-contract.md) accepts the run-summary contract and read-only first-release boundary.
 - [`docs/architecture.md`](architecture.md) should gain the NCC component only when its boundary is stable enough to describe as project architecture.
 - [`docs/test-plan.md`](test-plan.md) should gain NCC gates when there is a runnable artifact and an exact pass/fail contract.
 - [`docs/runbook.md`](runbook.md) should gain commands only when those commands exist and have been exercised.
@@ -83,4 +83,4 @@ Do not commit generated prompts, raw archive images, or a second free-standing r
 
 ## Next decision
 
-Review ADR-005 before treating version 1 as a stable viewer or replay interface. The next engineering task can then adapt the existing formal manifest and evidence parsers without changing their acceptance semantics; it can proceed entirely in the NCC worktree while the parallel third-IMP/host work continues.
+The next engineering task is deterministic replay and a local viewer for completed summaries. It must consume the accepted version-1 contract, preserve the configured-fact/observation/inference distinction, and remain read-only; it can proceed entirely in the NCC worktree while the parallel third-IMP/host work continues.

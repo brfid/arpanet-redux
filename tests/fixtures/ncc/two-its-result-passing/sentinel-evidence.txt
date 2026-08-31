@@ -1,0 +1,7 @@
+source=host106-console
+destination=host176-ncp-telnet
+service_user=42TLNT
+remote_user=NETTST
+sentinel=ARPANET-REDUX-FIXTURE
+source_sha256=1c4ac51cb63defaa004b8b9855d42f018880c5ac2de2177dc62bbc2472f4e32b
+recovered_sha256=1c4ac51cb63defaa004b8b9855d42f018880c5ac2de2177dc62bbc2472f4e32b

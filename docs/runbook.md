@@ -96,6 +96,16 @@ The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evid
 
 Interpret evidence using the [test plan](test-plan.md). A successful process exit without the required application and IMP evidence is not a pass.
 
+## Summarize a completed two-ITS result
+
+The read-only NCC adapter reads the formal manifest, controller outcome, and sentinel evidence from an existing two-ITS result. It never launches or controls simulators, parses raw logs, or modifies the result directory. Redirect its JSON output outside the immutable result directory when a saved summary is useful:
+
+```sh
+python3 scripts/ncc-summarize-two-its.py /absolute/path/to/arpanet-redux-lab/results/two-its-telnet-<run-id> > /tmp/two-its-ncc-summary.json
+```
+
+A derived summary reports a failed formal run without valid application evidence as incomplete; it does not turn missing evidence into a network-down claim. See [NCC observability](ncc.md) for the contract boundary.
+
 ## Cleanup and failures
 
 The launcher owns exact child PIDs and performs bounded cleanup on success, error, timeout, or interruption. It does not terminate processes merely because they share a name. An interrupted run should finish its manifest with a failed outcome and release its private sockets and port locks.

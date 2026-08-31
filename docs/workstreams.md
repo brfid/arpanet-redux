@@ -34,7 +34,7 @@ Do not delete, rebase, merge into, or begin work on the backup branches. A publi
 
 Read [`docs/ncc.md`](ncc.md) and the dated [NCC telemetry research note](research/2026-08-30-ncc-telemetry.md) before changing `ncc/`, its schema, or a visualization.
 
-Define and test the smallest safe derived run-summary contract over the formal two-ITS artifacts, using synthetic fixtures before reading real external results. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale.
+Build deterministic replay and a local completed-summary viewer over the accepted run-summary contract. The completed-result adapter already reads only formal two-ITS manifest, outcome, and sentinel artifacts; do not add live publication, process control, raw-log parsing, or a second controller configuration. [`docs/ncc.md`](ncc.md) owns the implemented-state summary, contract sequence, and product rationale.
 
 NCC work must not depend on or modify the exploratory PDP-11 TELNET driver. Its first adapter should read the formal two-ITS manifest and derived evidence; a promoted heterogeneous harness can adopt the same contract later.
 

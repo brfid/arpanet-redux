@@ -1,6 +1,6 @@
 # ADR-005: Use a validated JSON contract for completed NCC run summaries
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-30
 - **Decider:** Brad
 
@@ -12,11 +12,11 @@ The completed-run contract must preserve configured topology separately from obs
 
 ## Decision
 
-Propose a versioned, project-authored JSON summary validated by `ncc.run_summary`. Version 1 has one run clock and provenance record, a nominal topology with stable component and endpoint identities plus display positions, ordered direct observations, derived states with supporting observation identifiers, and named gate verdicts with their supporting observations. External evidence is optional opaque metadata; validation never opens it.
+Use a versioned, project-authored JSON summary validated by `ncc.run_summary`. Version 1 has one run clock and provenance record, a nominal topology with stable component and endpoint identities plus display positions, ordered direct observations, derived states with supporting observation identifiers, and named gate verdicts with their supporting observations. External evidence is optional opaque metadata; validation never opens it.
 
 The validator accepts only a coherent summary. It rejects unknown schema fields, ambiguous topology identifiers, broken topology routes, observations outside the run clock or out of sequence, references to missing evidence, a passed run with a non-passing gate, and a passed gate without a passed application observation. Its canonical JSON serialization is deterministic.
 
-The initial committed fixtures are synthetic only: a passing two-ITS-shaped run, an incomplete run with explicitly missing evidence, a partition-like failure inferred from endpoint observations, and an assertion/evidence mismatch that must be rejected. No controller, manifest parser, simulator configuration, external log, raw historical message, viewer, or live ingress changes in this slice.
+The initial committed fixtures are synthetic only: a passing two-ITS-shaped run, an incomplete run with explicitly missing evidence, a partition-like failure inferred from endpoint observations, and an assertion/evidence mismatch that must be rejected. The read-only two-ITS adapter reads only the formal manifest, controller outcome, and sentinel evidence and emits JSON to standard output; it neither parses raw logs nor controls the laboratory.
 
 ## Options considered
 
@@ -51,11 +51,11 @@ This would be fast to demonstrate but would prevent the later heterogeneous and 
 | Determinism | High; fixtures and summaries are self-contained |
 | Topology reuse | High; stable identities and routes are data, not controller code |
 
-This is the proposed option. It creates an explicit adapter boundary before a viewer or live publisher exists and makes uncertainty and inference displayable rather than implicit.
+This accepted option creates an explicit adapter boundary before a viewer or live publisher exists and makes uncertainty and inference displayable rather than implicit.
 
 ## Consequences
 
 - The next NCC implementation task is a read-only adapter from the formal two-ITS manifest and retained evidence parsers into version 1; it must not change existing acceptance semantics.
 - Consumers receive normalized, replayable data without access to raw logs or simulator process control.
 - A later schema change requires an explicit version, fixtures, migration or compatibility decision, and an ADR update or successor.
-- The contract still needs design review before it becomes a stable public replay or viewer interface; this ADR is proposed rather than accepted.
+- The version-1 contract is accepted for completed formal runs. A public replay or viewer interface must preserve the same read-only and evidence-traceability boundaries.

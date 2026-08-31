@@ -25,7 +25,7 @@ The tracked tree must contain no vintage media, firmware, simulator binary, buil
 
 The source-only suite accepts a version-1 NCC completed-run summary only when it declares a complete run clock and provenance, gives all topology components and endpoints stable unambiguous identities, orders direct observations inside that clock, ties every derived state and gate verdict to known observation identifiers, and distinguishes incomplete or failed gates from a pass. A passed gate must include direct passed application evidence; a passed run must contain only passed gates.
 
-Synthetic fixtures must cover a passing run, missing evidence, a partition-like result, and a rejected assertion/evidence mismatch. This is a contract test for derived project data, not a replacement for the two-ITS acceptance gates or a permission to commit external logs.
+Synthetic fixtures must cover a passing run, missing evidence, a partition-like result, and a rejected assertion/evidence mismatch. The formal two-ITS adapter may read only `runtime/run.env`, `outcome.txt`, and `sentinel-evidence.txt`; a summary pass requires their outcomes and sentinel content/digests to agree. A failed formal run without application proof is incomplete, not proof of a network-down state. This is a contract test for derived project data, not a replacement for the two-ITS acceptance gates or a permission to commit external logs.
 
 ## Gate 2: Router oracle
 

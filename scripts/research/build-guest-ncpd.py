@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
-"""Rebuild ncpd's Largedaemon from preserved source, in-guest, with a
-one-line fix for the RFNM-bookkeeping deadlock recorded in
-docs/research/imp11a-device.md ("The real root cause"): chk_host()'s
-defensive RST, sent before every outgoing connection attempt to a host
-not yet known to be up, sets the host's rfnm_bm bit via its own
-send_pro() call inside ncpd/send_pro.c; the real RFC that kr_ouicp()
-(the netopen()-driven path the guest TELNET client uses) queues right
-afterward never flushes, because send_pro()'s own first line refuses
-to send anything else to a host whose rfnm_bm bit is set, and nothing
-in this environment (confirmed: neither the guest's own daemon nor
-this project's H316 transport code) ever clears that bit again. Two
-prior attempts to work around this without touching the preserved
-daemon -- waiting far longer, and having ITS dial the guest first so
-it would already look "up" -- were tried and recorded as not working
-before this patch.
+"""Rebuild ncpd's Largedaemon from preserved source, in-guest, with
+narrowly-scoped ``PBTRACE`` records for host 106 around protocol
+queueing, transmission, and control-link RFNM processing.  The records
+expose the relationship between h_pb_sent and h_pb_q without changing
+the external simulator, topology, firmware, ITS configuration, or
+adapter behavior.
 
-The fix: clear the just-set rfnm_bm bit immediately after chk_host()
-returns, at its two "about to open a new connection" call sites
-(kr_ouicp, and kr_odrct, the direct-socket path with the identical
-structure) in ncpd/kr_dcode.c -- not at its third call site in
-rst_all(), which is startup housekeeping with no immediately-following
-send to protect, so leaving it alone changes no other behavior.
+An earlier version of this builder cleared rfnm_bm immediately after
+chk_host() sent its defensive RST.  That compatibility patch was based
+on runs made before the IMP11-A output-order correction, when the RST
+never reached the addressed IMP and therefore could not earn an RFNM.
+The exact ``imp11a-telnet-pbtrace-20260831T160605Z`` rerun against the
+corrected adapter proved that the clear changed only rfnm_bm: it left
+the sent RST in h_pb_q and h_pb_sent, so send_pro() counted the RST a
+second time beside the RFC and ir_rfnm() later saw three sent buffers
+but only two queue elements.  This builder no longer patches
+kr_dcode.c.  The corrected adapter returns the RST's real RFNM, allowing
+the preserved daemon to retire that buffer before sending the queued
+RFC through its original accounting path.
 
 Builds all fourteen ncpd/*.c files plus skt_off.s and swab.s with V6's
 own cc, entirely in-guest, reusing the technique already proven for
@@ -102,51 +99,70 @@ int *fbuf;
 }
 """
 
-# The exact two lines this patches, both call sites for a fresh
-# outbound connection attempt. Reproduced here only as literal
-# search anchors for a mechanical one-line insertion, the same way
-# build-guest-telnet.py's own usrtelnetin.c include-path rewrite
-# already does -- see NCPD_PATCHES below for what each becomes.
+# Exact preserved-source anchors for the staged evidence trace.  The
+# external source remains in the laboratory; this repository retains
+# only the small mechanical instrumentation insertions below.
 NCPD_PATCHES = {
-    "kr_dcode.c": [
+    "send_pro.c": [
         (
-            "#include\t\"globvar.h\"\n"
-            "#include\t\"impi.h\"\n",
-            "#include\t\"globvar.h\"\n"
-            "#include\t\"probuf.h\"\t/* brfid: for rfnm_bm, needed by the\n"
-            "\t\t\t\t   reset_bit() calls added below -- every\n"
-            "\t\t\t\t   other file that touches rfnm_bm already\n"
-            "\t\t\t\t   pulls this in; kr_dcode.c never had to\n"
-            "\t\t\t\t   before now. */\n"
-            "#include\t\"impi.h\"\n",
+            "\t/* check rfnm bit, return if set */\n"
+            "\tif ( bit_on(&rfnm_bm[0],host) )\t\t/* rfnm outstanding for host? */\n",
+            "\tif (host == 0106)\n"
+            "\t\tprintf(\"PBTRACE send-enter h=%o sent=%d q=%o first=%o rfnm=%d\\n\",\n"
+            "\t\t\thost,h_pb_sent[host],h_pb_q[host],\n"
+            "\t\t\th_pb_q[host] ? h_pb_q[host]->pb_link : 0,\n"
+            "\t\t\tbit_on(&rfnm_bm[0],host) != 0);\n"
+            "\t/* check rfnm bit, return if set */\n"
+            "\tif ( bit_on(&rfnm_bm[0],host) )\t\t/* rfnm outstanding for host? */\n",
         ),
         (
-            "\tif ( host != 0 )\t/* host not wild? */\n"
-            "\t\tchk_host();\n",
-            "\tif ( host != 0 )\t/* host not wild? */\n"
+            "\t\t\th_pb_sent[host]++;\t/* inc probufs sent count */\n",
+            "\t\t\th_pb_sent[host]++;\t/* inc probufs sent count */\n"
+            "\t\t\tif (host == 0106)\n"
+            "\t\t\t\tprintf(\"PBTRACE send-copy h=%o op=%o sent=%d q=%o\\n\",\n"
+            "\t\t\t\t\thost,pb_p->pb_text[0]&0377,\n"
+            "\t\t\t\t\th_pb_sent[host],h_pb_q[host]);\n",
+        ),
+        (
+            "\tq_enter(&h_pb_q[host],pb_p);\t/* enter probuf in host's probuf q */\n"
+            "\tpro2send = 1;\t\t\t/* set send flag */\n",
+            "\tq_enter(&h_pb_q[host],pb_p);\t/* enter probuf in host's probuf q */\n"
+            "\tif (host == 0106)\n"
+            "\t\tprintf(\"PBTRACE queue h=%o op=%o sent=%d q=%o first=%o\\n\",\n"
+            "\t\t\thost,pb_p->pb_text[0]&0377,h_pb_sent[host],\n"
+            "\t\t\th_pb_q[host],h_pb_q[host]->pb_link);\n"
+            "\tpro2send = 1;\t\t\t/* set send flag */\n",
+        ),
+    ],
+    "ir_proc.c": [
+        (
+            "\th_pb_rtry[h] = 0;\t\t/* set retry count to zero */\n"
+            "\treset_bit(&rfnm_bm[0],h);\t/* reset host's rfnm bit */\n",
+            "\tif (h == 0106)\n"
+            "\t\tprintf(\"PBTRACE rfnm-enter h=%o sent=%d q=%o first=%o\\n\",\n"
+            "\t\t\th,h_pb_sent[h],h_pb_q[h],\n"
+            "\t\t\th_pb_q[h] ? h_pb_q[h]->pb_link : 0);\n"
+            "\th_pb_rtry[h] = 0;\t\t/* set retry count to zero */\n"
+            "\treset_bit(&rfnm_bm[0],h);\t/* reset host's rfnm bit */\n",
+        ),
+        (
+            "\twhile ( h_pb_sent[h] )\t\t/* loop while probufs sent != 0 */\n"
             "\t{\n"
-            "\t\tchk_host();\n"
-            "\t\t/* brfid: chk_host()'s own send_pro() call sets\n"
-            "\t\t * rfnm_bm for this host as a side effect of\n"
-            "\t\t * sending its defensive reset; left set, it\n"
-            "\t\t * blocks the real request this function goes on\n"
-            "\t\t * to send. Nothing in this environment ever\n"
-            "\t\t * clears rfnm_bm on its own for a host that\n"
-            "\t\t * never answers, so clear it here instead of\n"
-            "\t\t * leaving the connection permanently queued and\n"
-            "\t\t * unsent. See docs/research/imp11a-device.md,\n"
-            "\t\t * \"The real root cause\". */\n"
-            "\t\treset_bit(&rfnm_bm[0],host);\n"
-            "\t}\n",
+            "\t\tq_enter(&pb_fr_q,q_dlink(&h_pb_q[h]));\n",
+            "\twhile ( h_pb_sent[h] )\t\t/* loop while probufs sent != 0 */\n"
+            "\t{\n"
+            "\t\tif (h == 0106)\n"
+            "\t\t\tprintf(\"PBTRACE rfnm-free h=%o sent=%d q=%o first=%o\\n\",\n"
+            "\t\t\t\th,h_pb_sent[h],h_pb_q[h],\n"
+            "\t\t\t\th_pb_q[h] ? h_pb_q[h]->pb_link : 0);\n"
+            "\t\tq_enter(&pb_fr_q,q_dlink(&h_pb_q[h]));\n",
         ),
         (
-            "\tchk_host();\t\t\t\t/* check if host is up and take\n"
-            "\t\t\t\t\t\t   appropriate action */\n",
-            "\tchk_host();\t\t\t\t/* check if host is up and take\n"
-            "\t\t\t\t\t\t   appropriate action */\n"
-            "\t/* brfid: see the matching comment in kr_odrct() above --\n"
-            "\t * same fix, same reason. */\n"
-            "\treset_bit(&rfnm_bm[0],host);\n",
+            "\tif ( h_pb_q[h] != 0 )\t\t/* still have prbufs to send? */\n",
+            "\tif (h == 0106)\n"
+            "\t\tprintf(\"PBTRACE rfnm-done h=%o sent=%d q=%o\\n\",\n"
+            "\t\t\th,h_pb_sent[h],h_pb_q[h]);\n"
+            "\tif ( h_pb_q[h] != 0 )\t\t/* still have prbufs to send? */\n",
         ),
     ],
 }

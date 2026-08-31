@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
+from .report_checksum import has_valid_report_checksum
+
 
 THROUGHPUT_REPORT_TYPE = 0o302
 LINE_COUNT = 5
@@ -60,8 +62,9 @@ class ThroughputReport:
 def decode_throughput_report(raw_words: Iterable[int]) -> ThroughputReport:
     """Decode a 52-word report, optionally followed by its 53rd pad word.
 
-    Checksum validation and rate calculation are intentionally deferred. The
-    report exposes cumulative values only, and neither its interval nor reset
+    The 16-bit checksum covers the report code and every semantic body word,
+    but excludes the separately sent old-style leader and optional pad word.
+    The report exposes cumulative values only; neither its interval nor reset
     behavior is established by the selected primary evidence.
     """
 
@@ -80,6 +83,9 @@ def decode_throughput_report(raw_words: Iterable[int]) -> ThroughputReport:
         raise ValueError(
             f"expected Type 302 ({THROUGHPUT_REPORT_TYPE:#o}), got {words[0]:#o}"
         )
+
+    if not has_valid_report_checksum(words[:SEMANTIC_WORD_COUNT]):
+        raise ValueError("Type 302 checksum is invalid")
 
     cursor = 1
     lines: list[LineThroughput] = []

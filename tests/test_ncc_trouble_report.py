@@ -1,6 +1,7 @@
 import unittest
 
 from ncc.events import trouble_report_events
+from ncc.report_checksum import report_checksum
 from ncc.trouble_report import LineState, decode_trouble_report
 
 
@@ -36,10 +37,10 @@ def sample_words(*, padded: bool = True) -> list[int]:
         0o4000,
         0o5000,
         0o6000,
-        0o7777,
     ]
+    words.append(report_checksum(words))
     if padded:
-        words.append(0)
+        words.append(0o7777)
     return words
 
 
@@ -57,7 +58,7 @@ class TroubleReportTests(unittest.TestCase):
             ),
             (10, 11, 12, 13),
         )
-        self.assertEqual(report.padding_words, (0,))
+        self.assertEqual(report.padding_words, (0o7777,))
         self.assertTrue(report.host_up(0))
         self.assertFalse(report.host_up(1))
         self.assertTrue(report.host_up(2))
@@ -90,6 +91,11 @@ class TroubleReportTests(unittest.TestCase):
         invalid_word[4] = 0x10000
         with self.assertRaisesRegex(ValueError, "16-bit range"):
             decode_trouble_report(invalid_word)
+
+        invalid_checksum = sample_words()
+        invalid_checksum[-2] ^= 1
+        with self.assertRaisesRegex(ValueError, "checksum is invalid"):
+            decode_trouble_report(invalid_checksum)
 
         non_integer = sample_words()
         non_integer[4] = True

@@ -12,6 +12,7 @@ from ncc.imp_to_host import (
     throughput_report_events_from_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
+from ncc.report_checksum import report_checksum
 
 
 def old_style_imp_leader(
@@ -34,7 +35,8 @@ def old_style_imp_leader(
 
 
 def trouble_report_body(*, message_type: int = 0o301, padded: bool = True) -> tuple[int, ...]:
-    words = (message_type,) + (0,) * 30
+    payload = (message_type,) + (0,) * 29
+    words = payload + (report_checksum(payload),)
     return words + ((0,) if padded else ())
 
 
@@ -50,7 +52,8 @@ def trouble_report_message(
 
 
 def throughput_report_message(**leader_kwargs: int | bool) -> IngressMessage:
-    body = (0o302,) + (0,) * 51 + (0,)
+    payload = (0o302,) + (0,) * 50
+    body = payload + (report_checksum(payload), 0)
     return IngressMessage(
         first_sequence=20,
         final_sequence=24,

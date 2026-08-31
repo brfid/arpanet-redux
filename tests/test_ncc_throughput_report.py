@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from ncc.events import throughput_report_events
+from ncc.report_checksum import report_checksum
 from ncc.throughput_report import decode_throughput_report
 
 
@@ -10,9 +11,9 @@ def sample_words(*, padded: bool = True) -> list[int]:
     words = [0o302]
     words.extend(range(10, 20))
     words.extend(range(100, 140))
-    words.append(0o7654)
+    words.append(report_checksum(words))
     if padded:
-        words.append(0)
+        words.append(0o7654)
     return words
 
 
@@ -33,8 +34,8 @@ class ThroughputReportTests(unittest.TestCase):
         self.assertEqual(report.hosts[-1].host, 3)
         self.assertEqual(report.hosts[-1].messages_from_host_to_network, 130)
         self.assertEqual(report.hosts[-1].words_from_imp_to_host, 139)
-        self.assertEqual(report.checksum_word, 0o7654)
-        self.assertEqual(report.padding_words, (0,))
+        self.assertEqual(report.checksum_word, report_checksum(sample_words(padded=False)[:-1]))
+        self.assertEqual(report.padding_words, (0o7654,))
         self.assertEqual(unpadded.padding_words, ())
 
     def test_rejects_invalid_shape_type_and_word_values(self) -> None:
@@ -50,6 +51,11 @@ class ThroughputReportTests(unittest.TestCase):
         non_integer[10] = False
         with self.assertRaisesRegex(TypeError, "not an integer"):
             decode_throughput_report(non_integer)
+
+        invalid_checksum = sample_words()
+        invalid_checksum[-2] ^= 1
+        with self.assertRaisesRegex(ValueError, "checksum is invalid"):
+            decode_throughput_report(invalid_checksum)
 
     def test_emits_one_direct_event_without_claiming_a_rate(self) -> None:
         report = decode_throughput_report(sample_words())

@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable
 
+from .report_checksum import has_valid_report_checksum
+
 
 TROUBLE_REPORT_TYPE = 0o301
 PATCHED_TROUBLE_REPORT_TYPE = 0o303
@@ -115,9 +117,8 @@ def decode_trouble_report(raw_words: Iterable[int]) -> TroubleReport:
     so both codes use this one fixed field layout. The emitted report retains
     its actual wire code in ``message_type`` rather than being normalized.
 
-    Checksum validation is intentionally deferred until its exact historical
-    algorithm has been established from primary evidence.  The checksum and any
-    padding are preserved for that work.
+    The 16-bit checksum covers the report code and every semantic body word,
+    but excludes the separately sent old-style leader and optional pad word.
     """
 
     words = tuple(raw_words)
@@ -139,6 +140,9 @@ def decode_trouble_report(raw_words: Iterable[int]) -> TroubleReport:
             f"({TROUBLE_REPORT_TYPE:#o} or {PATCHED_TROUBLE_REPORT_TYPE:#o}), "
             f"got {words[0]:#o}"
         )
+
+    if not has_valid_report_checksum(words[:SEMANTIC_WORD_COUNT]):
+        raise ValueError("1973 trouble-report checksum is invalid")
 
     cursor = 16
     lines: list[LineReport] = []

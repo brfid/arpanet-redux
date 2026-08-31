@@ -41,6 +41,7 @@ from .imp_to_host import (
     throughput_report_events_from_imp_to_host_message,
     trouble_report_events_from_imp_to_host_message,
 )
+from .report_checksum import has_valid_report_checksum, report_checksum
 from .reconciliation import (
     Endpoint,
     ImpState,
@@ -91,6 +92,8 @@ __all__ = [
     "NominalTopology",
     "OLD_STYLE_LEADER_WORD_COUNT",
     "OldStyleImpToHostLeader",
+    "has_valid_report_checksum",
+    "report_checksum",
     "RUN_SUMMARY_SCHEMA_VERSION",
     "ReplayFrame",
     "ReconciledImp",

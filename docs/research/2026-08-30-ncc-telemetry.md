@@ -96,6 +96,7 @@ The first slice is additive: `ncc/`, its tests, and this note. It does not edit 
 
 ## Open evidence questions
 
+- Obtain an independently attributed report from the IMP 6 endpoint before applying paired-line reconciliation to the observed IMP 5 line-1-to-IMP-6 direction; one endpoint report alone cannot establish a complete line state.
 - Compare future genuine reports against independently observable IMP-side state without committing restricted raw logs.
 - Determine the minimal 1822 receive/send behavior required for an active NCC host, including RFNM handling and any necessary leader conversion. The passive ingress proof sends only the simulator's required ready flag.
 - Decide whether the dedicated topology should initially model the documented BBN path through IMPs 5 and 31 or use the smallest valid route from the project's current network. Historical site identity and the number of simulated hops are separate fidelity decisions.

@@ -36,7 +36,7 @@ Read [`docs/ncc.md`](ncc.md) and the dated [NCC telemetry research note](researc
 
 Bounded controller publication, the source-only historical-line reducer, and the source-only message-journey diagnostic are implemented. The journey slice derives request/reply boundaries from one shared-topology route, correlates source-local direct observations without a global simulator clock, and has a narrow H316 trace adapter plus typed KA10 and IMP11-A seams. The next journey task is for a promoted heterogeneous or network-expansion harness to emit those typed observations under its own manifest, port, cleanup, and application-verdict boundary; [`docs/ncc.md`](ncc.md) owns the exact implemented state and next action.
 
-The branch has been rebased onto the completed IMP 5/IMP 6 topology slice. Its source-only integration check loads the exact project JSON through the NCC shared-topology validator, and the completed-run adapter now rejects incomplete clocks, dirty recorded source identities, non-integer event sequences, and non-JSON observation data before publication or replay.
+The completed NCC slice is integrated on `main` after rebasing onto the IMP 5/IMP 6 topology. Its source-only integration check loads the exact project JSON through the NCC shared-topology validator, and the completed-run adapter rejects incomplete clocks, dirty recorded source identities, non-integer event sequences, and non-JSON observation data before publication or replay. The local `codex/ncc-run-summary` branch matches the integrated tip; its remote feature ref deliberately remains at the pre-rebase history because integration did not force-push it, so treat `main` as the canonical integrated NCC history.
 
 The separate historical-line task still requires explicit report-line identities in shared topology and an independently attributed IMP 6 endpoint before any durable reducer output or bridge to the accepted run-summary/controller-live contracts. [ADR-006](adr/0006-ncc-line-reconciliation.md) owns reducer rules, and [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md) owns the one-sided evidence boundary.
 
@@ -60,7 +60,7 @@ The bounded IMP 5/IMP 6 network-expansion slice is complete. [`config/topologies
 
 This input proves only that the project composition consistently maps NCC host 0 to IMP 5, supplies a live adjacent IMP peer, and defines the ready/complete-message boundary expected from a later isolated proof. It does not identify either IMP as a historical site, reconstruct a historical route, establish an NCP application exchange, implement the pending NCC reducer or viewer, or turn configured topology into observed network evidence. The formal two-ITS and PDP-11 harnesses remain unchanged.
 
-The topology dependency is now consumed and checked by the rebased `codex/ncc-run-summary` branch. Any later report-line mapping still requires the reciprocal IMP 6 evidence and coordinated NCC/network-expansion contract change recorded by [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md).
+The topology dependency is now consumed and checked by the integrated NCC code on `main`. Any later report-line mapping still requires the reciprocal IMP 6 evidence and coordinated NCC/network-expansion contract change recorded by [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md).
 
 ## Integration procedure
 

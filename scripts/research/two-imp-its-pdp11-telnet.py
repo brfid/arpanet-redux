@@ -6,10 +6,11 @@ two-imp-its-with-pdp11.py, start the NCP daemon, and attempt a real
 guest TELNET connection to ITS host 106 -- the application-level proof
 pdp11-network-unix.md's "First experiment" step 6 calls for.
 
-Reuses the IMP 6 and ITS configuration unchanged.  It makes a run-local
-copy of the shared IMP 62 configuration with HI2's long-leader conversion
-disabled: that shared configuration normally hosts ITS, while this guest
-uses the original short leader directly.
+Reuses the IMP 6 configuration unchanged.  It makes run-local copies of
+the shared IMP 62 and ITS configurations: the IMP 62 copy disables HI2's
+long-leader conversion because this guest uses the original short leader
+directly, while the ITS copy enables a KA10 IMP-device trace so traffic can
+be correlated across the IMP 6/ITS attachment.
 
 The PDP-11's IMP11-A interface sends the high bit of every DMA word
 first, so this requires a PDP-11 binary with the corresponding output
@@ -128,7 +129,17 @@ def _main() -> int:
         if expected not in imp62_text:
             raise RuntimeError("IMP 62 configuration no longer has the expected HI2 conversion line")
         imp62_cfg.write_text(imp62_text.replace(expected, "set hi2 noconvert\n", 1))
-    host106_cfg = args.repo_root / "config/hosts/its106-pair.simh"
+    host106_cfg = results / "host106-imp-trace.simh"
+    host106_text = (args.repo_root / "config/hosts/its106-pair.simh").read_text()
+    expected = "attach -u imp %BRFID_HOST_A_IMP_PORT%:127.0.0.1:%BRFID_IMP6_HI_PORT%\n"
+    if expected not in host106_text:
+        raise RuntimeError("ITS host configuration no longer has the expected IMP attach line")
+    host106_trace = (
+        expected
+        + f"set debug {results / 'host106-imp-device-debug.log'}\n"
+        + "set imp debug=CONI;CONO;DATAIO\n"
+    )
+    host106_cfg.write_text(host106_text.replace(expected, host106_trace, 1))
 
     procs = []
     imp6_proc, imp6_log = start_background(

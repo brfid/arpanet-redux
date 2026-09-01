@@ -123,6 +123,7 @@ def simulator_version(path: Path) -> str:
         raise ValueError(f"missing PDP-11 executable {resolved}")
     result = subprocess.run(
         [resolved, "-v"],
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

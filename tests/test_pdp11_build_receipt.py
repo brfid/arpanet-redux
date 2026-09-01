@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,24 @@ SPEC.loader.exec_module(RECEIPT)
 
 
 class Pdp11BuildReceiptTests(unittest.TestCase):
+    def test_simulator_version_detaches_interactive_stdin(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            executable = Path(directory_name) / "pdp11"
+            executable.write_text("#!/bin/sh\nexit 0\n", encoding="ascii")
+            executable.chmod(0o755)
+            completed = subprocess.CompletedProcess(
+                [executable, "-v"],
+                0,
+                stdout="git commit id: 2722eef4\n",
+            )
+            with mock.patch.object(
+                RECEIPT.subprocess, "run", return_value=completed
+            ) as invoked:
+                version = RECEIPT.simulator_version(executable)
+
+            self.assertEqual(version, "git commit id: 2722eef4")
+            self.assertEqual(invoked.call_args.kwargs["stdin"], subprocess.DEVNULL)
+
     def test_guest_image_substitution_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             image = Path(directory_name) / "ncp_root.rl01"

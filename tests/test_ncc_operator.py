@@ -41,6 +41,15 @@ class NccOperatorTests(unittest.TestCase):
                 OPERATOR.results_directory(root, "demo-20260901T120000Z"),
                 root / "ncc-pdp11-its-coexistence-demo-20260901T120000Z",
             )
+            self.assertEqual(
+                OPERATOR.results_directory(
+                    root,
+                    "demo-20260901T120000Z",
+                    "failover",
+                ),
+                root
+                / "ncc-pdp11-its-application-failover-demo-20260901T120000Z",
+            )
             for invalid in ("", "../demo", "demo/run", "demo run", "."):
                 with self.subTest(invalid=invalid):
                     with self.assertRaises(ValueError):
@@ -71,6 +80,29 @@ class NccOperatorTests(unittest.TestCase):
             "/lab/pdp11-build",
         ])
         self.assertEqual(command[8], str(result))
+
+    def test_failover_command_delegates_to_the_accepted_formal_harness(self) -> None:
+        arguments = argparse.Namespace(
+            scenario="failover",
+            arpanet_root=Path("/lab/arpanet"),
+            network_unix_root=Path("/lab/network-unix"),
+            imp11a_root=Path("/lab/imp11a"),
+            h316=Path("/bin/h316"),
+            pdp10_ka=Path("/bin/pdp10-ka"),
+            pdp11=Path("/bin/pdp11"),
+            pdp11_build_root=Path("/lab/pdp11-build"),
+        )
+
+        command = OPERATOR.scenario_command(
+            arguments,
+            Path("/lab/results/ncc-failover"),
+        )
+
+        self.assertEqual(
+            command[0],
+            str(ROOT / "scripts" / "smoke-ncc-pdp11-its-failover.sh"),
+        )
+        self.assertEqual(command[-1], "/lab/results/ncc-failover")
 
     def test_stop_allows_the_owned_harness_cleanup_trap_to_finish(self) -> None:
         process = _CooperativeProcess()

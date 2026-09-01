@@ -77,6 +77,12 @@ from .coexistence_server import (
     create_coexistence_display_server,
 )
 from .coexistence_viewer import render_coexistence_display_html
+from .failover_display import (
+    FAILOVER_DISPLAY_SNAPSHOT_VERSION,
+    FailoverDisplay,
+    FailoverDisplayError,
+    FailoverDisplaySnapshot,
+)
 from .board_display import (
     NccBoardDisplay,
     NccBoardError,
@@ -204,6 +210,10 @@ __all__ = [
     "ExpectedBoundary",
     "ExpectedJourney",
     "ExternalEvidenceReference",
+    "FAILOVER_DISPLAY_SNAPSHOT_VERSION",
+    "FailoverDisplay",
+    "FailoverDisplayError",
+    "FailoverDisplaySnapshot",
     "DEFAULT_REPORT_INTERVAL",
     "HISTORICAL_DISPLAY_SNAPSHOT_VERSION",
     "HISTORICAL_EVENT_STREAM_SCHEMA_VERSION",

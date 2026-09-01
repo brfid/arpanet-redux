@@ -111,13 +111,14 @@ The fault and loopback smokes normally run for about 130 seconds. Their duration
 
 ## Run the NCC board
 
-To run the formal coexistence smoke and passive board in one terminal-owned session, use:
+To run either formal application/NCC smoke beside the passive board in one terminal-owned session, use:
 
 ```sh
 make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" ncc
+make LAB_ROOT="$lab" RUN_ID=failover-watch-demo PDP11_BUILD_ROOT="$build_root" ncc-failover
 ```
 
-Open the printed loopback URL. Control-C stops the exact harness session through its existing cleanup path. The browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
+Open the printed loopback URL. Both commands show the existing progressive historical projection while the result grows. Coexistence exposes its completed projection and optional `/report` only after terminal validation. Failover waits for the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup; it then shows `DIRECT → CUT → VIA IMP 7` without using candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. The browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
 
 To run and watch in separate terminals, use:
 
@@ -126,7 +127,9 @@ make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" run-ncc
 make NCC_RESULT="$lab/results/ncc-pdp11-its-coexistence-watch-demo" watch-ncc
 ```
 
-To inspect the retained canonical coexistence result without starting a simulator, run `make view-ncc`. Override `NCC_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed.
+To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed.
+
+The formal controllers still own fixed TELNET transactions. The recommended follow-up is a terminal-side typed TELNET session seam that first proves one owner, prompt and response framing, timeout behavior, command attribution, retained evidence, and cleanup. Browser input remains a separate later authority decision.
 
 ## Read a result
 

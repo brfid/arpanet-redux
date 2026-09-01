@@ -19,7 +19,7 @@ The historical and wire-format basis is in the dated [telemetry research note](r
 | Result adapters | Revalidate supported completed artifacts and derive deterministic in-memory summaries without changing the result |
 | Passive displays | Present fixed topology, progressive evidence, completed conclusions, and detailed inspection through loopback GET and HEAD requests |
 
-The default network board shows a restrained topology-first view. It uses the existing historical projection while a result grows and switches to a validated completed projection only after terminal artifacts pass. The detailed coexistence report remains at `/report`. Fault, loopback, journey, historical-line, and coexistence-specific viewers remain diagnostic surfaces.
+The default network board shows a restrained topology-first view. It uses the existing historical projection while a result grows and switches to a supported completed projection only after terminal artifacts pass. For the accepted failover, relay and cut-state artifacts color the direct application cable as cut, the typed journey colors only the observed route through IMP 7, and direct historical events light the reporting IMPs. Candidate report-line identities have no drawing authority. The detailed coexistence report remains at `/report`; failover, fault, and loopback results do not acquire that route. Journey, historical-line, and coexistence-specific viewers remain diagnostic surfaces.
 
 ## Evidence authority
 
@@ -56,11 +56,11 @@ The implemented subsystem supports:
 - reciprocal `up`, `down`, and `looped` line conclusions for explicitly mapped endpoints;
 - completed two-ITS summaries and a bounded direct-observation stream;
 - typed Network UNIX-to-ITS journeys over the direct route and the accepted three-IMP failover route;
-- passive progressive and completed displays;
+- passive progressive and completed displays, including a fail-closed application-failover projection and terminal-owned runner;
 - a combined Network UNIX/ITS application and IMP 5/6/7 NCC composition;
 - same-session application survival after the controller cuts the direct IMP 62/IMP 6 cable and traffic reroutes through IMP 7.
 
-The dated [fault](experiments/2026-08-31-ncc-alternate-path-fault.md), [loopback](experiments/2026-08-31-ncc-line-loopback.md), [typed journey](experiments/2026-09-01-pdp11-its-message-journey.md), [coexistence](experiments/2026-09-01-ncc-pdp11-its-coexistence.md), and [application-failover](experiments/2026-09-01-ncc-pdp11-its-application-failover.md) records own exact run identities, counts, failed prerequisites, and limits.
+The dated [fault](experiments/2026-08-31-ncc-alternate-path-fault.md), [loopback](experiments/2026-08-31-ncc-line-loopback.md), [typed journey](experiments/2026-09-01-pdp11-its-message-journey.md), [coexistence](experiments/2026-09-01-ncc-pdp11-its-coexistence.md), [application-failover](experiments/2026-09-01-ncc-pdp11-its-application-failover.md), and [failover-board](experiments/2026-09-01-ncc-application-failover-board.md) records own exact run identities, counts, failed prerequisites, retained replay, and limits.
 
 The direct and alternate application-link report identities discovered in the accepted failover run remain `candidate-only-one-exact-run`. They are not topology authority. Promotion requires independent fresh reciprocal evidence and a separate decision.
 
@@ -74,4 +74,6 @@ Original 1971 NCC System 52 compatibility remains a separate investigation. It i
 
 ## Current decision
 
-No NCC implementation follow-up is required for the accepted slice. Candidate mapping promotion, interactive guest input, browser-side faults, per-component restart, new hosts or IMPs, complete guest-ingress grammars, and original NCC compatibility are separate bounded decisions. See [workstreams](workstreams.md) for the current selected tasks.
+The accepted failover projection validates the terminal manifest and digests, same-session application facts, thirteen-check verdict, relay lifecycle and cut acknowledgement, fourteen-observation alternate journey, complete historical stream, post-cut report sources, and cleanup. It adds no persisted schema, parser, or simulator authority. `make ncc-failover` launches the unchanged formal smoke beside the passive board, and `make view-ncc-failover` replays the retained canonical result.
+
+The recommended next bounded follow-up is terminal-side interactive TELNET session control with a typed command/result contract, one owner, prompt and response framing, timeout behavior, command attribution, retained evidence, and complete cleanup. Browser input remains out of scope until that terminal seam is deterministic and separately authorized. Candidate mapping promotion, browser-side faults, per-component restart, new hosts or IMPs, complete guest-ingress grammars, and original NCC compatibility remain separate decisions. See [workstreams](workstreams.md) for the current selected work.

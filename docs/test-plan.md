@@ -161,12 +161,13 @@ A second TELNET connection, elapsed-time cut without acknowledgement, one-sided 
 Passive projections must preserve the NCC contract invariants and these presentation rules:
 
 - A completed coexistence desk validates only its declared structured artifacts, keeps application, journey, line-verdict, and later receiver-tail authority separate, leaves unmapped links configured-only, and reports an unavailable phase marker instead of guessing one.
-- A topology-first board renders configured structure before evidence exists, reuses the historical projection while a result grows, and exposes completed claims only after an existing completed adapter validates the terminal result.
-- The detailed report and default board use the same validated snapshot. JavaScript performs no artifact parsing or evidence reduction.
+- A topology-first board renders configured structure before evidence exists, reuses the historical projection while a result grows, and exposes completed claims only after a supported completed adapter validates the terminal result.
+- A completed failover projection validates the manifest and digests, all thirteen verdict checks, same-session application facts, relay lifecycle and positive forward/drop counters, atomic cut timestamp, fourteen-observation alternate journey, complete historical stream, post-cut report sources 5, 6, 7, and 62, and cleanup. Only the cut acknowledgement may color the direct cable as cut; only the typed journey may color the alternate legs as observed; candidate report-line numbers have no drawing authority.
+- The detailed `/report` route remains coexistence-only. JavaScript performs no artifact parsing or evidence reduction.
 - Keyboard controls expose consistent focus and pressed state, reduced-motion preferences are honored, and desktop and narrow layouts remain usable.
-- The terminal runner delegates launch and stop to the existing formal harness; it does not add a second lifecycle or any browser command endpoint.
+- The terminal runner selects the existing formal coexistence or failover harness and delegates its launch and stop; it does not add a second lifecycle or any browser command endpoint.
 
-Source-only tests own deterministic snapshots, authority labels, route and method restrictions, accessibility behavior, and fail-closed transitions. Read-only canonical replay owns agreement with retained evidence.
+Source-only tests own deterministic snapshots, authority labels, route and method restrictions, accessibility behavior, fail-closed transitions, candidate-promotion refusal, cut-time binding, operator delegation, and stable Make targets. Read-only canonical replay owns agreement with retained evidence.
 
 ## Gate 6: Site integration
 

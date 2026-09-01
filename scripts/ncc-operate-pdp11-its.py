@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the formal PDP-11/ITS NCC scenario beside its passive network board."""
+"""Run a formal PDP-11/ITS NCC scenario beside its passive network board."""
 
 from __future__ import annotations
 
@@ -20,8 +20,27 @@ from ncc.board_display import NccBoardDisplay, NccBoardError
 from ncc.board_server import create_ncc_board_server
 
 
+SCENARIOS = {
+    "coexistence": {
+        "result_prefix": "ncc-pdp11-its-coexistence",
+        "script": "smoke-ncc-pdp11-its.sh",
+        "has_report": True,
+    },
+    "failover": {
+        "result_prefix": "ncc-pdp11-its-application-failover",
+        "script": "smoke-ncc-pdp11-its-failover.sh",
+        "has_report": False,
+    },
+}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--scenario",
+        choices=tuple(SCENARIOS),
+        default="coexistence",
+    )
     parser.add_argument("--arpanet-root", required=True, type=Path)
     parser.add_argument("--network-unix-root", required=True, type=Path)
     parser.add_argument("--imp11a-root", required=True, type=Path)
@@ -36,19 +55,32 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def results_directory(results_root: Path, run_id: str) -> Path:
+def results_directory(
+    results_root: Path,
+    run_id: str,
+    scenario: str = "coexistence",
+) -> Path:
     """Resolve one stable result name without creating or replacing it."""
 
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", run_id) is None:
         raise ValueError("run id must use only letters, digits, dot, underscore, or hyphen")
-    return results_root / f"ncc-pdp11-its-coexistence-{run_id}"
+    try:
+        prefix = SCENARIOS[scenario]["result_prefix"]
+    except KeyError as error:
+        raise ValueError(f"unsupported NCC operator scenario {scenario!r}") from error
+    return results_root / f"{prefix}-{run_id}"
 
 
 def scenario_command(args: argparse.Namespace, result: Path) -> list[str]:
     """Build the existing formal harness command without changing its inputs."""
 
+    scenario = getattr(args, "scenario", "coexistence")
+    try:
+        script = SCENARIOS[scenario]["script"]
+    except KeyError as error:
+        raise ValueError(f"unsupported NCC operator scenario {scenario!r}") from error
     return [
-        os.fspath(REPOSITORY_ROOT / "scripts" / "smoke-ncc-pdp11-its.sh"),
+        os.fspath(REPOSITORY_ROOT / "scripts" / str(script)),
         os.fspath(args.arpanet_root),
         os.fspath(args.network_unix_root),
         os.fspath(args.imp11a_root),
@@ -84,7 +116,7 @@ def stop_owned_scenario(process: subprocess.Popen[bytes], timeout: float = 45) -
 def main() -> int:
     args = parse_args()
     try:
-        result = results_directory(args.results_root, args.run_id)
+        result = results_directory(args.results_root, args.run_id, args.scenario)
         display = NccBoardDisplay(result, args.topology)
         server = create_ncc_board_server(display, port=args.port)
     except (NccBoardError, OSError, ValueError) as error:
@@ -111,11 +143,18 @@ def main() -> int:
                 f"\nNCC scenario completed. The board remains open at {address}",
                 flush=True,
             )
-            print(
-                "Open /report for the retained detailed run report. "
-                "Press Control-C to close the board.",
-                flush=True,
-            )
+            if SCENARIOS[args.scenario]["has_report"]:
+                print(
+                    "Open /report for the retained detailed run report. "
+                    "Press Control-C to close the board.",
+                    flush=True,
+                )
+            else:
+                print(
+                    "The completed board now shows the validated cut and alternate "
+                    "route. Press Control-C to close it.",
+                    flush=True,
+                )
         else:
             print(f"\nNCC scenario exited with status {status}; inspect the terminal and partial result at {result}.", file=sys.stderr, flush=True)
 

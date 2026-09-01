@@ -195,8 +195,8 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
 .topology-map { display: block; height: auto; min-width: 720px; width: 100%; }
 .network-link { stroke: var(--configured); stroke-dasharray: 5 8; stroke-linecap: square; stroke-width: 3; transition: stroke .18s ease, stroke-width .18s ease; }
 .network-link[data-mapped="true"] { stroke-width: 5; }
-.network-link.state-up { stroke: var(--signal); stroke-dasharray: none; }
-.network-link.state-down, .network-link.state-contradictory, .network-link.state-minus-down, .network-link.state-plus-down { stroke: var(--fault); stroke-dasharray: 10 4; }
+.network-link.state-up, .network-link.state-observed { stroke: var(--signal); stroke-dasharray: none; }
+.network-link.state-down, .network-link.state-cut, .network-link.state-contradictory, .network-link.state-minus-down, .network-link.state-plus-down { stroke: var(--fault); stroke-dasharray: 10 4; }
 .network-link.state-stale { stroke: var(--attention); stroke-dasharray: 3 8; }
 .network-link.state-looped, .network-link.state-minus-looped, .network-link.state-plus-looped { stroke: var(--looped); stroke-dasharray: 8 4 2 4; }
 .node-shape { fill: var(--field-raised); stroke: #dce3df; stroke-width: 2; transition: stroke .18s ease, stroke-width .18s ease; }
@@ -210,6 +210,11 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
 .node-lamp.state-down, .node-lamp.state-contradictory { fill: var(--fault); }
 .network-node.is-active .node-lamp { animation: report-pulse .7s ease-out; }
 .lane-label { fill: #71817f; font: 700 10px/1 var(--utility); letter-spacing: .16em; }
+.route-phase { align-items: center; border-bottom: 1px solid #3c4d52; color: #93a19e; display: flex; font: 800 11px/1 var(--display); gap: 9px; justify-content: center; letter-spacing: .08em; padding: 8px 12px; text-transform: uppercase; }
+.route-phase[hidden] { display: none; }
+.route-phase .cut { color: var(--fault); }
+.route-phase .alternate { color: var(--signal); }
+.route-phase b { color: #5e6e70; font: 400 12px/1 var(--utility); }
 .map-foot { align-items: center; border-top: 1px solid #3c4d52; color: #93a19e; display: flex; font: 10px/1.45 var(--utility); gap: 18px; justify-content: space-between; margin: 0; padding: 9px 13px; }
 .map-foot strong { color: #dce3df; }
 .rail { background: var(--panel); display: flex; flex-direction: column; }
@@ -219,9 +224,9 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
 .summary-row > span { color: var(--muted); display: block; font: 700 9px/1.2 var(--utility); letter-spacing: .09em; margin-bottom: 4px; text-transform: uppercase; }
 .summary-row strong { display: block; font: 800 18px/1.05 var(--display); text-transform: uppercase; }
 .summary-row p { color: var(--muted); font: 11px/1.4 var(--utility); margin: 4px 0 0; overflow-wrap: anywhere; }
-.summary-row.state-passed strong, .summary-row.state-up strong { color: #2e7168; }
+.summary-row.state-passed strong, .summary-row.state-up strong, .summary-row.state-observed strong { color: #2e7168; }
 .summary-row.state-missing strong, .summary-row.state-stale strong { color: #946c1b; }
-.summary-row.state-down strong, .summary-row.state-contradictory strong { color: #9a3d31; }
+.summary-row.state-down strong, .summary-row.state-cut strong, .summary-row.state-contradictory strong { color: #9a3d31; }
 .activity { border-bottom: 1px solid var(--rule); padding: 11px 13px 7px; }
 .activity-head { align-items: baseline; display: flex; justify-content: space-between; margin-bottom: 5px; }
 .activity-head strong { font: 800 12px/1 var(--display); letter-spacing: .07em; text-transform: uppercase; }
@@ -282,7 +287,7 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
   </header>
   <section class="status-line" aria-label="Board status">
     <div class="status-cell"><span>Topology</span><strong>__TOPOLOGY_ID__</strong></div>
-    <div class="status-cell"><span>Complete reports</span><strong id="report-count">0</strong></div>
+    <div class="status-cell"><span>Observed events</span><strong id="report-count">0</strong></div>
     <div class="status-cell"><span>Last observation</span><strong id="last-observed">—</strong></div>
     <div class="status-cell"><span>Stream</span><strong id="stream-state">waiting</strong></div>
   </section>
@@ -290,15 +295,16 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
   <div class="workspace">
     <section class="board">
       <header class="board-head"><h2>Configured network</h2><p>validated observations only</p></header>
+      <div id="route-phase" class="route-phase" aria-label="Validated failover sequence" hidden><span>Direct</span><b aria-hidden="true">→</b><span class="cut">Cut</span><b aria-hidden="true">→</b><span class="alternate">Via IMP 7</span></div>
       <div class="map-scroll">__MAP_SVG__</div>
-      <p class="map-foot"><span><strong>Node border:</strong> typed application boundary.</span><span><strong>IMP lamp:</strong> attributed report evidence.</span><span><strong>Heavy link:</strong> mapped paired-line conclusion.</span></p>
+      <p class="map-foot"><span><strong>Node border:</strong> typed application boundary.</span><span><strong>IMP lamp:</strong> attributed report evidence.</span><span><strong>Link color:</strong> validated state; configured-only remains dashed.</span></p>
     </section>
     <aside class="rail" aria-label="Current evidence">
       <header><h2>Current evidence</h2></header>
       <div class="summary">
         <article id="application-card" class="summary-row state-unknown"><span>Application</span><strong id="application-state">pending</strong><p id="application-detail">No completed application evidence yet.</p></article>
         <article id="journey-card" class="summary-row state-unknown"><span>Typed journey</span><strong id="journey-state">pending</strong><p id="journey-detail">Journey evidence appears after the formal transaction.</p></article>
-        <article id="line-card" class="summary-row state-unknown"><span>Mapped IMP 5 / IMP 6 line</span><strong id="line-state">unknown</strong><p id="line-detail">No reciprocal report support yet.</p></article>
+        <article id="line-card" class="summary-row state-unknown"><span id="line-label">Network state</span><strong id="line-state">unknown</strong><p id="line-detail">No reciprocal report support yet.</p></article>
       </div>
       <section class="activity">
         <div class="activity-head"><strong id="activity-title">Recent observations</strong><span id="activity-count">0 shown</span></div>
@@ -311,7 +317,7 @@ h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; margin: 0; text-tra
   <footer class="footer"><span>Passive board: GET/HEAD only. No simulator or controller authority.</span><span>Scenario start and stop remain in the launching terminal.</span></footer>
 </main>
 <script>
-const stateNames = ["configured", "unknown", "recorded", "up", "down", "stale", "looped", "contradictory", "minus-down", "plus-down", "minus-looped", "plus-looped", "passed", "missing"];
+const stateNames = ["configured", "unknown", "recorded", "observed", "up", "cut", "down", "stale", "looped", "contradictory", "minus-down", "plus-down", "minus-looped", "plus-looped", "passed", "missing"];
 let latestSequence = null;
 
 function setText(id, value) {
@@ -332,6 +338,8 @@ function resetMap() {
   document.querySelectorAll(".network-link").forEach((link) => applyState(link, "configured"));
   document.querySelectorAll(".node-lamp").forEach((lamp) => applyState(lamp, "unknown"));
   document.querySelectorAll(".network-node").forEach((node) => node.classList.remove("journey-observed", "journey-attention", "is-active"));
+  document.getElementById("route-phase").hidden = true;
+  setText("line-label", "Network state");
 }
 
 function setMode(mode, runId) {
@@ -395,6 +403,7 @@ function renderHistorical(snapshot) {
   const scope = completed ? "This completed network-behavior run makes no application claim." : "The progressive report stream does not make an application claim.";
   setSummary("application", "unknown", scope);
   setSummary("journey", "unknown", completed ? "This line-state run has no typed application journey." : "Typed journey evidence is validated separately after the formal transaction.");
+  setText("line-label", "Mapped IMP 5 / IMP 6 line");
   setSummary("line", line?.state || "unknown", line?.supporting_observation_ids.length ? `${completed ? "Completed support" : "Current support"} ${line.supporting_observation_ids.join(" · ")}.` : "No reciprocal report support yet.");
   renderActivity(snapshot.event_tape);
   document.getElementById("report-link").hidden = true;
@@ -426,9 +435,48 @@ function renderCompleted(snapshot) {
   const journey = snapshot.journey.assessment;
   setSummary("journey", journey.state, journey.first_boundary_id ? `First unresolved observation: ${journey.first_boundary_id}.` : "Every configured boundary is observed.", journey.state === "missing-boundary" ? "missing" : journey.state === "complete" ? "passed" : "unknown");
   const accepted = snapshot.historical.accepted_line;
+  setText("line-label", "Mapped IMP 5 / IMP 6 line");
   setSummary("line", accepted.state, `Accepted support ${accepted.supporting_sequences.join(" / ")}; run-finish view ${finalLine.state}.`);
   renderActivity(snapshot.historical.evidence_tape);
   document.getElementById("report-link").hidden = false;
+}
+
+function renderFailover(snapshot) {
+  resetMap();
+  setMode("completed", snapshot.run.id);
+  setText("report-count", snapshot.historical.complete_event_count);
+  setText("last-observed", snapshot.historical.last_observed_at);
+  setText("stream-state", `${snapshot.run.outcome} · cleanup ${snapshot.lifecycle.outer_runtime_cleanup}`);
+  setText("activity-title", "Post-cut NCC reports");
+  snapshot.historical.post_cut_report_sources.forEach((imp) => matching("data-component-lamp", `imp:${imp}`).forEach((lamp) => applyState(lamp, "recorded")));
+  snapshot.journey.route.links.forEach((routeLink) => matching("data-link-id", routeLink.id).forEach((link) => applyState(link, "observed")));
+  matching("data-link-id", snapshot.failover.direct_link.id).forEach((link) => {
+    applyState(link, "cut");
+    link.parentElement.querySelector("title").textContent = `${snapshot.failover.direct_link.id} · acknowledged harness cut`;
+  });
+  snapshot.failover.alternate_route.link_ids.forEach((linkId) => matching("data-link-id", linkId).forEach((link) => {
+    applyState(link, "observed");
+    link.parentElement.querySelector("title").textContent = `${linkId} · typed post-cut journey observation`;
+  }));
+  const boundariesByComponent = new Map();
+  snapshot.journey.assessment.boundaries.forEach((boundary) => {
+    const entries = boundariesByComponent.get(boundary.component_id) || [];
+    entries.push(boundary.state);
+    boundariesByComponent.set(boundary.component_id, entries);
+  });
+  boundariesByComponent.forEach((states, componentId) => {
+    const node = document.querySelector(`[data-component-id="${componentId}"]`);
+    if (node) node.classList.add(states.includes("missing") ? "journey-attention" : "journey-observed");
+  });
+  const application = snapshot.application;
+  setSummary("application", application.state, "One TELNET session returned structured ITS :TIME before and after the acknowledged cut.");
+  const journey = snapshot.journey.assessment;
+  setSummary("journey", journey.state, `Alternate route observed through IMP 7; first unresolved host boundary ${journey.first_boundary_id}.`, "missing");
+  setText("line-label", "Application route");
+  setSummary("line", "via IMP 7", `Direct application link cut; ${snapshot.failover.alternate_route.link_ids.length} alternate links observed by the typed journey.`, "passed");
+  document.getElementById("route-phase").hidden = false;
+  renderActivity(snapshot.historical.evidence_tape);
+  document.getElementById("report-link").hidden = true;
 }
 
 function renderWaiting(payload) {
@@ -454,6 +502,8 @@ async function poll() {
       renderWaiting(payload);
     } else if (!response.ok) {
       throw new Error(payload.error || `snapshot request failed (${response.status})`);
+    } else if (payload.failover && payload.historical && payload.journey) {
+      renderFailover(payload);
     } else if (payload.composition && payload.historical && payload.journey) {
       renderCompleted(payload);
     } else {

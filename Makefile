@@ -26,12 +26,13 @@ NCC_APPLICATION_RELAY_DURATION ?= 420
 NCC_DIRECT_FORWARD_SECONDS ?= 45
 NCC_LAB_ROOT ?= $(if $(wildcard $(LAB_ROOT)/results),$(LAB_ROOT),$(abspath ../../arpanet-redux-lab))
 NCC_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-coexistence-canonical-20260901T153758Z
+NCC_FAILOVER_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-application-failover-canonical-20260901T204637Z
 NCC_VIEW_PORT ?= 8767
 NCC_WATCH_PORT ?= 8765
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover ncc run-ncc watch-ncc view-ncc
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -140,8 +141,14 @@ run-ncc: smoke-ncc-pdp11-its
 ncc: verify-ncc-pdp11-its
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" $(PYTHON) ./scripts/ncc-operate-pdp11-its.py --arpanet-root "$(ARPANET_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --pdp11-build-root "$(PDP11_BUILD_ROOT)" --results-root "$(RESULTS_ROOT)" --run-id "$(RUN_ID)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
 
+ncc-failover: verify-ncc-pdp11-its-failover
+	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_FAILOVER_DURATION)" BRFID_APPLICATION_RELAY_DURATION="$(NCC_APPLICATION_RELAY_DURATION)" $(PYTHON) ./scripts/ncc-operate-pdp11-its.py --scenario failover --arpanet-root "$(ARPANET_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --pdp11-build-root "$(PDP11_BUILD_ROOT)" --results-root "$(RESULTS_ROOT)" --run-id "$(RUN_ID)" --topology config/topologies/ncc-pdp11-its-application-failover.json --port "$(NCC_WATCH_PORT)"
+
 watch-ncc:
 	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
 
 view-ncc:
 	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)"
+
+view-ncc-failover:
+	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_FAILOVER_RESULT)" --topology config/topologies/ncc-pdp11-its-application-failover.json --port "$(NCC_VIEW_PORT)"

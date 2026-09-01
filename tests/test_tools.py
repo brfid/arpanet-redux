@@ -89,6 +89,33 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn('--run-id "operated-demo"', operated.stdout)
         self.assertIn('--port "9875"', operated.stdout)
 
+        failover_view = run(
+            "make",
+            "-n",
+            "NCC_FAILOVER_RESULT=/tmp/ncc-failover-result",
+            "NCC_VIEW_PORT=9877",
+            "view-ncc-failover",
+            cwd=ROOT,
+        )
+        self.assertEqual(failover_view.returncode, 0, failover_view.stderr)
+        self.assertIn("scripts/ncc-serve-board.py", failover_view.stdout)
+        self.assertIn("/tmp/ncc-failover-result", failover_view.stdout)
+        self.assertIn("ncc-pdp11-its-application-failover.json", failover_view.stdout)
+
+        operated_failover = run(
+            "make",
+            "-n",
+            "RUN_ID=failover-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "NCC_WATCH_PORT=9875",
+            "ncc-failover",
+            cwd=ROOT,
+        )
+        self.assertEqual(operated_failover.returncode, 0, operated_failover.stderr)
+        self.assertIn("scripts/ncc-operate-pdp11-its.py", operated_failover.stdout)
+        self.assertIn("--scenario failover", operated_failover.stdout)
+        self.assertIn("ncc-pdp11-its-application-failover.json", operated_failover.stdout)
+
 
 class NativeTemplateTests(unittest.TestCase):
     def test_configs_use_native_simh_environment_expansion(self) -> None:

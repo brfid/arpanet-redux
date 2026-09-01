@@ -9,6 +9,11 @@ from .coexistence_display import (
     CoexistenceDisplayError,
     CoexistenceDisplaySnapshot,
 )
+from .failover_display import (
+    FailoverDisplay,
+    FailoverDisplayError,
+    FailoverDisplaySnapshot,
+)
 from .historical_display import (
     HistoricalDisplayError,
     HistoricalDisplayObserver,
@@ -33,6 +38,7 @@ class NccBoardDisplay:
     """Expose existing validated live or completed snapshots through one board."""
 
     _COEXISTENCE_TOPOLOGY = "ncc-pdp11-its-coexistence"
+    _FAILOVER_TOPOLOGY = "ncc-pdp11-its-application-failover"
     _HISTORICAL_LINE_TOPOLOGIES = {
         "ncc-alternate-path-fault",
         "ncc-line-loopback",
@@ -57,6 +63,7 @@ class NccBoardDisplay:
         except (HistoricalDisplayError, SharedTopologyValidationError) as error:
             raise NccBoardError(str(error)) from error
         self._completed: CoexistenceDisplay | None = None
+        self._failover: FailoverDisplay | None = None
 
     @property
     def run_id(self) -> str:
@@ -66,7 +73,7 @@ class NccBoardDisplay:
 
     def snapshot(
         self,
-    ) -> HistoricalDisplaySnapshot | CoexistenceDisplaySnapshot:
+    ) -> HistoricalDisplaySnapshot | CoexistenceDisplaySnapshot | FailoverDisplaySnapshot:
         """Return the strongest currently available existing display snapshot."""
 
         manifest = self._terminal_manifest()
@@ -74,6 +81,8 @@ class NccBoardDisplay:
             topology = manifest.get("topology")
             if topology == self._COEXISTENCE_TOPOLOGY:
                 return self.completed_display().snapshot()
+            if topology == self._FAILOVER_TOPOLOGY:
+                return self.failover_display().snapshot()
             if topology in self._HISTORICAL_LINE_TOPOLOGIES:
                 snapshot = self._historical_snapshot()
                 if snapshot.mode != "completed":
@@ -120,6 +129,27 @@ class NccBoardDisplay:
             except CoexistenceDisplayError as error:
                 raise NccBoardError(str(error)) from error
         return self._completed
+
+    def failover_display(self) -> FailoverDisplay:
+        """Return the validated passive failover projection when applicable."""
+
+        manifest = self._terminal_manifest()
+        if manifest is None:
+            raise NccBoardPending("validated completed run artifacts are not available")
+        if manifest.get("topology") != self._FAILOVER_TOPOLOGY:
+            raise NccBoardError(
+                "the failover board projection is available only for a validated "
+                "NCC/PDP-11/ITS application failover result"
+            )
+        if self._failover is None:
+            try:
+                self._failover = FailoverDisplay(
+                    self.results_dir,
+                    self.shared_topology_path,
+                )
+            except FailoverDisplayError as error:
+                raise NccBoardError(str(error)) from error
+        return self._failover
 
     def _terminal_manifest(self) -> dict[str, str] | None:
         """Return the manifest only after its three terminal fields are present."""

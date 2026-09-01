@@ -12,7 +12,7 @@ This page owns active local checkouts, selected work, and decision points. The [
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only |
 | `/Users/brf/src/arpanet-redux-worktrees/docs` | `codex/docs-concision` | Documentation maintenance |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-application-failover` | Accepted NCC application-failover line |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-failover-board` | Passive failover projection and terminal runner |
 | `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Accepted Gate 4H and typed journey line |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Accepted line-state proof and coordinated expansion |
 
@@ -32,7 +32,7 @@ Do not delete, rebase, merge into, or develop on a recovery ref. Prefer revertin
 | Workstream | State | Decision | Read first |
 |---|---|---|---|
 | Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
-| NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, passive displays, board, and same-session application failover are integrated | No required follow-up. Keep discovered application-link report identities candidate-only until independent fresh reciprocal evidence and a separate decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
+| NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, its fail-closed board projection, and terminal-owned coexistence and failover runners are integrated | Recommended next: prove terminal-side interactive TELNET with a typed command/result contract, one owner, prompt framing, attribution, timeouts, retained evidence, and cleanup before considering browser input. Keep discovered application-link report identities candidate-only | [NCC observability](ncc.md), [failover board](experiments/2026-09-01-ncc-application-failover-board.md) |
 | PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, ten-observation typed journey, and cleanup pass | No required follow-up. Optional work includes bounded legacy-client and NCP anomalies | [IMP11-A record](research/imp11a-device.md), [Network UNIX research](research/pdp11-network-unix.md) |
 | Network expansion | The three-IMP fault, loopback, coexistence, board, and failover compositions are integrated | No expansion is selected. A new host, IMP, mapping, or claim requires a separate bounded decision and evidence | [Configuration boundary](../config/README.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md) |
 

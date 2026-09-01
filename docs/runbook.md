@@ -109,6 +109,26 @@ make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_BUILD_ROOT="$build_root" smoke-n
 
 The fault and loopback smokes normally run for about 130 seconds. Their duration and forward-phase variables are diagnostic overrides; do not shorten them for acceptance. The failover smoke normally runs for about five minutes and requires the standard receiver and relay intervals.
 
+## Use interactive TELNET
+
+From the repository root, the existing standard laboratory and retained receipt-bound PDP-11 build need only:
+
+```sh
+make telnet
+```
+
+For another laboratory or an explicitly selected verified build, run:
+
+```sh
+make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_root" telnet
+```
+
+Allow roughly two to three minutes for ITS, Network UNIX, and the two IMPs to boot and settle. When the `telnet>` prompt appears, enter a prompt-returning ITS DDT or colon command such as `:TIME`. `/help` describes the local controls, and `/quit` ends the session without sending those words to the guest. At least one command must complete before `/quit` can produce an accepted run.
+
+The target owns standard input and every simulator PTY in one foreground controller. Each accepted line is printable ASCII, is sent by the real Network UNIX `/usr/bin/telnet - -h 106` client with a carriage return, and is captured through the next documented ITS DDT CRLF-plus-asterisk prompt. The controller retains and reads back a strict `interactive-telnet.jsonl` stream, requires correlated IMP traffic in both directions, checks the ITS TELSER job, and performs bounded cleanup. `TELNET_COMMAND_TIMEOUT`, `TELNET_MAX_COMMAND_BYTES`, `TELNET_MAX_COMMANDS`, and `TELNET_MAX_RESPONSE_BYTES` are diagnostic limit overrides.
+
+A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media), then pass that directory as `PDP11_INTERACTIVE_BUILD_ROOT`. This first interactive slice does not support full-screen programs, character-at-a-time editing, arbitrary controls, or paging. It does not emit a message journey or claim the unresolved guest-ingress grammar, and it gives the browser no input or simulator authority.
+
 ## Run the NCC board
 
 To run either formal application/NCC smoke beside the passive board in one terminal-owned session, use:
@@ -127,9 +147,7 @@ make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" run-ncc
 make NCC_RESULT="$lab/results/ncc-pdp11-its-coexistence-watch-demo" watch-ncc
 ```
 
-To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed.
-
-The formal controllers still own fixed TELNET transactions. The recommended follow-up is a terminal-side typed TELNET session seam that first proves one owner, prompt and response framing, timeout behavior, command attribution, retained evidence, and cleanup. Browser input remains a separate later authority decision.
+To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed. Interactive TELNET remains a separate foreground terminal surface; the board does not send input or own that controller.
 
 ## Read a result
 
@@ -140,6 +158,7 @@ Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manif
 | `router-oracle-` and `its-linux-` | Application and IMP logs plus manifest |
 | `two-its-telnet-` | Sentinel evidence and direct NCC observation stream |
 | `pdp11-its-telnet-` | Application and cleanup evidence, receipt binding, and `message-journey.jsonl` |
+| `pdp11-its-interactive-` | Application and cleanup evidence plus the strict `interactive-telnet.jsonl` command/result stream |
 | `ncc-alternate-path-fault-` | `receiver.json`, `historical-events.jsonl`, `direct-relay.json`, and `verdict.json` |
 | `ncc-line-loopback-` | `receiver.json`, `historical-events.jsonl`, `direct-reflector.json`, and `verdict.json` |
 | `ncc-pdp11-its-coexistence-` | PDP-11 application artifacts plus NCC receiver, historical events, and composition verdict |

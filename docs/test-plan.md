@@ -32,6 +32,7 @@ The source-only suite enforces these rules across completed summaries, live obse
 - Historical report ingress attributes each record from its old-style leader and validates the 16-bit semantic checksum before emitting Type 301/303 trouble or Type 302 throughput events. It preserves the received report code and does not infer topology, freshness, or a verdict.
 - Historical-line reconciliation uses only reciprocal report-line fields on one configured modem binding. It never derives a report line from a SIMH interface name. An `up` endpoint names its configured peer; an accepted `down` endpoint may name that peer or omit it; an accepted `looped` endpoint names its own reporting IMP. Other neighbor combinations are contradictory. Partition remains a reachability inference that requires missing or stale self evidence plus fresh down observations through at least two independent peers.
 - Message-journey boundaries derive from one named route and existing host or modem bindings. Observations retain direct or harness-derived provenance, source-local order, decoded fields, safe correlation fingerprints, and exact trace-window identity. Reducers distinguish complete, missing, contradictory, ambiguous, and wholly unknown paths and retain supporting identifiers.
+- Interactive TELNET session records use one controller emission order. A session start binds exact revision, route, application identities, input and response ownership, framing, encoding, and limits. Every accepted command is immediately followed by its bounded exact captured result; terminal counts, byte counts, digests, prompt/status combinations, and contiguous identities must recompute exactly.
 - Read-only adapters consume only their declared structured artifacts and exact topology. They re-run the relevant reducer and fail closed on any identity, digest, topology, lifecycle, verdict, state, or support mismatch. They never parse undeclared raw logs, launch a process, or change a result.
 - Python produces resolved display snapshots. Browsers perform presentation only. Servers bind IPv4 loopback, accept GET and HEAD only, and expose no arbitrary-file, external-network, simulator, controller, guest-input, relay, or result-mutation route.
 
@@ -95,6 +96,18 @@ Capture both IMP debug-log offsets and both host console offsets immediately bef
 9. Every common precondition passes.
 
 The legacy client diagnostic `Possible protocol error! command = 376, option = 3.` is evidence but not a failure by itself. `SKTRACE` and `PBTRACE` may corroborate the path but cannot replace the application and correlated IMP evidence. The deliberately incomplete journey diagnosis does not fail the separate application gate.
+
+## Gate 4I: Interactive Network UNIX-to-ITS TELNET
+
+Start the accepted direct Gate 4H composition and its real Network UNIX `/usr/bin/telnet - -h 106` client under one foreground controller. The controller alone owns operator standard input, every simulator PTY, command dispatch, response framing, transcript emission, evidence checks, and cleanup. Apply Gate 4H's source, executable, build-receipt, topology, readiness, connection, TELSER, bidirectional IMP-correlation, fatal-condition, and cleanup requirements. Accept the interactive extension only if:
+
+1. The session-start record binds the exact run and repository revision, host 176 to host 106 direct route, Network UNIX TELNET client, ITS TELSER server and service user, operator input, PDP-11 console responses, carriage-return lines, Latin-1 capture, CRLF-plus-asterisk DDT prompt, and finite command, timeout, and response limits.
+2. At least one nonblank printable-ASCII operator line is sent by the already-open guest TELNET session. Each command has a contiguous controller identity and byte count; its result immediately follows, preserves the exact bounded console capture through the next prompt, and records a matching byte count, SHA-256, elapsed time, response source, complete status, and prompt identity.
+3. Local `/help` and `/quit` controls are not sent to the guest or persisted as application commands. The terminal record follows the last result, reports a supported reason, and exactly recomputes total, complete, and failed counts.
+4. The controller reads the transcript back through the strict reader, verifies its digest, records the matching application identities and command count, and observes correlated post-start IMP traffic in both directions without reconnecting the guest session.
+5. A timeout, session close, interruption, or response limit retains a bounded typed result, stops further input, fails acceptance, and still completes bounded cleanup. Every common precondition passes.
+
+This gate proves line-oriented interaction for commands that return to the documented ITS DDT prompt. It does not prove character-at-a-time behavior, full-screen or paged programs, arbitrary control input, a browser command path, application-link failover during an operator session, or either missing Gate 4H guest-ingress boundary. It emits no message-journey sidecar and supplies no new parser or simulator authority.
 
 ## Gate 5: Payload anti-bypass
 

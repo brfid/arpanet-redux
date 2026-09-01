@@ -428,36 +428,38 @@ def assert_client_application_evidence(output: bytes) -> None:
         raise RuntimeError("UT reported a close or error before proof completed")
 
 
-# Below this many words, a matched MI1 packet (e.g. a bare ready/ack) is too
+# Below this many words, a matched MI packet (e.g. a bare ready/ack) is too
 # generic to rule out independent coincidence on each side of the link; the
 # smallest observed application-bearing packet was 5 words.
 MIN_CORRELATED_MI_WORDS = 4
 
-_MI_HEADER = re.compile(rb"MI1 MSG: message (sent|received) \(length=(\d+)\)")
-_MI_BODY = re.compile(rb"MI1 MSG: - (.*)")
 
+def mi_link_messages_from_bytes(
+    data: bytes, *, device: str = "MI1"
+) -> dict[bytes, set[bytes]]:
+    """Reconstruct one exact modem-interface's packet contents by direction."""
 
-def mi_link_messages_from_bytes(data: bytes) -> dict[bytes, set[bytes]]:
-    """Reconstruct exact modem-interface (MI1) packet contents by direction.
-
-    MI1 is the simulated line between the two IMPs, distinct from each IMP's
-    HI2 host-facing interface. A packet's exact word content appearing as
-    "sent" on one IMP and "received" on the other is direct evidence that it
-    physically crossed the inter-IMP hop, not just the local host link.
-    """
+    normalized_device = device.upper()
+    if re.fullmatch(r"MI[1-5]", normalized_device) is None:
+        raise ValueError(f"unsupported H316 modem device {device!r}")
+    encoded_device = re.escape(normalized_device.encode("ascii"))
+    header_pattern = re.compile(
+        encoded_device + rb" MSG: message (sent|received) \(length=(\d+)\)"
+    )
+    body_pattern = re.compile(encoded_device + rb" MSG: - (.*)")
     messages: dict[bytes, set[bytes]] = {b"sent": set(), b"received": set()}
     direction: bytes | None = None
     remaining = 0
     words: list[bytes] = []
     for line in data.splitlines():
-        header = _MI_HEADER.search(line)
+        header = header_pattern.search(line)
         if header is not None:
             direction, remaining = header.group(1), int(header.group(2))
             words = []
             continue
         if direction is None or remaining <= 0:
             continue
-        body = _MI_BODY.search(line)
+        body = body_pattern.search(line)
         if body is None:
             direction = None
             continue
@@ -470,8 +472,10 @@ def mi_link_messages_from_bytes(data: bytes) -> dict[bytes, set[bytes]]:
     return messages
 
 
-def mi_link_messages(path: Path, offset: int) -> dict[bytes, set[bytes]]:
-    return mi_link_messages_from_bytes(path.read_bytes()[offset:])
+def mi_link_messages(
+    path: Path, offset: int, *, device: str = "MI1"
+) -> dict[bytes, set[bytes]]:
+    return mi_link_messages_from_bytes(path.read_bytes()[offset:], device=device)
 
 
 def significant(contents: set[bytes]) -> set[bytes]:

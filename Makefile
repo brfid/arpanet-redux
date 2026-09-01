@@ -18,11 +18,12 @@ PDP11_BUILD_ROOT ?= $(RESULTS_ROOT)/pdp11-telnet-build-$(RUN_ID)
 PDP11_BUILD_RECEIPT ?= $(PDP11_BUILD_ROOT)/pdp11-build-receipt.json
 NCC_ALTERNATE_DURATION ?= 130
 NCC_LOOPBACK_DURATION ?= 130
+NCC_PDP11_ITS_DURATION ?= 150
 NCC_DIRECT_FORWARD_SECONDS ?= 45
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -97,6 +98,8 @@ verify-ncc-alternate-path:
 
 verify-ncc-line-loopback: verify-ncc-alternate-path
 
+verify-ncc-pdp11-its: verify-pdp11-its
+
 smoke-router: verify-router
 	./scripts/smoke-router-oracle.sh "$(LINUX_NCP_ROOT)" "$(H316_BIN)" "$(NCP_BUILD_RECEIPT)" "$(RESULTS_ROOT)/router-oracle-$(RUN_ID)"
 
@@ -114,3 +117,6 @@ smoke-ncc-alternate-path: verify-ncc-alternate-path
 
 smoke-ncc-line-loopback: verify-ncc-line-loopback
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_LOOPBACK_DURATION)" BRFID_DIRECT_FORWARD_SECONDS="$(NCC_DIRECT_FORWARD_SECONDS)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-line-loopback.sh "$(ARPANET_ROOT)" "$(H316_BIN)" "$(RESULTS_ROOT)/ncc-line-loopback-$(RUN_ID)"
+
+smoke-ncc-pdp11-its: verify-ncc-pdp11-its
+	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"

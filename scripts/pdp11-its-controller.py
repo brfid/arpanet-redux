@@ -21,6 +21,7 @@ SHARED_SPEC.loader.exec_module(SHARED)
 
 from ncc.message_journey import ObservationProvenance
 from ncc.pdp11_its_journey import (
+    pdp11_its_modem_devices,
     transaction_window_source,
     write_pdp11_its_journey_stream,
 )
@@ -96,6 +97,9 @@ def application_evidence_failures(
     its_output: bytes,
     imp6_output: bytes,
     imp62_output: bytes,
+    *,
+    imp6_mi_device: str = "mi1",
+    imp62_mi_device: str = "mi1",
 ) -> list[str]:
     failures = ordered_pattern_failures(pdp11_output)
     if FATAL_SESSION.search(pdp11_output):
@@ -114,8 +118,12 @@ def application_evidence_failures(
         if b"WDT LIGHTS: changed to 175400" in output:
             failures.append(f"{name} reported a post-probe modem-line-dead transition")
 
-    imp6_mi = SHARED.mi_link_messages_from_bytes(imp6_output)
-    imp62_mi = SHARED.mi_link_messages_from_bytes(imp62_output)
+    imp6_mi = SHARED.mi_link_messages_from_bytes(
+        imp6_output, device=imp6_mi_device
+    )
+    imp62_mi = SHARED.mi_link_messages_from_bytes(
+        imp62_output, device=imp62_mi_device
+    )
     forward = SHARED.significant(imp6_mi[b"sent"]) & SHARED.significant(
         imp62_mi[b"received"]
     )
@@ -195,7 +203,8 @@ def run(args: argparse.Namespace) -> int:
     manifest = args.manifest.resolve()
     topology_path = args.topology.resolve()
     topology_document = json.loads(topology_path.read_text(encoding="utf-8"))
-    shared_topology_from_mapping(topology_document)
+    shared_topology = shared_topology_from_mapping(topology_document)
+    imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
     SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
     SHARED.append_manifest(manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config))
@@ -337,7 +346,12 @@ def run(args: argparse.Namespace) -> int:
             imp_offsets["imp62"] : imp_end_offsets["imp62"]
         ]
         failures = application_evidence_failures(
-            pdp11_output, its_output, imp6_output, imp62_output
+            pdp11_output,
+            its_output,
+            imp6_output,
+            imp62_output,
+            imp6_mi_device=imp6_mi_device,
+            imp62_mi_device=imp62_mi_device,
         )
         for imp in imps:
             if SHARED.latest_watchdog(imp.debug_path) != "075400":

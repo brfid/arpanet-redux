@@ -27,6 +27,9 @@ from ncc.shared_topology import load_shared_topology
 
 ROOT = Path(__file__).resolve().parents[1]
 TOPOLOGY_PATH = ROOT / "config" / "topologies" / "pdp11-its-telnet.json"
+COEXISTENCE_TOPOLOGY_PATH = (
+    ROOT / "config" / "topologies" / "ncc-pdp11-its-coexistence.json"
+)
 
 REQUEST = (
     0o000106,
@@ -212,6 +215,21 @@ class Pdp11ItsJourneyTests(unittest.TestCase):
 
         reply_hi = extraction.observations[6]
         self.assertEqual(reply_hi.transport_sequence, 6)
+
+    def test_uses_each_topology_bound_modem_device_on_the_same_route(self) -> None:
+        coexistence_topology = load_shared_topology(COEXISTENCE_TOPOLOGY_PATH)
+        imp6_mi3 = self.imp6.replace(b"MI1", b"MI3")
+
+        extraction = extract_pdp11_its_journey(
+            coexistence_topology,
+            imp6_trace=imp6_mi3,
+            imp62_trace=self.imp62,
+        )
+
+        self.assertEqual(len(extraction.observations), 10)
+        self.assertEqual(
+            extraction.diagnosis.first_boundary_id, "boundary:request:6"
+        )
 
     def test_changed_or_incomplete_mi_packet_cannot_become_a_boundary(self) -> None:
         changed = self.imp62.replace(b"001000 160761", b"001001 160761", 1)

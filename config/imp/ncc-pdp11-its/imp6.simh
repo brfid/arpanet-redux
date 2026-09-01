@@ -1,0 +1,24 @@
+# IMP 6 joins the NCC triangle, IMP 62 application link, and ITS host 106.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=6
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP6_DIRECT_PORT%:127.0.0.1:%BRFID_IMP5_DIRECT_PORT%
+set mi2 enabled
+set mi2 debug
+attach -u mi2 %BRFID_IMP6_ALT_PORT%:127.0.0.1:%BRFID_IMP7_TO6_PORT%
+set mi3 enabled
+set mi3 debug
+attach -u mi3 %BRFID_IMP6_MI_PORT%:127.0.0.1:%BRFID_IMP62_MI_PORT%
+
+set hi1 disabled
+set hi2 enabled
+set hi2 debug
+attach -u hi2 %BRFID_IMP6_HI_PORT%:127.0.0.1:%BRFID_HOST_A_IMP_PORT%
+set hi2 convert
+
+set throttle 10000K
+go

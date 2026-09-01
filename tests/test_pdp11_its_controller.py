@@ -53,6 +53,31 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
     def test_complete_evidence_accepts_nonfatal_legacy_diagnostic(self) -> None:
         self.assertEqual(failures(), [])
 
+    def test_topology_selected_imp6_mi3_correlates_with_imp62_mi1(self) -> None:
+        imp6_mi3 = VALID_IMP6.replace(b"MI1", b"MI3")
+
+        result = CONTROLLER.application_evidence_failures(
+            VALID_PDP11,
+            VALID_ITS,
+            imp6_mi3,
+            VALID_IMP62,
+            imp6_mi_device="mi3",
+            imp62_mi_device="mi1",
+        )
+
+        self.assertEqual(result, [])
+        self.assertTrue(
+            any(
+                "missing correlated" in failure
+                for failure in CONTROLLER.application_evidence_failures(
+                    VALID_PDP11,
+                    VALID_ITS,
+                    imp6_mi3,
+                    VALID_IMP62,
+                )
+            )
+        )
+
     def test_missing_connection_open_is_rejected(self) -> None:
         result = failures(pdp11=VALID_PDP11.replace(b"Connection open\r\n", b""))
         self.assertIn("missing ordered Connection open evidence", result)

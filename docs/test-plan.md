@@ -69,6 +69,20 @@ Start the same IMP 5/6/7 composition and passive receiver used by the line-fault
 
 A receiver exit, configured or missing peer identity on a looped report, a transition without post-loop IMP 6 evidence, one-sided reflection, missing pre-loop `up` evidence, or a conclusion derived from reflector phase instead of firmware reports cannot satisfy this gate. The reflector counters and structured receiver outputs remain in the external immutable result directory; Git retains only project-authored composition inputs, controllers, tests, and concise dated conclusions.
 
+## NCC-observed heterogeneous coexistence gate
+
+Start Network UNIX host `176`, IMP 62, IMP 6, ITS host `106`, the IMP 5/6/7 NCC triangle, and the passive NCC receiver on IMP 5 as one bounded composition. Preserve the already evidenced IMP 5 MI1 / IMP 6 MI1 report-line mapping and move only IMP 6's application-facing IMP 62 binding to MI3; do not map the application or alternate links. Apply every Gate 4H application, typed-journey, identity, lifecycle, and cleanup requirement to the heterogeneous route. Accept the additional NCC coexistence claim only if:
+
+1. The receiver completes its ready exchange and records complete IMP-to-host messages plus checksum-valid Type 303 trouble and Type 302 throughput reports.
+2. Both report forms are independently attributed to each of IMPs 5, 6, 7, and 62 in the receiver output.
+3. At least one fresh reciprocal IMP 5 line 1 / IMP 6 line 1 observation pair reconciles the mapped direct line as `up`, with both supporting direct event sequences retained in the verdict.
+4. The application evidence still proves Network UNIX TELNET, the ITS service job, structured remote `:TIME`, and exact correlated traffic over IMP 62 MI1 / IMP 6 MI3 in both directions.
+5. The controller still emits exactly ten typed journey observations and retains `missing-boundary` at `boundary:request:6`; the topology-selected MI3 trace changes no host-ingress authority.
+6. Configured-only application and alternate links acquire no report-line identities or inferred state, and no existing completed-summary, live-observation, historical-event, or message-journey schema changes.
+7. The application controller cleans up its two guests and two IMPs, the outer runtime cleans up the passive receiver and remaining two IMPs, every leased port and cooperative lock is released, and no simulator transport error occurs.
+
+A passing Gate 4H transaction from another run, reports replayed from another result, a report from only the NCC triangle, application traffic inferred from configured topology, or an assumed MI-device-to-report-line mapping cannot satisfy this gate. This first composition proves coexistence, not application rerouting around a fault; an application-relevant alternate route remains a separate future gate.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

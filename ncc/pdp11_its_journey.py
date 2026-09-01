@@ -158,15 +158,26 @@ def extract_pdp11_its_journey(
     MI-to-HI transition. The adapter never compares simulator ticks.
     """
 
-    _validate_formal_topology(topology)
+    imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(topology)
     try:
         imp6 = parse_h316_trace(imp6_trace.decode("ascii").splitlines())
         imp62 = parse_h316_trace(imp62_trace.decode("ascii").splitlines())
     except UnicodeDecodeError as error:
         raise Pdp11ItsJourneyError("formal H316 trace window is not ASCII") from error
 
-    request = _request_path(imp62, imp6)
-    reply = _reply_path(imp6, imp62, request)
+    request = _request_path(
+        imp62,
+        imp6,
+        origin_mi_device=imp62_mi_device,
+        destination_mi_device=imp6_mi_device,
+    )
+    reply = _reply_path(
+        imp6,
+        imp62,
+        request,
+        origin_mi_device=imp6_mi_device,
+        destination_mi_device=imp62_mi_device,
+    )
     expected = build_expected_journey(
         topology,
         journey_id=PDP11_ITS_JOURNEY_ID,
@@ -201,6 +212,9 @@ def extract_pdp11_its_journey(
 def _request_path(
     imp62: tuple[H316TraceTransfer, ...],
     imp6: tuple[H316TraceTransfer, ...],
+    *,
+    origin_mi_device: str,
+    destination_mi_device: str,
 ) -> _LegPath:
     origin_hi = _first(
         transfer
@@ -214,13 +228,14 @@ def _request_path(
         transfer
         for transfer in imp62
         if transfer.source_local_sequence > origin_hi.source_local_sequence
-        and _is_mi(transfer, action="sent")
+        and _is_mi(transfer, action="sent", device=origin_mi_device)
         and _mi_packet_contains_hi_message(transfer.words, origin_hi.words)
     )
     destination_mi = _first(
         transfer
         for transfer in imp6
-        if _is_mi(transfer, action="received") and transfer.words == origin_mi.words
+        if _is_mi(transfer, action="received", device=destination_mi_device)
+        and transfer.words == origin_mi.words
     )
     destination_hi = _first(
         transfer
@@ -249,6 +264,9 @@ def _reply_path(
     imp6: tuple[H316TraceTransfer, ...],
     imp62: tuple[H316TraceTransfer, ...],
     request: _LegPath,
+    *,
+    origin_mi_device: str,
+    destination_mi_device: str,
 ) -> _LegPath:
     for origin_hi in imp6:
         if (
@@ -264,7 +282,7 @@ def _reply_path(
             transfer
             for transfer in imp6
             if transfer.source_local_sequence > origin_hi.source_local_sequence
-            and _is_mi(transfer, action="sent")
+            and _is_mi(transfer, action="sent", device=origin_mi_device)
             and _mi_packet_contains_hi_message(transfer.words, origin_hi.words)
         )
         if origin_mi is None:
@@ -272,7 +290,7 @@ def _reply_path(
         destination_mi = _find_first(
             transfer
             for transfer in imp62
-            if _is_mi(transfer, action="received")
+            if _is_mi(transfer, action="received", device=destination_mi_device)
             and transfer.words == origin_mi.words
         )
         if destination_mi is None:
@@ -556,10 +574,12 @@ def _is_hi(transfer: H316TraceTransfer, *, action: str) -> bool:
     )
 
 
-def _is_mi(transfer: H316TraceTransfer, *, action: str) -> bool:
+def _is_mi(
+    transfer: H316TraceTransfer, *, action: str, device: str
+) -> bool:
     return (
         transfer.complete
-        and transfer.device == "MI1"
+        and transfer.device == device.upper()
         and transfer.action == action
     )
 
@@ -593,7 +613,9 @@ def _boundaries(
     return boundaries
 
 
-def _validate_formal_topology(topology: SharedTopology) -> None:
+def pdp11_its_modem_devices(topology: SharedTopology) -> tuple[str, str]:
+    """Return the exact IMP 62 and IMP 6 SIMH devices on the formal route."""
+
     route = next(
         (
             item
@@ -616,14 +638,20 @@ def _validate_formal_topology(topology: SharedTopology) -> None:
         raise Pdp11ItsJourneyError(
             "shared topology does not bind both formal hosts through HI2"
         )
-    modem_pairs = {
-        frozenset((item.first_imp_id, item.second_imp_id))
+    modem_bindings = tuple(
+        item
         for item in topology.modem_interfaces
-    }
-    if frozenset(("imp:62", "imp:6")) not in modem_pairs:
+        if frozenset((item.first_imp_id, item.second_imp_id))
+        == frozenset(("imp:62", "imp:6"))
+    )
+    if len(modem_bindings) != 1:
         raise Pdp11ItsJourneyError(
-            "shared topology does not bind IMP 62 and IMP 6 through one modem interface"
+            "shared topology must bind IMP 62 and IMP 6 through exactly one modem interface"
         )
+    binding = modem_bindings[0]
+    if binding.first_imp_id == "imp:62":
+        return binding.first_simh_device, binding.second_simh_device
+    return binding.second_simh_device, binding.first_simh_device
 
 
 def _first(values: Any) -> H316TraceTransfer:

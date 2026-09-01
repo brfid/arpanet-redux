@@ -1,6 +1,8 @@
 # ARPANET Redux
 
-ARPANET Redux is an active, source-only laboratory for rebuilding working pieces of the early ARPANET from preserved host software, recovered 1973 H316 Interface Message Processor (IMP) software, and modern simulators. It grows one reproducible, evidence-backed composition at a time rather than treating any current host count, IMP count, or route as the finished network.
+ARPANET Redux runs native TELNET from PDP-11/Network UNIX through two simulated H316 systems running recovered 1973 Interface Message Processor (IMP) software to PDP-10/ITS. The historical guests originate and consume the application data.
+
+The project is an active, source-only laboratory for rebuilding working pieces of the early ARPANET from preserved host software, recovered IMP software, and modern simulators. Each composition has a bounded claim and its own evidence. Current host counts, IMP counts, and routes do not define a finished network.
 
 ```text
               modern orchestration and lifecycle control
@@ -20,7 +22,7 @@ The repository contains orchestration, project-authored SIMH configurations, nor
 
 ARPANET Redux is under active development. The repository contains reproducibly verified but deliberately bounded application, routing, fault, and observability compositions. It is neither a complete reconstruction of the ARPANET nor a one-command distribution of the historical assets it depends on.
 
-## Five-minute local check
+## Five-minute source-only check
 
 The source-only checks need Python 3.11 or newer, POSIX shell tools, Git, and Make. They do not download or boot historical software.
 
@@ -83,4 +85,4 @@ Active source revisions and asset hashes live only in [`pins/`](pins/); dated re
 
 ## License status
 
-Original work in this repository — orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, and the scripts and research tooling — is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).
+Original work in this repository, including orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, scripts, and research tooling, is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).

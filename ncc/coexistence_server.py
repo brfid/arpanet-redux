@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import MappingProxyType
 from typing import Mapping
 from urllib.parse import urlsplit
@@ -14,7 +14,7 @@ from .coexistence_viewer import render_coexistence_display_html
 from .historical_server import CONTENT_SECURITY_POLICY
 
 
-class CoexistenceDisplayHTTPServer(HTTPServer):
+class CoexistenceDisplayHTTPServer(ThreadingHTTPServer):
     """A GET/HEAD-only loopback server over one validated completed desk."""
 
     display: CoexistenceDisplay

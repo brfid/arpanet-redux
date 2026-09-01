@@ -27,9 +27,11 @@ The historical sidecar has no digest entry in this run's manifest. The adapter t
 
 ## Verification
 
-Source-only tests construct a complete synthetic result and cover deterministic serialization, the independent application/journey/line conclusions, the post-support tail, configured-only links, manifest digest mismatch, report-count disagreement, verdict-support disagreement, GET/HEAD-only transport, loopback binding, presentation-only JavaScript, keyboard-native controls, and reduced-motion styling. The complete Python suite passed with 179 tests and one expected sandbox UDP-bind skip; `make test` also completed with the expected runtime Unix-domain socket skip.
+Source-only tests construct a complete synthetic result and cover deterministic serialization, the independent application/journey/line conclusions, the post-support tail, configured-only links, manifest digest mismatch, report-count disagreement, verdict-support disagreement, GET/HEAD-only transport, loopback binding, idle-connection concurrency, presentation-only JavaScript, keyboard-native controls, reduced-motion styling, and the operator convenience targets. The complete Python suite passed with 181 tests and one expected sandbox UDP-bind skip; `make test` also completed with the expected runtime Unix-domain socket skip.
 
 The retained result was also served on loopback and inspected at 1280-by-720 desktop and 390-by-844 mobile viewports. Visual QA verified that the exact 322/355 support pair remains the phase rail's center of attention, later direct reports retain a different color and authority, both missing journey boundaries remain selectable, topology labels remain legible, and phase and boundary selection produce no browser console error. At 390 pixels the document itself remains exactly viewport-wide while the long phase rail, topology, route, and boundary sequence retain explicit local horizontal scrollers.
+
+A later manual launch exposed a transport defect rather than a display or artifact failure: the single-threaded standard-library HTTP server accepted one idle speculative browser connection and then blocked in `recvfrom` while every real request waited behind it. The coexistence, historical, and journey loopback servers now use daemon request threads, so an idle connection cannot monopolize the passive server. Their fixed routes, GET/HEAD-only policy, loopback binding, data authority, and simulator separation are unchanged.
 
 ## Finding and limit
 

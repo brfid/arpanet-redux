@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+from dataclasses import dataclass, field
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import MappingProxyType
 from typing import Mapping
 from urllib.parse import urlsplit
@@ -14,7 +14,7 @@ from .journey_display import JourneyDisplayError, JourneyDisplayObserver
 from .journey_viewer import render_journey_display_html
 
 
-class JourneyDisplayHTTPServer(HTTPServer):
+class JourneyDisplayHTTPServer(ThreadingHTTPServer):
     """A GET-only loopback server over one passive journey observer."""
 
     observer: JourneyDisplayObserver

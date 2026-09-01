@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-from pathlib import Path
 import signal
 import socket
 import subprocess
@@ -10,7 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -34,6 +33,47 @@ class ShellSyntaxTests(unittest.TestCase):
             with self.subTest(path=path):
                 result = run("sh", "-n", path)
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class NccConvenienceTargetTests(unittest.TestCase):
+    def test_view_watch_and_run_targets_delegate_to_supported_commands(self) -> None:
+        view = run(
+            "make",
+            "-n",
+            "NCC_RESULT=/tmp/ncc-result",
+            "NCC_VIEW_PORT=9877",
+            "view-ncc",
+            cwd=ROOT,
+        )
+        self.assertEqual(view.returncode, 0, view.stderr)
+        self.assertIn("scripts/ncc-serve-coexistence.py", view.stdout)
+        self.assertIn("/tmp/ncc-result", view.stdout)
+        self.assertIn("--port \"9877\"", view.stdout)
+
+        watch = run(
+            "make",
+            "-n",
+            "NCC_RESULT=/tmp/ncc-result",
+            "NCC_WATCH_PORT=9875",
+            "watch-ncc",
+            cwd=ROOT,
+        )
+        self.assertEqual(watch.returncode, 0, watch.stderr)
+        self.assertIn("scripts/ncc-serve-historical.py", watch.stdout)
+        self.assertIn("/tmp/ncc-result", watch.stdout)
+        self.assertIn("--port \"9875\"", watch.stdout)
+
+        run_target = run(
+            "make",
+            "-n",
+            "RUN_ID=watch-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "run-ncc",
+            cwd=ROOT,
+        )
+        self.assertEqual(run_target.returncode, 0, run_target.stderr)
+        self.assertIn("scripts/smoke-ncc-pdp11-its.sh", run_target.stdout)
+        self.assertIn("ncc-pdp11-its-coexistence-watch-demo", run_target.stdout)
 
 
 class NativeTemplateTests(unittest.TestCase):

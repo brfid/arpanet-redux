@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+from dataclasses import dataclass, field
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import MappingProxyType
 from typing import Mapping
 from urllib.parse import urlsplit
@@ -14,7 +14,7 @@ from .historical_viewer import render_historical_display_html
 from .viewer import render_summary_html
 
 
-class HistoricalDisplayHTTPServer(HTTPServer):
+class HistoricalDisplayHTTPServer(ThreadingHTTPServer):
     """A GET-only loopback server over one passive observer."""
 
     observer: HistoricalDisplayObserver

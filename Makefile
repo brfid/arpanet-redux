@@ -20,10 +20,14 @@ NCC_ALTERNATE_DURATION ?= 130
 NCC_LOOPBACK_DURATION ?= 130
 NCC_PDP11_ITS_DURATION ?= 150
 NCC_DIRECT_FORWARD_SECONDS ?= 45
+NCC_LAB_ROOT ?= $(if $(wildcard $(LAB_ROOT)/results),$(LAB_ROOT),$(abspath ../../arpanet-redux-lab))
+NCC_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-coexistence-canonical-20260901T153758Z
+NCC_VIEW_PORT ?= 8767
+NCC_WATCH_PORT ?= 8765
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its run-ncc watch-ncc view-ncc
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -120,3 +124,12 @@ smoke-ncc-line-loopback: verify-ncc-line-loopback
 
 smoke-ncc-pdp11-its: verify-ncc-pdp11-its
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
+
+run-ncc: smoke-ncc-pdp11-its
+	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
+
+watch-ncc:
+	$(PYTHON) ./scripts/ncc-serve-historical.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
+
+view-ncc:
+	$(PYTHON) ./scripts/ncc-serve-coexistence.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)"

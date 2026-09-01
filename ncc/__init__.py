@@ -27,6 +27,10 @@ from .historical_events import (
     read_historical_event_stream,
     replay_historical_event_stream,
 )
+from .historical_summary import (
+    HistoricalLineSummaryError,
+    summarize_historical_line_result,
+)
 from .imp_to_host import (
     OLD_STYLE_LEADER_WORD_COUNT,
     ImpToHostMessage,
@@ -112,6 +116,7 @@ __all__ = [
     "HistoricalEventRecorder",
     "HistoricalEventStream",
     "HistoricalEventStreamError",
+    "HistoricalLineSummaryError",
     "HistoricalReplayFrame",
     "HostThroughput",
     "ImpState",
@@ -178,6 +183,7 @@ __all__ = [
     "replay_frames",
     "replay_historical_event_stream",
     "render_summary_html",
+    "summarize_historical_line_result",
     "summarize_two_its_result",
     "trouble_report_events",
     "trouble_report_events_from_imp_to_host_message",

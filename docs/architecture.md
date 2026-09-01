@@ -67,10 +67,12 @@ Additional hosts, IMPs, links, or routes enter the project as new bounded compos
 | Simulated network | Host-interface device models and H316 firmware | Converts 1822 leaders where required, routes packets, and reports network conditions |
 | Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children |
 | Evidence plane | Test assertions and run manifests | Correlates claimed behavior with post-start observations and pinned inputs |
-| NCC observation plane | Versioned completed summary, bounded controller stream, topology-aware historical reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; live consumers retain stale state without simulator authority |
+| NCC observation plane | Versioned v1/v2 completed summaries, bounded v1 controller stream, topology-aware historical reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; only a completed-result adapter may grant a reducer snapshot gate authority, while live consumers retain direct stale state without simulator authority |
 | Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
 
 The repository never uses a guest-media directory as a transfer channel between endpoints. Guest workspaces are distinct, and a payload test is invalid if the controller can satisfy it by copying a host file.
+
+A version-2 completed network-behavior summary is a derived evidence artifact, not a second topology or a live controller channel. Its passed gate must close over a supported completed harness outcome and every direct historical observation supporting the cited final reducer state. The adapter maps report identities only through the supplied shared topology's explicit reciprocal bindings; unmatched configured links remain unobserved.
 
 ## Resource model
 

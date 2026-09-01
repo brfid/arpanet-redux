@@ -135,6 +135,19 @@ python3 scripts/ncc-render-summary.py /tmp/two-its-ncc-summary.json > /tmp/two-i
 
 A derived summary reports a failed formal run without valid application evidence as incomplete; it does not turn missing evidence into a network-down claim. The static viewer provides fixed-topology, gate, provenance, and observation-replay views without opening external evidence locators. See [NCC observability](ncc.md) for the contract boundary.
 
+## Summarize a completed NCC historical-line result
+
+The historical-line adapter accepts only a supported alternate-path fault or line-loopback result. It reads the terminal manifest, validated historical-event sidecar, formal verdict, and explicitly supplied shared topology; it re-runs the source-only reducer in memory and requires exact agreement with the verdict's pre-transition and final support. It does not read raw logs, launch a simulator, or modify the result directory.
+
+From the repository checkout, derive a version-2 completed summary and render it outside the immutable result directory:
+
+```sh
+python3 scripts/ncc-summarize-historical-line.py /absolute/path/to/arpanet-redux-lab/results/ncc-alternate-path-fault-<run-id> --topology config/topologies/ncc-alternate-path-fault.json > /tmp/ncc-historical-line-summary.json
+python3 scripts/ncc-render-summary.py /tmp/ncc-historical-line-summary.json > /tmp/ncc-historical-line-viewer.html
+```
+
+The same command accepts `ncc-line-loopback-<run-id>` with the same shared topology input. A pass is evidence-closed over the final reciprocal line observations and the supported evaluator outcome. Unmapped alternate bindings remain configured topology only, and any manifest, topology digest, lifecycle, verdict, reducer-state, or supporting-sequence disagreement fails closed.
+
 ## Cleanup and failures
 
 The launcher owns exact child PIDs and performs bounded cleanup on success, error, timeout, or interruption. It does not terminate processes merely because they share a name. An interrupted run should finish its manifest with a failed outcome and release its private sockets and port locks.

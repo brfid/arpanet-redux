@@ -15,7 +15,7 @@ These directories share Git object storage but have independent branches and wor
 | Directory | Branch | Use |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not develop here |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-imp6-report-proof` | Next NCC product or observability slice, after explicit selection |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-imp6-report-proof` | Completed historical-line summary bridge; future NCC work after explicit selection |
 | `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed Gate 4H proof; optional isolated follow-up only |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Completed line-state proof; coordinated network expansion only |
 
@@ -37,9 +37,9 @@ Do not delete, rebase, merge into, or develop on a recovery branch. Prefer rever
 ### NCC
 
 - **Read first:** [NCC observability](ncc.md) and the dated [telemetry research note](research/2026-08-30-ncc-telemetry.md).
-- **State:** `main` contains the accepted completed-run and bounded controller-event contracts, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, and the source-only message-journey model with a narrow H316 trace adapter. Historical reducer output is not persisted or bridged into the common completed-run or live contracts.
-- **Decision:** No next NCC slice is selected. Choose explicitly between a persisted historical-report/reducer contract bridge, a promoted harness that emits message-journey observations, or another bounded product slice before changing code.
-- **Evidence:** The [IMP 6 report](experiments/2026-08-31-ncc-imp6-report-proof.md), [alternate-path fault](experiments/2026-08-31-ncc-alternate-path-fault.md), and [line-loopback](experiments/2026-08-31-ncc-line-loopback.md) records own the canonical runs. [ADR-006](adr/0006-ncc-line-reconciliation.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), and [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md) own the accepted reconciliation and topology rules.
+- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, and the source-only message-journey model with a narrow H316 trace adapter.
+- **Decision:** No next NCC slice is selected. The leading candidate is a promoted heterogeneous or network-expansion harness that emits existing typed message-journey observations at proven shared-topology boundaries; another bounded product slice still requires explicit selection before code changes. Reducer timelines, additional historical evaluator forms, and live historical publication remain separate compatibility decisions.
+- **Evidence:** The [IMP 6 report](experiments/2026-08-31-ncc-imp6-report-proof.md), [alternate-path fault](experiments/2026-08-31-ncc-alternate-path-fault.md), and [line-loopback](experiments/2026-08-31-ncc-line-loopback.md) records own the canonical runs. [ADR-006](adr/0006-ncc-line-reconciliation.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md), and [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md) own the accepted reconciliation, topology, and completed-summary bridge rules.
 - **Guardrails:** The historical-line evidence slice is complete. Do not relabel failed runs, synthesize report payloads, infer report-line identity, or treat configured topology as observed state. A promoted journey producer must own its manifest, ports, cleanup, transaction window, and application verdict; it must not depend on or modify an exploratory PDP-11 driver. Add KA10 or IMP11-A parsers only after their full extraction formats are proven.
 
 ### PDP-11 TELNET

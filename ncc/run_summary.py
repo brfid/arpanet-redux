@@ -1,8 +1,8 @@
 """Validated, read-only summaries of completed NCC-observed runs.
 
-The first schema deliberately contains derived, project-authored facts only.  It
-does not read an external laboratory, launch a simulator, or imply that an
-external evidence locator is available on the machine reading the summary.
+The schemas deliberately contain derived, project-authored facts only. They do
+not read an external laboratory, launch a simulator, or imply that an external
+evidence locator is available on the machine reading the summary.
 """
 
 from __future__ import annotations
@@ -17,16 +17,21 @@ import re
 from typing import Any
 
 
-RUN_SUMMARY_SCHEMA_VERSION = 1
+RUN_SUMMARY_SCHEMA_VERSION = 2
+_SUPPORTED_SCHEMA_VERSIONS = frozenset((1, RUN_SUMMARY_SCHEMA_VERSION))
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 _OBSERVATION_CATEGORIES = frozenset(
     {"application", "harness", "historical-network", "missing-evidence"}
 )
-_DERIVED_STATES = frozenset(
+_DERIVED_STATES_V1 = frozenset(
     {"contradictory", "down", "incomplete", "partitioned", "stale", "unknown", "up"}
 )
+_DERIVED_STATES_V2 = _DERIVED_STATES_V1 | frozenset(
+    {"looped", "minus-down", "minus-looped", "plus-down", "plus-looped"}
+)
 _DERIVATION_BASES = frozenset({"direct", "inference"})
+_GATE_KINDS = frozenset({"application", "network-behavior"})
 _GATE_VERDICTS = frozenset({"failed", "inconclusive", "passed"})
 _RUN_OUTCOMES = frozenset({"failed", "incomplete", "passed"})
 
@@ -138,13 +143,15 @@ def _validate_document(document: object) -> None:
         },
         optional={"external_evidence"},
     )
+    schema_version = root["schema_version"]
     if (
-        isinstance(root["schema_version"], bool)
-        or root["schema_version"] != RUN_SUMMARY_SCHEMA_VERSION
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version not in _SUPPORTED_SCHEMA_VERSIONS
     ):
         raise RunSummaryValidationError(
-            "summary.schema_version must be "
-            f"{RUN_SUMMARY_SCHEMA_VERSION}, got {root['schema_version']!r}"
+            "summary.schema_version must be 1 or "
+            f"{RUN_SUMMARY_SCHEMA_VERSION}, got {schema_version!r}"
         )
 
     run_started, run_finished, run_outcome = _validate_run(root["run"])
@@ -160,9 +167,15 @@ def _validate_document(document: object) -> None:
         run_started,
         run_finished,
     )
-    _validate_derived_states(root["derived_states"], subject_ids, observations)
+    derived_states = _validate_derived_states(
+        root["derived_states"], subject_ids, observations, schema_version
+    )
     gate_verdicts = _validate_gates(
-        root["gates"], observations, external_evidence_ids
+        root["gates"],
+        observations,
+        derived_states,
+        external_evidence_ids,
+        schema_version,
     )
     if run_outcome == "passed" and any(verdict != "passed" for verdict in gate_verdicts):
         raise RunSummaryValidationError(
@@ -399,10 +412,16 @@ def _validate_observations(
 
 
 def _validate_derived_states(
-    value: object, subject_ids: set[str], observations: Mapping[str, Mapping[str, Any]]
-) -> None:
+    value: object,
+    subject_ids: set[str],
+    observations: Mapping[str, Mapping[str, Any]],
+    schema_version: int,
+) -> dict[str, Mapping[str, Any]]:
     entries = _list(value, "summary.derived_states")
-    derived_ids: set[str] = set()
+    derived_states: dict[str, Mapping[str, Any]] = {}
+    allowed_states = (
+        _DERIVED_STATES_V1 if schema_version == 1 else _DERIVED_STATES_V2
+    )
     for index, derived_value in enumerate(entries):
         location = f"summary.derived_states[{index}]"
         derived = _mapping(derived_value, location)
@@ -412,13 +431,16 @@ def _validate_derived_states(
             required={"basis", "id", "state", "subject_id", "supporting_observation_ids"},
         )
         derived_id = _identifier(derived["id"], f"{location}.id")
-        _unique(derived_id, derived_ids, f"{location}.id")
+        if derived_id in derived_states:
+            raise RunSummaryValidationError(
+                f"{location}.id duplicates identifier {derived_id!r}"
+            )
         subject_id = _identifier(derived["subject_id"], f"{location}.subject_id")
         if subject_id not in subject_ids:
             raise RunSummaryValidationError(
                 f"{location}.subject_id refers to unknown topology item {subject_id!r}"
             )
-        state = _one_of(derived["state"], _DERIVED_STATES, f"{location}.state")
+        state = _one_of(derived["state"], allowed_states, f"{location}.state")
         basis = _one_of(derived["basis"], _DERIVATION_BASES, f"{location}.basis")
         supporting_ids = _identifiers(
             derived["supporting_observation_ids"],
@@ -437,12 +459,16 @@ def _validate_derived_states(
             raise RunSummaryValidationError(
                 f"{location}.basis must be inference for {state!r} state"
             )
+        derived_states[derived_id] = derived
+    return derived_states
 
 
 def _validate_gates(
     value: object,
     observations: Mapping[str, Mapping[str, Any]],
+    derived_states: Mapping[str, Mapping[str, Any]],
     external_evidence_ids: set[str],
+    schema_version: int,
 ) -> list[str]:
     entries = _list(value, "summary.gates")
     if not entries:
@@ -452,12 +478,34 @@ def _validate_gates(
     for index, gate_value in enumerate(entries):
         location = f"summary.gates[{index}]"
         gate = _mapping(gate_value, location)
-        _fields(
-            gate,
-            location,
-            required={"assertion", "evidence_observation_ids", "id", "verdict"},
-            optional={"external_evidence_ids"},
-        )
+        if schema_version == 1:
+            _fields(
+                gate,
+                location,
+                required={"assertion", "evidence_observation_ids", "id", "verdict"},
+                optional={"external_evidence_ids"},
+            )
+            gate_kind = "application"
+            derived_evidence_ids: list[str] = []
+        else:
+            _fields(
+                gate,
+                location,
+                required={
+                    "assertion",
+                    "evidence_derived_state_ids",
+                    "evidence_observation_ids",
+                    "id",
+                    "kind",
+                    "verdict",
+                },
+                optional={"external_evidence_ids"},
+            )
+            gate_kind = _one_of(gate["kind"], _GATE_KINDS, f"{location}.kind")
+            derived_evidence_ids = _identifiers(
+                gate["evidence_derived_state_ids"],
+                f"{location}.evidence_derived_state_ids",
+            )
         gate_id = _identifier(gate["id"], f"{location}.id")
         _unique(gate_id, gate_ids, f"{location}.id")
         _text(gate["assertion"], f"{location}.assertion")
@@ -477,13 +525,31 @@ def _validate_gates(
                 raise RunSummaryValidationError(
                     f"{location} refers to unknown observation {observation_id!r}"
                 ) from error
-        if verdict == "passed" and not any(
-            observation["category"] == "application" and observation["state"] == "passed"
-            for observation in evidence
-        ):
-            raise RunSummaryValidationError(
-                f"{location} passes without passed application evidence"
-            )
+        derived_evidence = []
+        for derived_id in derived_evidence_ids:
+            try:
+                derived_evidence.append(derived_states[derived_id])
+            except KeyError as error:
+                raise RunSummaryValidationError(
+                    f"{location} refers to unknown derived state {derived_id!r}"
+                ) from error
+        if verdict == "passed":
+            if gate_kind == "application" and not any(
+                observation["category"] == "application"
+                and observation["state"] == "passed"
+                for observation in evidence
+            ):
+                raise RunSummaryValidationError(
+                    f"{location} passes without passed application evidence"
+                )
+            if gate_kind == "network-behavior":
+                _validate_passed_network_gate(
+                    location,
+                    evidence_ids,
+                    evidence,
+                    derived_evidence,
+                    observations,
+                )
         for evidence_id in _identifiers(
             gate.get("external_evidence_ids", []), f"{location}.external_evidence_ids"
         ):
@@ -493,6 +559,45 @@ def _validate_gates(
                 )
         verdicts.append(verdict)
     return verdicts
+
+
+def _validate_passed_network_gate(
+    location: str,
+    evidence_ids: list[str],
+    evidence: list[Mapping[str, Any]],
+    derived_evidence: list[Mapping[str, Any]],
+    observations: Mapping[str, Mapping[str, Any]],
+) -> None:
+    if not derived_evidence:
+        raise RunSummaryValidationError(
+            f"{location} passes without a derived network-behavior state"
+        )
+    if not any(
+        observation["category"] == "harness" and observation["state"] == "passed"
+        for observation in evidence
+    ):
+        raise RunSummaryValidationError(
+            f"{location} passes without a passed harness observation"
+        )
+    evidence_id_set = set(evidence_ids)
+    for derived in derived_evidence:
+        if derived["basis"] != "inference":
+            raise RunSummaryValidationError(
+                f"{location} network-behavior evidence must be inferential"
+            )
+        support_ids = list(derived["supporting_observation_ids"])
+        if not support_ids or not set(support_ids) <= evidence_id_set:
+            raise RunSummaryValidationError(
+                f"{location} does not include the complete derived-state support closure"
+            )
+        if any(
+            observations[observation_id]["category"] != "historical-network"
+            for observation_id in support_ids
+        ):
+            raise RunSummaryValidationError(
+                f"{location} derived network state is not supported only by "
+                "historical-network observations"
+            )
 
 
 def _mapping(value: object, location: str) -> Mapping[str, Any]:

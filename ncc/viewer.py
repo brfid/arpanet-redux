@@ -13,6 +13,11 @@ from .run_summary import RunSummary
 _STATE_CLASS = {
     "up": "state-up",
     "down": "state-down",
+    "looped": "state-looped",
+    "minus-down": "state-directional",
+    "minus-looped": "state-directional",
+    "plus-down": "state-directional",
+    "plus-looped": "state-directional",
     "unknown": "state-unknown",
     "stale": "state-stale",
     "incomplete": "state-incomplete",
@@ -82,16 +87,19 @@ h1 {{ font: 700 clamp(30px, 5vw, 56px)/.95 var(--display); letter-spacing: -.035
 .map-note {{ color: var(--blueprint); font-size: 12px; margin: -4px 0 10px; }}
 .topology {{ display: block; height: auto; overflow: visible; width: 100%; }}
 .link {{ stroke: var(--blueprint); stroke-width: 2; }}
+.link.state-up {{ stroke: var(--signal); stroke-width: 5; }}
+.link.state-down, .link.state-looped, .link.state-directional, .link.state-partitioned, .link.state-contradictory {{ stroke: var(--alert); stroke-width: 5; }}
+.link.state-incomplete, .link.state-unknown, .link.state-stale {{ stroke: var(--amber); stroke-dasharray: 7 5; stroke-width: 4; }}
 .node circle {{ fill: var(--panel); stroke: var(--blueprint); stroke-width: 2; }}
 .node rect {{ fill: var(--panel); stroke: var(--blueprint); stroke-width: 2; }}
 .node text {{ fill: var(--ink); font: 600 13px var(--mono); text-anchor: middle; }}
 .node .state-dot {{ fill: var(--quiet); stroke: none; }}
 .node.state-up .state-dot {{ fill: var(--signal); }}
-.node.state-down .state-dot, .node.state-partitioned .state-dot, .node.state-contradictory .state-dot {{ fill: var(--alert); }}
+.node.state-down .state-dot, .node.state-looped .state-dot, .node.state-directional .state-dot, .node.state-partitioned .state-dot, .node.state-contradictory .state-dot {{ fill: var(--alert); }}
 .node.state-incomplete .state-dot, .node.state-unknown .state-dot, .node.state-stale .state-dot {{ fill: var(--amber); }}
 .ribbon {{ stroke: var(--quiet); stroke-dasharray: 2 9; stroke-linecap: round; stroke-width: 5; }}
 .ribbon.state-up {{ stroke: var(--signal); }}
-.ribbon.state-down, .ribbon.state-partitioned, .ribbon.state-contradictory {{ stroke: var(--alert); }}
+.ribbon.state-down, .ribbon.state-looped, .ribbon.state-directional, .ribbon.state-partitioned, .ribbon.state-contradictory {{ stroke: var(--alert); }}
 .ribbon.state-incomplete, .ribbon.state-unknown, .ribbon.state-stale {{ stroke: var(--amber); }}
 .status-card {{ border-left: 8px solid var(--quiet); padding: 12px 0 12px 14px; }}
 .status-card.passed {{ border-color: var(--signal); }}
@@ -218,7 +226,13 @@ def _topology_svg(topology: dict[str, Any], states: dict[str, str]) -> str:
         first, second = (endpoint_owners[endpoint] for endpoint in link["endpoints"])
         x1, y1 = point(first)
         x2, y2 = point(second)
-        links.append(f'<line class="link" x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}"/>')
+        state_class = _STATE_CLASS.get(states.get(link["id"], "configured"), "")
+        classes = f"link {state_class}" if state_class else "link"
+        links.append(
+            f'<line class="{_attribute(classes)}" '
+            f'data-subject="{_attribute(link["id"])}" '
+            f'x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}"/>'
+        )
     route = topology["routes"][0] if topology["routes"] else None
     ribbon = []
     route_state = states.get(route["id"], "configured") if route else "configured"
@@ -256,13 +270,15 @@ def _gates_table(gates: list[dict[str, Any]]) -> str:
     rows = "".join(
         "<tr>"
         f"<td><code>{_text(gate['id'])}</code></td>"
+        f"<td>{_text(gate.get('kind', 'application'))}</td>"
         f"<td>{_text(gate['assertion'])}</td>"
         f"<td class=\"verdict {_attribute(gate['verdict'])}\">{_text(gate['verdict'])}</td>"
         f"<td><code>{_text(', '.join(gate['evidence_observation_ids']))}</code></td>"
+        f"<td><code>{_text(', '.join(gate.get('evidence_derived_state_ids', [])))}</code></td>"
         "</tr>"
         for gate in gates
     )
-    return "<table><thead><tr><th>Gate</th><th>Assertion</th><th>Verdict</th><th>Evidence</th></tr></thead><tbody>" + rows + "</tbody></table>"
+    return "<table><thead><tr><th>Gate</th><th>Kind</th><th>Assertion</th><th>Verdict</th><th>Observations</th><th>Derived states</th></tr></thead><tbody>" + rows + "</tbody></table>"
 
 
 def _derived_list(states: list[dict[str, Any]]) -> str:

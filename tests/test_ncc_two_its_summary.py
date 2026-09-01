@@ -21,6 +21,7 @@ class TwoItsSummaryTests(unittest.TestCase):
         document = summary.to_dict()
 
         self.assertEqual(summary.run_id, "run:two-its-result-passing")
+        self.assertEqual(document["schema_version"], 1)
         self.assertEqual(document["run"]["outcome"], "passed")
         self.assertEqual(
             [gate["verdict"] for gate in document["gates"]], ["passed", "passed"]

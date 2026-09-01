@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "run": {
+    "id": "fixture:network-behavior-looped",
+    "started_at": "2026-08-31T12:00:00Z",
+    "finished_at": "2026-08-31T12:02:00Z",
+    "outcome": "passed",
+    "provenance": [
+      {
+        "id": "fixture:network-behavior-looped",
+        "kind": "synthetic-fixture",
+        "revision": "fixture"
+      }
+    ]
+  },
+  "topology": {
+    "components": [
+      {
+        "id": "imp:5",
+        "kind": "imp",
+        "label": "IMP 5",
+        "position": {"x": 0, "y": 0},
+        "endpoints": [{"id": "imp:5:mi1", "label": "MI1"}]
+      },
+      {
+        "id": "imp:6",
+        "kind": "imp",
+        "label": "IMP 6",
+        "position": {"x": 1, "y": 0},
+        "endpoints": [{"id": "imp:6:mi1", "label": "MI1"}]
+      }
+    ],
+    "links": [
+      {
+        "id": "link:imp5-imp6-direct",
+        "endpoints": ["imp:5:mi1", "imp:6:mi1"]
+      }
+    ],
+    "routes": [
+      {
+        "id": "route:imp5-to-imp6",
+        "components": ["imp:5", "imp:6"]
+      }
+    ]
+  },
+  "observations": [
+    {
+      "id": "observation:imp5-looped",
+      "sequence": 1,
+      "observed_at": "2026-08-31T12:01:30Z",
+      "category": "historical-network",
+      "subject_id": "imp:5:mi1",
+      "state": "looped",
+      "source": {"id": "source:imp:5", "kind": "imp-trouble-report"}
+    },
+    {
+      "id": "observation:imp6-looped",
+      "sequence": 2,
+      "observed_at": "2026-08-31T12:01:31Z",
+      "category": "historical-network",
+      "subject_id": "imp:6:mi1",
+      "state": "looped",
+      "source": {"id": "source:imp:6", "kind": "imp-trouble-report"}
+    },
+    {
+      "id": "observation:harness-outcome",
+      "sequence": 3,
+      "observed_at": "2026-08-31T12:02:00Z",
+      "category": "harness",
+      "subject_id": "link:imp5-imp6-direct",
+      "state": "passed",
+      "source": {"id": "source:run-manifest", "kind": "run-manifest"}
+    }
+  ],
+  "derived_states": [
+    {
+      "id": "derived:direct-line",
+      "subject_id": "link:imp5-imp6-direct",
+      "state": "looped",
+      "basis": "inference",
+      "supporting_observation_ids": [
+        "observation:imp5-looped",
+        "observation:imp6-looped"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "gate:historical-line-state",
+      "kind": "network-behavior",
+      "assertion": "The explicitly mapped direct line reconciled as looped.",
+      "verdict": "passed",
+      "evidence_observation_ids": [
+        "observation:imp5-looped",
+        "observation:imp6-looped",
+        "observation:harness-outcome"
+      ],
+      "evidence_derived_state_ids": ["derived:direct-line"]
+    }
+  ]
+}

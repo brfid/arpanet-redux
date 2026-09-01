@@ -20,14 +20,13 @@ from types import MappingProxyType
 from typing import Any
 
 from .run_summary import (
-    RUN_SUMMARY_SCHEMA_VERSION,
     RunSummaryValidationError,
     validate_normalized_observations,
     validate_normalized_topology,
 )
 
 
-LIVE_OBSERVATION_STREAM_SCHEMA_VERSION = RUN_SUMMARY_SCHEMA_VERSION
+LIVE_OBSERVATION_STREAM_SCHEMA_VERSION = 1
 _STREAM_KIND = "ncc-observation-stream"
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 

@@ -20,26 +20,69 @@ FIXTURES = ROOT / "tests" / "fixtures" / "ncc"
 class RunSummaryTests(unittest.TestCase):
     def test_loads_passing_missing_and_partition_fixtures(self) -> None:
         expected = {
-            "run-summary-passing.json": ("fixture:two-its-passing", "passed", "up"),
+            "run-summary-passing.json": (1, "fixture:two-its-passing", "passed", "up"),
             "run-summary-missing-observation.json": (
+                1,
                 "fixture:missing-observation",
                 "incomplete",
                 "unknown",
             ),
             "run-summary-partition.json": (
+                1,
                 "fixture:partition-like",
                 "failed",
                 "partitioned",
             ),
         }
-        for filename, (run_id, outcome, path_state) in expected.items():
+        for filename, (schema_version, run_id, outcome, path_state) in expected.items():
             with self.subTest(filename=filename):
                 summary = load_run_summary(FIXTURES / filename)
                 document = summary.to_dict()
                 self.assertEqual(summary.run_id, run_id)
-                self.assertEqual(document["schema_version"], RUN_SUMMARY_SCHEMA_VERSION)
+                self.assertEqual(document["schema_version"], schema_version)
                 self.assertEqual(document["run"]["outcome"], outcome)
                 self.assertEqual(document["derived_states"][-1]["state"], path_state)
+
+    def test_accepts_version_two_network_behavior_with_complete_support(self) -> None:
+        summary = load_run_summary(FIXTURES / "run-summary-network-behavior-v2.json")
+        document = summary.to_dict()
+
+        self.assertEqual(document["schema_version"], RUN_SUMMARY_SCHEMA_VERSION)
+        self.assertEqual(document["derived_states"][0]["state"], "looped")
+        self.assertEqual(document["gates"][0]["kind"], "network-behavior")
+
+    def test_version_two_network_pass_requires_harness_and_support_closure(self) -> None:
+        document = json.loads(
+            (FIXTURES / "run-summary-network-behavior-v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        document["gates"][0]["evidence_observation_ids"].remove(
+            "observation:imp5-looped"
+        )
+        with self.assertRaisesRegex(
+            RunSummaryValidationError, "complete derived-state support closure"
+        ):
+            run_summary_from_mapping(document)
+
+        document = json.loads(
+            (FIXTURES / "run-summary-network-behavior-v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        document["observations"][-1]["state"] = "failed"
+        with self.assertRaisesRegex(
+            RunSummaryValidationError, "passed harness observation"
+        ):
+            run_summary_from_mapping(document)
+
+    def test_version_one_does_not_silently_accept_version_two_line_states(self) -> None:
+        document = json.loads(
+            (FIXTURES / "run-summary-passing.json").read_text(encoding="utf-8")
+        )
+        document["derived_states"][-1]["state"] = "looped"
+        with self.assertRaisesRegex(RunSummaryValidationError, "must be one of"):
+            run_summary_from_mapping(document)
 
     def test_serialization_is_deterministic_and_does_not_share_mutable_state(self) -> None:
         summary = load_run_summary(FIXTURES / "run-summary-passing.json")

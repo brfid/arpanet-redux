@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from ncc.live import (
+    LIVE_OBSERVATION_STREAM_SCHEMA_VERSION,
     LiveObservationPublisher,
     LiveObservationStreamError,
     read_live_observation_stream,
@@ -52,6 +53,10 @@ class LiveObservationTests(unittest.TestCase):
                 observed_at="2026-08-30T12:00:20Z",
             )
             publisher.close()
+
+            header = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(LIVE_OBSERVATION_STREAM_SCHEMA_VERSION, 1)
+            self.assertEqual(header["schema_version"], 1)
 
             stream = read_live_observation_stream(path)
             snapshot = stream.snapshot(

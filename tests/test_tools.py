@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import os
 import signal
 import socket
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -727,6 +729,33 @@ class UtilityTests(unittest.TestCase):
             )
             self.assertNotEqual(failing.returncode, 0)
             self.assertIn("expected embedded commit 2722eef4", failing.stderr)
+
+    def test_simulator_binary_verifier_detaches_interactive_stdin(self) -> None:
+        module_path = SCRIPTS / "verify-simulator-binaries.py"
+        spec = importlib.util.spec_from_file_location(
+            "verify_simulator_binaries", module_path
+        )
+        assert spec is not None and spec.loader is not None
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        with tempfile.TemporaryDirectory() as directory_name:
+            executable = Path(directory_name) / "fake-pdp11"
+            executable.write_text("#!/bin/sh\nexit 0\n", encoding="ascii")
+            executable.chmod(0o755)
+            completed = subprocess.CompletedProcess(
+                [executable, "-v"],
+                0,
+                stdout="git commit id: 2722eef4\n",
+            )
+            with mock.patch.object(
+                verifier.subprocess, "run", return_value=completed
+            ) as invoked:
+                failure = verifier.verify_binary(
+                    "imp11a-simh", executable, "2722eef4" + "0" * 32
+                )
+
+            self.assertIsNone(failure)
+            self.assertEqual(invoked.call_args.kwargs["stdin"], subprocess.DEVNULL)
 
 
 if __name__ == "__main__":

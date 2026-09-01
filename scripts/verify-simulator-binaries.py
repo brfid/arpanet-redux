@@ -31,6 +31,7 @@ def verify_binary(label: str, path: Path, expected_revision: str) -> str | None:
     try:
         result = subprocess.run(
             [resolved, "-v"],
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

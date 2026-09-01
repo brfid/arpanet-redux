@@ -17,6 +17,8 @@ The snapshot is an in-memory presentation contract, not a new persisted schema. 
 
 `ncc.coexistence_server` binds only IPv4 loopback and serves one self-contained page plus one resolved snapshot through GET and HEAD. It has no arbitrary-file route or mutation method. The browser draws the fixed topology and evidence phase rail from the Python-resolved snapshot; it does not parse artifacts, correlate messages, reconcile endpoints, or align simulator clocks.
 
+The presentation uses a project-authored visual grammar informed by the 1972 SRI/NIC *Scenarios for Using the ARPANET* demonstration booklet: an ochre cover, visible comb binding, typewritten folio body, numbered result procedure, underlined interactive keys, dotted rules, sparse line diagrams, and italic annotations. This is an adaptation of the booklet's documentary hierarchy, not a claim that an NCC operator screen looked like the booklet. No scan image, OCR, traced ornament, or source glyph is embedded; the source review and redistribution boundary are recorded in [ICCC 1972 demonstration-booklet visual grammar](../research/2026-09-01-iccc-scenarios-visual-grammar.md).
+
 ## Retained replay
 
 The retained accepted result validated without modification. The adapter reproduced application `passed`, ten typed observations, `missing-boundary` at `boundary:request:6`, Type 303 counts of 15/8/13/8 and Type 302 counts of 14/7/13/7 for IMPs 5/6/7/62, and accepted reciprocal `up` support sequences 322 and 355. It retained five later mapped endpoint observations at sequences 377, 399, 421, 443, and 475. At the manifest's run-finish time, the existing reducer classified IMP 5's latest direct endpoint as `down`, IMP 6's last `up` endpoint as `stale`, and the paired line as `stale`; none of those later classifications replaced the accepted composition verdict.
@@ -27,7 +29,7 @@ The historical sidecar has no digest entry in this run's manifest. The adapter t
 
 Source-only tests construct a complete synthetic result and cover deterministic serialization, the independent application/journey/line conclusions, the post-support tail, configured-only links, manifest digest mismatch, report-count disagreement, verdict-support disagreement, GET/HEAD-only transport, loopback binding, presentation-only JavaScript, keyboard-native controls, and reduced-motion styling. The complete Python suite passed with 179 tests and one expected sandbox UDP-bind skip; `make test` also completed with the expected runtime Unix-domain socket skip.
 
-The retained result was also served on loopback and inspected at desktop and 390-pixel mobile widths. Visual QA verified that the exact 322/355 support pair remains the phase rail's center of attention, later direct reports retain a different color and authority, both missing journey boundaries remain selectable, topology labels remain legible, and no browser console error occurs during phase or boundary selection.
+The retained result was also served on loopback and inspected at 1280-by-720 desktop and 390-by-844 mobile viewports. Visual QA verified that the exact 322/355 support pair remains the phase rail's center of attention, later direct reports retain a different color and authority, both missing journey boundaries remain selectable, topology labels remain legible, and phase and boundary selection produce no browser console error. At 390 pixels the document itself remains exactly viewport-wide while the long phase rail, topology, route, and boundary sequence retain explicit local horizontal scrollers.
 
 ## Finding and limit
 

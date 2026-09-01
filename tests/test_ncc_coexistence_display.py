@@ -479,7 +479,7 @@ class CoexistenceDisplayTests(unittest.TestCase):
             arbitrary = coexistence_display_response(display, page, "GET", "/etc/passwd")
 
             self.assertEqual(root.status, 200)
-            self.assertIn("Evidence phase rail", root.body)
+            self.assertIn("Scenario register / evidence phase rail", root.body)
             self.assertEqual(api.status, 200)
             self.assertEqual(json.loads(api.body)["mode"], "completed")
             self.assertEqual(head.status, 200)
@@ -498,10 +498,17 @@ class CoexistenceDisplayTests(unittest.TestCase):
     def test_viewer_keeps_reduction_in_python_and_accessible_controls(self) -> None:
         page = render_coexistence_display_html()
 
+        self.assertIn("Observation folio NCC / 01", page)
+        self.assertIn("SRI / NIC 11863 (1972)", page)
+        self.assertIn("repeating-linear-gradient", page)
+        self.assertIn("text-decoration: underline", page)
+        self.assertIn(".journey-body > * { min-width: 0; }", page)
         self.assertIn("prefers-reduced-motion", page)
         self.assertIn('fetch("/api/snapshot"', page)
         self.assertIn('button.type = "button"', page)
         self.assertIn("aria-pressed", page)
+        self.assertNotIn("data:image", page)
+        self.assertNotIn("https://", page)
         self.assertNotIn("innerHTML", page)
         self.assertNotIn("<form", page)
         self.assertNotIn("WebSocket", page)

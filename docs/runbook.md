@@ -145,6 +145,18 @@ python3 scripts/ncc-extract-pdp11-its-journey.py /absolute/path/to/arpanet-redux
 
 The command prints the run identity, observation count, terminal state, and first unresolved boundary. For the accepted Gate 4H trace shape, expect ten observations, `missing-boundary`, and `boundary:request:6`. Choose a fresh output path because the recorder refuses to overwrite an existing file. Retained laboratory results are read-only inputs; never write the derived sidecar back into one.
 
+## View a growing typed message journey
+
+The passive journey display watches one `message-journey.jsonl`, binds an HTTP server only to `127.0.0.1`, and accepts GET and HEAD only. It re-reads and validates the complete JSONL prefix on each browser request, invokes the existing Python reducer, and sends the browser a resolved presentation snapshot. It does not parse raw traces, modify the sidecar or result directory, align independent simulator clocks, or control a guest, IMP, controller, or external network endpoint:
+
+```sh
+python3 scripts/ncc-serve-journey.py /absolute/path/to/arpanet-redux-lab/results/pdp11-its-telnet-<run-id>/message-journey.jsonl
+```
+
+Open the printed loopback URL in a local browser. The fixed route and all twelve request/reply boundary sockets are configured expectations, not evidence. Direct H316 trace observations, harness-derived connected-peer observations, and in-memory reducer states use separate labels; the observation tape retains emission order and source-local identities without claiming a common clock. An interrupted final record is ignored and displayed as tail status until its terminating newline arrives. A terminal page means the persisted diagnosis exactly matched the reducer, not that every boundary was observed or that a new completed-run verdict exists. The accepted Gate 4H sidecar should show ten observations, `missing-boundary`, and first unresolved `boundary:request:6`.
+
+To view a retained result that predates formal sidecar emission, first use the read-only extraction command above with a fresh temporary output path, then pass that temporary sidecar to `ncc-serve-journey.py`. Never write derived output into the retained result directory.
+
 ## Summarize a completed NCC historical-line result
 
 The historical-line adapter accepts only a supported alternate-path fault or line-loopback result. It reads the terminal manifest, validated historical-event sidecar, formal verdict, and explicitly supplied shared topology; it re-runs the source-only reducer in memory and requires exact agreement with the verdict's pre-transition and final support. It does not read raw logs, launch a simulator, or modify the result directory.

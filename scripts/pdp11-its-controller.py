@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import importlib.util
-import os
+import json
 from pathlib import Path
 import re
 import signal
@@ -19,6 +18,13 @@ SHARED_SPEC = importlib.util.spec_from_file_location("two_its_controller", SHARE
 assert SHARED_SPEC is not None and SHARED_SPEC.loader is not None
 SHARED = importlib.util.module_from_spec(SHARED_SPEC)
 SHARED_SPEC.loader.exec_module(SHARED)
+
+from ncc.message_journey import ObservationProvenance
+from ncc.pdp11_its_journey import (
+    transaction_window_source,
+    write_pdp11_its_journey_stream,
+)
+from ncc.shared_topology import shared_topology_from_mapping
 
 PORT_VARIABLES = SHARED.PORT_VARIABLES
 PtyProcess = SHARED.PtyProcess
@@ -55,6 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--imp62-config", required=True, type=Path)
     parser.add_argument("--host106-config", required=True, type=Path)
     parser.add_argument("--pdp11-config", required=True, type=Path)
+    parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--route-settle", type=float, default=60.0)
@@ -127,6 +134,20 @@ def ensure_process_alive(process: PtyProcess) -> None:
         raise RuntimeError(f"{process.name} exited early")
 
 
+def read_manifest(path: Path) -> dict[str, str]:
+    """Read the controller's own line-oriented run manifest fail closed."""
+
+    values: dict[str, str] = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if "=" not in line:
+            raise ValueError(f"manifest line {number} has no '=' separator")
+        key, value = line.split("=", 1)
+        if not key or key in values:
+            raise ValueError(f"manifest line {number} has an invalid or duplicate key")
+        values[key] = value
+    return values
+
+
 def wait_for_prompt(process: PtyProcess, timeout: float = 30) -> None:
     process.expect(rb"\r\n# ?", timeout=timeout)
 
@@ -172,6 +193,9 @@ def run(args: argparse.Namespace) -> int:
     SHARED.validate_environment()
     results_dir = args.results_dir.resolve()
     manifest = args.manifest.resolve()
+    topology_path = args.topology.resolve()
+    topology_document = json.loads(topology_path.read_text(encoding="utf-8"))
+    shared_topology_from_mapping(topology_document)
     attach_config = results_dir / "host106-attach-only.simh"
     SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
     SHARED.append_manifest(manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config))
@@ -305,8 +329,13 @@ def run(args: argparse.Namespace) -> int:
 
         pdp11_output = pdp11.output_from(pdp11_offset)
         its_output = host106.output_from(host106_offset)
-        imp6_output = imp6.debug_path.read_bytes()[imp_offsets["imp6"] :]
-        imp62_output = imp62.debug_path.read_bytes()[imp_offsets["imp62"] :]
+        imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
+        imp6_output = imp6.debug_path.read_bytes()[
+            imp_offsets["imp6"] : imp_end_offsets["imp6"]
+        ]
+        imp62_output = imp62.debug_path.read_bytes()[
+            imp_offsets["imp62"] : imp_end_offsets["imp62"]
+        ]
         failures = application_evidence_failures(
             pdp11_output, its_output, imp6_output, imp62_output
         )
@@ -315,6 +344,68 @@ def run(args: argparse.Namespace) -> int:
                 failures.append(f"{imp.name} did not remain host-link ready")
         if failures:
             raise RuntimeError("; ".join(failures))
+
+        manifest_values = read_manifest(manifest)
+        journey_path = results_dir / "message-journey.jsonl"
+        window = (
+            transaction_window_source(
+                source_id="source:imp6",
+                artifact=imp6.debug_path.name,
+                start_offset=imp_offsets["imp6"],
+                end_offset=imp_end_offsets["imp6"],
+                content=imp6_output,
+            ),
+            transaction_window_source(
+                source_id="source:imp62",
+                artifact=imp62.debug_path.name,
+                start_offset=imp_offsets["imp62"],
+                end_offset=imp_end_offsets["imp62"],
+                content=imp62_output,
+            ),
+        )
+        journey = write_pdp11_its_journey_stream(
+            journey_path,
+            run_id=results_dir.name,
+            started_at=manifest_values["started_utc"],
+            provenance=(
+                ObservationProvenance(
+                    "source:controller",
+                    "formal-pdp11-its-controller",
+                    manifest_values["repository.revision"],
+                ),
+                ObservationProvenance(
+                    "source:h316",
+                    "h316-simh",
+                    manifest_values["source.h316-simh.revision"],
+                ),
+            ),
+            topology_document=topology_document,
+            transaction_window=window,
+            imp6_trace=imp6_output,
+            imp62_trace=imp62_output,
+            h316_revision=manifest_values["source.h316-simh.revision"],
+        )
+        for name in ("imp6", "imp62"):
+            SHARED.append_manifest(
+                manifest,
+                f"application.offset.end.{name}",
+                imp_end_offsets[name],
+            )
+        SHARED.append_manifest(manifest, "path.message-journey", journey_path)
+        SHARED.append_manifest(
+            manifest, "sha256.message-journey", SHARED.sha256(journey_path)
+        )
+        SHARED.append_manifest(
+            manifest, "message-journey.observations", len(journey.observations)
+        )
+        SHARED.append_manifest(
+            manifest, "message-journey.state", journey.diagnosis.state.value
+        )
+        SHARED.append_manifest(
+            manifest,
+            "message-journey.first-boundary",
+            journey.diagnosis.first_boundary_id or "none",
+        )
 
         option_diagnostic = b"Possible protocol error!" in pdp11_output
         evidence = (
@@ -325,6 +416,9 @@ def run(args: argparse.Namespace) -> int:
             "imp6_post_probe_traffic=1\n"
             "imp62_post_probe_traffic=1\n"
             "correlated_inter_imp_traffic=both-directions\n"
+            f"message_journey_observations={len(journey.observations)}\n"
+            f"message_journey_state={journey.diagnosis.state.value}\n"
+            f"message_journey_first_boundary={journey.diagnosis.first_boundary_id}\n"
             f"legacy_option_diagnostic={'observed' if option_diagnostic else 'absent'}\n"
         )
         (results_dir / "application-evidence.txt").write_text(evidence, encoding="ascii")

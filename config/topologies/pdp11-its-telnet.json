@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "topology:pdp11-its-telnet",
+  "topology": {
+    "components": [
+      {
+        "id": "host:176",
+        "kind": "host",
+        "label": "Network UNIX PDP-11 host 176",
+        "position": {"x": 0, "y": 0},
+        "endpoints": [{"id": "host:176:1822", "label": "IMP11-A"}]
+      },
+      {
+        "id": "imp:62",
+        "kind": "imp",
+        "label": "IMP 62",
+        "position": {"x": 1, "y": 0},
+        "endpoints": [
+          {"id": "imp:62:host:1", "label": "HI2"},
+          {"id": "imp:62:mi1", "label": "MI1"}
+        ]
+      },
+      {
+        "id": "imp:6",
+        "kind": "imp",
+        "label": "IMP 6",
+        "position": {"x": 2, "y": 0},
+        "endpoints": [
+          {"id": "imp:6:mi1", "label": "MI1"},
+          {"id": "imp:6:host:1", "label": "HI2"}
+        ]
+      },
+      {
+        "id": "host:106",
+        "kind": "host",
+        "label": "ITS host 106",
+        "position": {"x": 3, "y": 0},
+        "endpoints": [{"id": "host:106:1822", "label": "KAIMP"}]
+      }
+    ],
+    "links": [
+      {
+        "id": "link:host176-imp62",
+        "endpoints": ["host:176:1822", "imp:62:host:1"]
+      },
+      {
+        "id": "link:imp62-imp6",
+        "endpoints": ["imp:62:mi1", "imp:6:mi1"]
+      },
+      {
+        "id": "link:imp6-host106",
+        "endpoints": ["imp:6:host:1", "host:106:1822"]
+      }
+    ],
+    "routes": [
+      {
+        "id": "route:host176-to-host106",
+        "components": ["host:176", "imp:62", "imp:6", "host:106"]
+      }
+    ]
+  },
+  "interfaces": [
+    {
+      "id": "binding:host176-imp62-hi2",
+      "kind": "host-interface",
+      "imp_id": "imp:62",
+      "imp_endpoint": "imp:62:host:1",
+      "host_id": "host:176",
+      "host_endpoint": "host:176:1822",
+      "host_number": 1,
+      "simh_device": "hi2",
+      "imp_listen_environment": "BRFID_IMP62_HI_PORT",
+      "host_listen_environment": "BRFID_HOST_B_IMP_PORT",
+      "simh_config": "config/imp/pdp11-its/imp62.simh"
+    },
+    {
+      "id": "binding:imp6-hi2-host106",
+      "kind": "host-interface",
+      "imp_id": "imp:6",
+      "imp_endpoint": "imp:6:host:1",
+      "host_id": "host:106",
+      "host_endpoint": "host:106:1822",
+      "host_number": 1,
+      "simh_device": "hi2",
+      "imp_listen_environment": "BRFID_IMP6_HI_PORT",
+      "host_listen_environment": "BRFID_HOST_A_IMP_PORT",
+      "simh_config": "config/imp/its-pair/imp6.simh"
+    }
+  ],
+  "modem_interfaces": [
+    {
+      "id": "binding:imp62-mi1-imp6-mi1",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:62",
+      "first_endpoint": "imp:62:mi1",
+      "first_simh_device": "mi1",
+      "first_listen_environment": "BRFID_IMP62_MI_PORT",
+      "first_simh_config": "config/imp/pdp11-its/imp62.simh",
+      "second_imp_id": "imp:6",
+      "second_endpoint": "imp:6:mi1",
+      "second_simh_device": "mi1",
+      "second_listen_environment": "BRFID_IMP6_MI_PORT",
+      "second_simh_config": "config/imp/its-pair/imp6.simh"
+    }
+  ],
+  "proof": {
+    "kind": "passive-h316-host-interface",
+    "requirements": [
+      "host-ready-sent",
+      "imp-ready-received",
+      "complete-imp-message-received"
+    ]
+  }
+}

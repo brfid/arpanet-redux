@@ -15,6 +15,7 @@ These command files contain only the project-owned composition for each test top
 | `imp/its-pair/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62 for the two-ITS guest-to-guest topology. |
 | `imp/its-pair/imp62.simh` | Join ITS host 176 to IMP 62 and IMP 62 to IMP 6 for the two-ITS guest-to-guest topology. |
 | `imp/pdp11-its/imp62.simh` | Join the short-leader Network UNIX PDP-11 host 176 to IMP 62 without ITS leader conversion. |
+| `topologies/pdp11-its-telnet.json` | Share the formal Network UNIX host 176 to ITS host 106 route, host attachments, modem link, positions, and port identities with typed message-journey emission. |
 | `hosts/its106-pair.simh` | Boot the independently prepared ITS host-106 media. |
 | `hosts/its176-pair.simh` | Boot the independently prepared ITS host-176 media. |
 | `hosts/pdp11-176.simh` | Attach the receipt-bound Network UNIX root and swap media and its IMP11-A interface without booting before controller readiness. |
@@ -26,7 +27,7 @@ These command files contain only the project-owned composition for each test top
 | `imp/ncc-alternate-path/imp6.simh` | Attach IMP 6 to the other end of the direct-line relay and to IMP 7. |
 | `imp/ncc-alternate-path/imp7.simh` | Join the two alternate-path links between IMPs 5 and 6. |
 
-The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). `make smoke-pdp11-its` reuses `imp/its-pair/imp6.simh` and `hosts/its106-pair.simh`, then pairs them with the committed PDP-11-specific IMP 62 and host configurations above. The older [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) remains exploratory reproduction support rather than a formal lifecycle owner. Formal smoke outcomes are summarized in the project [README](../README.md).
+The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). `make smoke-pdp11-its` reuses `imp/its-pair/imp6.simh` and `hosts/its106-pair.simh`, then pairs them with the committed PDP-11-specific IMP 62 and host configurations above. It validates `topologies/pdp11-its-telnet.json` before launch and uses the named route only to derive typed expected journey boundaries; configured crossings do not become observations. The older [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) remains exploratory reproduction support rather than a formal lifecycle owner. Formal smoke outcomes are summarized in the project [README](../README.md).
 
 ## Runtime contract
 
@@ -39,6 +40,8 @@ The KA10 and PDP-11 host files retain the octal `034` console WRU character beca
 Exact external source revisions and binary identities are maintained in [`../pins/`](../pins/). The reproduction sequence and result interpretation live in [`../docs/runbook.md`](../docs/runbook.md) and [`../docs/test-plan.md`](../docs/test-plan.md), respectively.
 
 ## Shared topology input
+
+[`topologies/pdp11-its-telnet.json`](topologies/pdp11-its-telnet.json) represents the already accepted heterogeneous Gate 4H composition without adding a route or changing simulator commands. It names Network UNIX host 176, IMP 62, IMP 6, and ITS host 106; the two host-interface bindings; the one modem binding; their existing six port-environment names; stable positions; and the single host-176-to-host-106 route. The formal controller and read-only retained-result adapter derive the same twelve request/reply boundary identities from this file. Direct trace observations and harness-derived connected-peer observations remain separately typed, and the topology alone never proves activity or host delivery.
 
 [`topologies/imp5-ncc-host-interface.json`](topologies/imp5-ncc-host-interface.json) is the first project-authored topology input shared between a simulator configuration and an NCC receiver. It gives the configured NCC receiver, IMP 5, and proof-peer IMP 6 identities; fixed display positions; the host-interface and modem endpoints; the `host 0` to `hi1` mapping; all four port-environment names; and the explicit report-line-1 identity at each end of this modem binding. The receiver resolves its two ports from the host-interface binding; the two simulator command files consume the corresponding host and modem names. The NCC reconciliation adapter consumes only a reciprocal pair of explicit report-line fields and never derives a report identity from `mi1`.
 

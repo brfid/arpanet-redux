@@ -1,6 +1,6 @@
 # Parallel workstreams and fresh-context handoff
 
-- **Updated:** 2026-08-31
+- **Updated:** 2026-09-01
 - **Canonical repository:** [`brfid/arpanet-redux`](https://github.com/brfid/arpanet-redux)
 - **Integration policy:** `main` remains test-passing; feature work uses dedicated branches and worktrees
 
@@ -16,7 +16,7 @@ These directories share Git object storage but have independent branches and wor
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not develop here |
 | `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-imp6-report-proof` | Passive historical NCC display and observation integration |
-| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed Gate 4H proof; selected typed journey-emission follow-up |
+| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Gate 4H and typed message-journey emission |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Completed line-state proof; coordinated network expansion only |
 
 The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-party assets and raw results, not Git worktree state. GitHub `origin` is canonical; treat the `gitlab` remote as historical unless explicitly directed otherwise.
@@ -37,15 +37,15 @@ Do not delete, rebase, merge into, or develop on a recovery branch. Prefer rever
 ### NCC
 
 - **Read first:** [NCC observability](ncc.md) and the dated [telemetry research note](research/2026-08-30-ncc-telemetry.md).
-- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, a passive progressive browser display with exact version-2 handoff, and the source-only message-journey model with a narrow H316 trace adapter.
-- **Decision:** The selected next slice is typed message-journey emission from the accepted PDP-11-to-ITS TELNET harness. The completed passive display remains the observer: journey work must emit proven typed boundaries rather than add browser-side inference or simulator control.
+- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, a passive progressive browser display with exact version-2 handoff, and the source-only message-journey model with a narrow H316 trace adapter. The formal Gate 4H path adds a separate typed journey sidecar, exact trace-window provenance, and controller emission/readback.
+- **Decision:** No further NCC slice is selected. The closest continuation is passive browser presentation of already-resolved journey snapshots; closing host-ingress gaps instead requires a separate full KA10 or IMP11-A extraction-format decision.
 - **Evidence:** The [IMP 6 report](experiments/2026-08-31-ncc-imp6-report-proof.md), [alternate-path fault](experiments/2026-08-31-ncc-alternate-path-fault.md), and [line-loopback](experiments/2026-08-31-ncc-line-loopback.md) records own the canonical runs. [ADR-006](adr/0006-ncc-line-reconciliation.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md), and [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md) own the accepted reconciliation, topology, and completed-summary bridge rules.
-- **Guardrails:** The display has no simulator or controller authority, never animates unobserved traffic, and never converts configured topology or absence into observed state. The historical-line evidence slice is complete. A later journey producer must own its manifest, ports, cleanup, transaction window, and application verdict; it must not depend on or modify an exploratory PDP-11 driver. Add KA10 or IMP11-A parsers only after their full extraction formats are proven.
+- **Guardrails:** Displays have no simulator or controller authority, never animate unobserved traffic, and never convert configured topology, application success, or absence into observed state. The historical-line evidence slice is complete. The formal journey producer owns its manifest, ports, cleanup, transaction window, and application verdict; it does not depend on or modify the exploratory PDP-11 driver. Add KA10 or IMP11-A parsers only after their full extraction formats are proven.
 
 ### PDP-11 TELNET
 
 - **Read first:** [IMP11-A device record](research/imp11a-device.md) and [Network UNIX research](research/pdp11-network-unix.md).
-- **State:** The heterogeneous application proof and formal Gate 4H harness are complete and integrated. `make smoke-pdp11-its` verifies receipt-bound media, a usable Network UNIX-to-ITS TELNET session with remote `:TIME`, correlated traffic through both IMPs, and complete cleanup. Active revisions live in [`pins/`](../pins/).
+- **State:** The heterogeneous application proof and formal Gate 4H harness are complete. `make smoke-pdp11-its` verifies receipt-bound media, a usable Network UNIX-to-ITS TELNET session with remote `:TIME`, correlated traffic through both IMPs, a reducer-verified typed message-journey sidecar over fixed post-probe H316 trace windows, and complete cleanup. The sidecar records ten proven route-boundary observations and retains unproved destination-host ingress as missing evidence. Active revisions live in [`pins/`](../pins/).
 - **Decision:** No required follow-up remains. Optional bounded investigations are `TIMOUT` or error-summary handling, output buffer chaining, the `IMP: Phantom Out Int` anomaly, and the non-fatal legacy TELNET option diagnostic.
 - **Guardrails:** Do not reopen the accepted byte order, ITS leader handling, balanced RFNM accounting, receive continuation, topology, firmware, or application proof without contradictory exact-run evidence. The exploratory driver remains reproduction support, not a formal lifecycle or evidence owner.
 

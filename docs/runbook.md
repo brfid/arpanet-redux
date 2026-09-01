@@ -100,7 +100,7 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID PDP11_BUI
 
 The default base media paths are `$LAB_ROOT/work/unix-v6-install/images/ncp_root.rl01` and `ncp_swap.rl01`; override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` when the laboratory uses another prepared base. The build creates its directory atomically and never overwrites an earlier one. Its receipt binds both base images, the pinned Network UNIX and IMP11-A revisions, the embedded PDP-11 revision and executable hash, exact staged TELNET and daemon sources, the intermediate and final media, build logs, and builder hashes. `smoke-pdp11-its` holds the same build/use lease, verifies the receipt and all source, asset, binary, firmware, and configuration identities, then copies the final guest media into a new run directory before launch.
 
-The formal topology is ITS host `106` on IMP 6 and Network UNIX host `176` on IMP 62. The controller waits for both modem and host-link states, the ITS console banner, a responsive local ITS command state, a booted PDP-11, and its preserved NCP before capturing application offsets and starting TELNET. Interpret its result against Gate 4H in the [test plan](test-plan.md); `Connection open` or `SKTRACE` without the service job, structured remote `:TIME`, and correlated traffic on both IMPs is a failure.
+The formal topology is ITS host `106` on IMP 6 and Network UNIX host `176` on IMP 62. The controller validates `config/topologies/pdp11-its-telnet.json`, waits for both modem and host-link states, the ITS console banner, a responsive local ITS command state, a booted PDP-11, and its preserved NCP before capturing application offsets and starting TELNET. After the application evidence passes, it fixes both H316 trace-window end offsets and emits a typed `message-journey.jsonl`. Interpret its result against Gate 4H in the [test plan](test-plan.md); `Connection open` or `SKTRACE` without the service job, structured remote `:TIME`, correlated traffic on both IMPs, and a reducer-verified sidecar is a failure.
 
 Set `RUN_ID` to a unique value when a stable result-directory name is useful. Otherwise the Makefile creates a UTC timestamp plus UUID. A collision is an error; a prior result is never overwritten.
 
@@ -112,7 +112,7 @@ An NCC alternate-path result is named `ncc-alternate-path-fault-<run-id>`. `verd
 
 An NCC loopback result is named `ncc-line-loopback-<run-id>`. Its `verdict.json` additionally retains each raw final direct endpoint, its self-neighbor, post-loop report counts, reflector forward/reflection counts, and pre-loop/final reducer support. `direct-reflector.json`, `receiver.json`, and `historical-events.jsonl` are its structured direct inputs. The same manifest, controller-exit, cleanup, transport, and immutability requirements apply.
 
-The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
+The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, `message-journey.jsonl`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. Its manifest binds the shared topology, exact trace-window end offsets, sidecar digest, observation count, diagnosis, and first unresolved boundary. The accepted bounded extraction contains ten observations and terminates `missing-boundary` at `boundary:request:6`; that explicit lack of host-106 ingress evidence does not replace or weaken the separate passing application verdict. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
 
 Interpret evidence using the [test plan](test-plan.md). A successful process exit without the required application and IMP evidence is not a pass.
 
@@ -134,6 +134,16 @@ python3 scripts/ncc-render-summary.py /tmp/two-its-ncc-summary.json > /tmp/two-i
 ```
 
 A derived summary reports a failed formal run without valid application evidence as incomplete; it does not turn missing evidence into a network-down claim. The static viewer provides fixed-topology, gate, provenance, and observation-replay views without opening external evidence locators. See [NCC observability](ncc.md) for the contract boundary.
+
+## Extract a typed journey from a retained PDP-11 result
+
+The read-only journey adapter accepts a completed passing formal Gate 4H result and writes a new sidecar only at the explicit output path. It validates the retained manifest, reads each H316 trace from the recorded application start offset through its retained file size, binds the slices to exact offsets and SHA-256 digests, and uses the same topology, extractor, stream writer, and reducer as the formal controller. It never changes the result directory or launches a simulator:
+
+```sh
+python3 scripts/ncc-extract-pdp11-its-journey.py /absolute/path/to/arpanet-redux-lab/results/pdp11-its-telnet-<run-id> config/topologies/pdp11-its-telnet.json /tmp/pdp11-its-message-journey.jsonl
+```
+
+The command prints the run identity, observation count, terminal state, and first unresolved boundary. For the accepted Gate 4H trace shape, expect ten observations, `missing-boundary`, and `boundary:request:6`. Choose a fresh output path because the recorder refuses to overwrite an existing file. Retained laboratory results are read-only inputs; never write the derived sidecar back into one.
 
 ## Summarize a completed NCC historical-line result
 

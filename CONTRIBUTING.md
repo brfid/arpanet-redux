@@ -31,7 +31,9 @@ Local hooks are not authoritative. `make test` checks indexed files in the curre
 
 Write Markdown with one source line per paragraph or list item. Do not wrap prose to a fixed column. Preserve intentional hard breaks, which use two trailing spaces. Link to the document that owns a fact rather than duplicating it:
 
-- README owns current project status.
+- README owns the high-level current status and verified-composition summary.
+- `docs/architecture.md` owns the reusable system boundaries and composition roles.
+- `docs/workstreams.md` owns active branches, worktrees, handoffs, and next-task decisions.
 - `docs/test-plan.md` owns pass/fail requirements.
 - `docs/harness.md` owns orchestration implementation details.
 - ADRs own decisions and consequences.

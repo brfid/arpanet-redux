@@ -2,9 +2,31 @@
 
 ## Purpose
 
-ARPANET Redux separates a historically authentic guest data path from a modern orchestration and validation plane. The project succeeds only when a guest application sends data through both simulated IMPs and another guest application consumes it.
+ARPANET Redux separates historically authentic guest and IMP behavior from a modern orchestration, observation, and validation plane. The project advances by promoting bounded compositions with explicit claims and evidence, not by treating one host pair or IMP route as a permanent network definition.
 
-## Target topology
+For an application-bearing composition, success requires a historical guest application to send data through the configured IMP route and another historical guest application to consume it. For an NCC or network-behavior composition, success requires genuine attributed IMP observations and a verdict derived under the composition's explicit evidence rules. Configured topology is intent in both cases; it is never proof that a component ran, a link worked, or a route was historically real.
+
+## System shape
+
+```text
+              modern orchestration and lifecycle control
+                               │
+                               ▼
+      historical, diagnostic, or NCC host attachments
+                               ↕ simulated 1822 interfaces
+                  configured H316 IMP topology
+                               ↕ simulated modem links
+                  additional IMPs and endpoints
+                               │
+                               ▼
+       transcripts + IMP traces/reports + per-run manifest
+```
+
+The modern plane allocates resources, drives simulator consoles, observes bounded results, and performs exact cleanup. It surrounds the simulated network but does not become an application bridge or substitute configured facts for observations.
+
+## Baseline application composition
+
+ADR-001 selected the following as the first complete vintage-to-vintage acceptance baseline:
 
 ```text
 control: simulator consoles and per-run lifecycle management
@@ -21,24 +43,34 @@ control: simulator consoles and per-run lifecycle management
 validation: console transcripts + both IMP traces + per-run manifest
 ```
 
+This remains the normative Gate 4 and Gate 5 baseline, not a maximum network size or the project's final topology. Gate 4H reuses the proven IMP route while replacing ITS host 176 with SRI/NOSC Network UNIX on a PDP-11. The later NCC fault compositions add a third IMP and a passive receiver under separate network-behavior claims rather than extending the application gate by implication.
+
 Loopback UDP models the point-to-point electrical links between simulator devices. It is transport for simulated interfaces, not an application bridge.
+
+## Composition roles
+
+| Role | Boundary |
+|---|---|
+| Historical application | Both application endpoints are historical guests, and post-probe IMP evidence corroborates the configured route |
+| Heterogeneous application | Different historical host families share the same application and evidence requirements |
+| Mixed diagnostic | `linux-ncp` replaces one historical endpoint to isolate a guest interface or route; it cannot satisfy a vintage-to-vintage application gate |
+| Router oracle | Diagnostic endpoints and a hostless adjacent peer test ordinary routing and explicit host-dead behavior |
+| NCC and network behavior | A passive receiver, genuine attributed IMP reports, and topology-aware reducers test specific observation and fault claims without asserting an application exchange |
+
+Additional hosts, IMPs, links, or routes enter the project as new bounded compositions. A composition may reuse proven components, but it must own its topology, lifecycle, acceptance boundary, and evidence. The repository does not infer historical site identity from an IMP number or turn a configured route into a historical reconstruction claim.
 
 ## Separation of concerns
 
 | Concern | Owner | Boundary |
 |---|---|---|
-| Guest data plane | ITS NCP and guest applications | Payload enters guest A, crosses both IMPs, and exits guest B |
-| Simulated network | KA10 IMP devices and H316 firmware | Converts 1822 leaders, routes packets, and reports network failures |
+| Guest data plane | Historical guest NCP and applications | Payload enters one historical guest, crosses the configured IMP route, and exits another historical guest |
+| Simulated network | Host-interface device models and H316 firmware | Converts 1822 leaders where required, routes packets, and reports network conditions |
 | Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children |
-| Evidence plane | Test assertions and run manifests | Correlates application output with post-start IMP traffic and pinned inputs |
+| Evidence plane | Test assertions and run manifests | Correlates claimed behavior with post-start observations and pinned inputs |
 | NCC observation plane | Versioned completed summary, bounded controller stream, topology-aware historical reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; live consumers retain stale state without simulator authority |
 | Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
 
 The repository never uses a guest-media directory as a transfer channel between endpoints. Guest workspaces are distinct, and a payload test is invalid if the controller can satisfy it by copying a host file.
-
-## Diagnostic topology
-
-The retained mixed topology replaces one vintage endpoint with `linux-ncp`. It is an observability oracle for the KA10 interface and two-IMP route, not an acceptable final data path. The router oracle replaces both vintage endpoints and adds an unreachable adjacent IMP so normal echo and explicit host-dead behavior can be tested independently.
 
 ## Resource model
 
@@ -57,10 +89,12 @@ The network stage may replace the two current machine stages, but it must preser
 - Status retains the expected pipeline identity, success result, zero exit status, build ID, and source revision.
 - Build-log identity, provenance, reuse fingerprints, semantic validation, and fail-closed publication remain intact.
 
-The site checkout is not read or modified by the laboratory smokes. Integration begins only after the two-vintage-host and payload-integrity gates in the [test plan](test-plan.md) pass.
+The site checkout is not read or modified by the laboratory smokes. The two-vintage-host and payload-integrity prerequisites in the [test plan](test-plan.md) now pass; connecting the network stage to the publishing pipeline remains future work.
 
 ## Decisions and evidence
 
-- [ADR-001](adr/0001-two-imp-baseline.md) records why the two-IMP, two-ITS baseline was selected.
+- [ADR-001](adr/0001-two-imp-baseline.md) records why the two-IMP, two-ITS composition was selected as the first acceptance baseline.
 - [Phase-one feasibility](research/2026-08-28-phase-one-feasibility.md) records the resource survey and passing diagnostic experiments.
-- [Two-ITS readiness findings](experiments/2026-08-28-two-its-readiness.md) records the failed trials that established the current readiness rule.
+- [Two-ITS readiness findings](experiments/2026-08-28-two-its-readiness.md) records the evidence and failed trials that established the application baseline's current readiness rule.
+- [The test plan](test-plan.md) owns the normative gates for the diagnostic, application, heterogeneous, NCC, and eventual site-integration compositions.
+- [NCC observability](ncc.md) owns the current observation product shape, implemented scope, and next decision.

@@ -1,27 +1,33 @@
 # ARPANET Redux
 
-ARPANET Redux is a source-only laboratory for running real host applications through two simulated ARPANET IMPs. Its production-shaped targets join either two KA10/PDP-10 ITS hosts or ITS and SRI/NOSC Network UNIX on a PDP-11 through recovered 1973 H316 IMP software.
+ARPANET Redux is an active, source-only laboratory for rebuilding working pieces of the early ARPANET from preserved host software, recovered 1973 H316 Interface Message Processor (IMP) software, and modern simulators. It grows one reproducible, evidence-backed composition at a time rather than treating any current host count, IMP count, or route as the finished network.
 
 ```text
-KA10 / ITS 106 ↔ H316 IMP 6 ↔ H316 IMP 62 ↔ KA10 / ITS 176
-PDP-11 / Network UNIX 176 ↔ H316 IMP 62 ↔ H316 IMP 6 ↔ KA10 / ITS 106
+              modern orchestration and lifecycle control
+                               │
+                               ▼
+historical / diagnostic hosts ↔ configured H316 IMP topology ↔ host / NCC attachments
+                               │
+                               ▼
+             guest results + IMP observations + run manifests
 ```
 
-The repository contains orchestration, project-authored SIMH configurations, source pins, checksums, documentation, and acceptance tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and run logs remain in a separate local laboratory.
+The modern control and evidence planes drive consoles, allocate resources, and observe results; they do not carry an application payload around the historical guest networking. Exact host and IMP identities below name reproducible test compositions, not a fixed network size, a final topology, or automatic claims about historical sites.
 
-## Current status
+The repository contains orchestration, project-authored SIMH configurations, normalized observability code, source pins, checksums, documentation, and acceptance tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and raw run logs remain in a separate local laboratory.
 
-| Gate | Result |
-|---|---|
-| Linux NCP ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP | Passing, including explicit host-dead behavior |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Passing with three guest NCP echo replies |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Passing on the exact clean-media pins: restored `UT` reached automatic `TELSER`, remote DDT, and `:TIME`, with two-way modem-link correlation. See [two-ITS readiness](docs/experiments/2026-08-28-two-its-readiness.md). |
-| Application payload through both vintage guests | Passing anti-bypass proof: host `106` injected a unique `:OSEND` sentinel and host `176` recovered it only through NCP TELNET. The evidence trail records the exact run and matching digest. |
-| PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Passing formal Gate 4H with receipt-bound guest media: the preserved TELNET client reached ITS `TELSER`, received the greeting, and executed remote `:TIME`, with post-probe traffic correlated through both IMPs and complete cleanup. See [the IMP11-A evidence record](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31). |
-| NCC receiver ↔ IMP 5 ↔ IMP 6 with alternate path through IMP 7 | Passing direct-line fault gate: both endpoints were observed `up`, the owned relay then dropped their direct cable in both directions, and both remained observable—with IMP 6 delivered through IMP 7—until fresh reciprocal reports established `down`. See [the alternate-path experiment](docs/experiments/2026-08-31-ncc-alternate-path-fault.md). |
-| NCC receiver ↔ IMP 5 ↔ IMP 6 with two-ended direct-line loopback | Passing line-loopback gate: both endpoints were observed `up`, the owned reflector then returned each direction to its source, and both remained observable through the alternate route until repeated checksum-valid self-neighbor reports established `looped`. See [the loopback experiment](docs/experiments/2026-08-31-ncc-line-loopback.md). |
+## Project status
 
-`linux-ncp` is a diagnostic oracle, not a production endpoint. A valid vintage-to-vintage pass must originate and consume its application data inside the two guests.
+ARPANET Redux is under active development. Several bounded application, routing, fault, and observability results are reproducibly verified, but the project is neither a complete reconstruction of the ARPANET nor a one-command distribution of the historical assets it depends on.
+
+| Area | Current result | Open boundary |
+|---|---|---|
+| Host applications | Formal ITS-to-ITS and SRI/NOSC Network UNIX-to-ITS TELNET passes, including a two-ITS anti-bypass payload proof | Additional historical hosts, applications, and an eventual site-integrated workload |
+| Network compositions | Two-IMP application paths and a three-IMP alternate path that preserves observation while a direct line is cut or looped | Additional bounded routes and historically sourced site or topology reconstructions |
+| NCC observability | Completed-run and bounded controller-event contracts, genuine IMP report decoding and replay, a static viewer, and evidenced `up`, `down`, and `looped` line reconciliation | Bridging genuine report and reducer results into the common contracts, formal message-journey producers, and a browser-based live view |
+| Publishing integration | The replacement boundary is documented, and the vintage-to-vintage application and payload prerequisites pass | The network stage is not yet connected to the publishing pipeline |
+
+The next NCC or network-expansion slice is intentionally not implied by the completed line gates. The living [workstream handoff](docs/workstreams.md) records the current decision point; [NCC observability](docs/ncc.md) owns its implemented scope and open product boundaries.
 
 ## Five-minute local check
 
@@ -33,38 +39,55 @@ cd arpanet-redux
 make test
 ```
 
-The integration smokes require separately obtained and locally built historical assets. The [existing-laboratory runbook](docs/runbook.md) explains the expected layout and commands without pretending to grant or automate access to those materials.
+This verifies the repository's source-only policy and deterministic contracts. Integration smokes require separately obtained and locally built historical assets; the [existing-laboratory runbook](docs/runbook.md) explains the expected layout and commands without pretending to grant or automate access to those materials.
 
-## Project boundaries
+## Verified compositions
 
-- Loopback UDP represents point-to-point simulator cabling; it must not carry the application payload around a guest NCP.
+These are promoted milestones at the current pins, not an exhaustive list of what the project may eventually model.
+
+| Composition | Established result |
+|---|---|
+| Linux NCP 002 ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP 003, with hostless IMP 4 as an adjacent peer | Diagnostic echo and explicit host-dead behavior through recovered routing firmware; see [Gate 2](docs/test-plan.md#gate-2-router-oracle) |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Native ITS NCP and its simulated 1822 interface interoperate with the two-IMP diagnostic path; see [Gate 3](docs/test-plan.md#gate-3-mixed-vintage-and-diagnostic-hosts) |
+| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Guest-to-guest TELNET, remote DDT and `:TIME`, correlated modem traffic, and recovery of a unique `:OSEND` sentinel only through guest NCP; see [the readiness and evidence record](docs/experiments/2026-08-28-two-its-readiness.md) |
+| PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Formal heterogeneous TELNET from the preserved client to ITS, with a remote `:TIME`, receipt-bound media, correlated IMP traffic, and complete cleanup; see [the Gate 4H evidence](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31) |
+| NCC receiver on IMP 5, a direct IMP 5/IMP 6 line, and an alternate path through IMP 7 | Genuine reports from all three IMPs and reciprocal direct-line transitions from `up` to evidenced [`down`](docs/experiments/2026-08-31-ncc-alternate-path-fault.md) or [`looped`](docs/experiments/2026-08-31-ncc-line-loopback.md) while both endpoints remain observable |
+
+`linux-ncp` is a diagnostic oracle, not a historical application endpoint. An accepted vintage-to-vintage application pass must originate and consume its application data inside the historical guests. IMPs 5, 6, and 7 in the NCC fault compositions are configured test components, not asserted historical sites.
+
+## Evidence and project boundaries
+
+- Configured topology records the intended composition; it does not by itself prove that a component ran, a link was up, or a route was historically real.
+- Loopback UDP represents point-to-point simulator cabling; it must not carry an application payload around a guest NCP.
+- Direct observations, derived state, and acceptance verdicts remain distinct and retain their supporting evidence.
+- NCC consumers are passive observers and receive no authority to control the simulators.
 - Each run owns its ports, processes, media copies, logs, and result directory.
 - Generated and third-party artifacts stay outside Git and are checked against the source-only policy.
 - The existing publishing pipeline is an eventual integration consumer, not a runtime dependency of this laboratory.
 
 ## Documentation
 
-Start with the shortest document that answers the question:
+### Start here
 
 - **Run source checks or an existing laboratory:** [existing-laboratory runbook](docs/runbook.md)
-- **Understand the system boundary:** [architecture](docs/architecture.md)
+- **Understand the system and evidence boundaries:** [architecture](docs/architecture.md)
 - **Evaluate a result:** [test plan](docs/test-plan.md)
+
+### Current implementation and development
+
 - **Understand orchestration internals:** [harness design](docs/harness.md)
-- **Choose or resume a parallel workstream:** [workstreams and fresh-context handoff](docs/workstreams.md)
-- **Understand NCC observability scope and current implementation:** [NCC observability](docs/ncc.md)
-- **Understand why this topology was chosen:** [ADR-001](docs/adr/0001-two-imp-baseline.md)
-- **Understand the complete KAIMP pin correction:** [ADR-003](docs/adr/0003-complete-kaimp-fix.md)
-- **Understand the H316 buffer-fix pin:** [ADR-004](docs/adr/0004-h316-hi-conversion-buffer.md)
-- **Review the original feasibility evidence:** [phase-one feasibility report](docs/research/2026-08-28-phase-one-feasibility.md)
-- **Review the current two-ITS result and evidence trail:** [two-ITS readiness experiment](docs/experiments/2026-08-28-two-its-readiness.md)
-- **Understand the formal heterogeneous endpoint:** [SRI/NOSC Network UNIX V6 research](docs/research/pdp11-network-unix.md)
-- **Contribute safely:** [contributor guide](CONTRIBUTING.md)
-- **Working here as an agent:** [agent instructions](AGENTS.md)
-- **Understand redistribution limits:** [asset and licensing notice](NOTICE.md)
-- **See what this project draws on:** [credits](CREDITS.md)
+- **See current branches, completed slices, and decision points:** [workstreams and fresh-context handoff](docs/workstreams.md)
+- **Understand NCC observability scope and remaining boundaries:** [NCC observability](docs/ncc.md)
+
+### Decisions, evidence, and policy
+
+- **Review design decisions:** [architecture decision records](docs/adr/)
+- **Review dated results:** [experiments](docs/experiments/) and [research](docs/research/)
+- **Contribute safely:** [contributor guide](CONTRIBUTING.md) and [agent instructions](AGENTS.md)
+- **Understand provenance and redistribution:** [asset and licensing notice](NOTICE.md) and [credits](CREDITS.md)
 
 Active source revisions and asset hashes live only in [`pins/`](pins/); dated reports describe what was observed at those pins without acting as a second lock file.
 
 ## License status
 
-Original work in this repository — orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, and the scripts/research tooling — is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).
+Original work in this repository — orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, and the scripts and research tooling — is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).

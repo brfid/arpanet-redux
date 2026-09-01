@@ -78,6 +78,40 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
             )
         )
 
+    def test_post_probe_watchdog_regression_uses_the_selected_modem(self) -> None:
+        imp6_mi3 = VALID_IMP6.replace(b"MI1", b"MI3")
+        imp6_other_line_dead = (
+            imp6_mi3 + b"WDT LIGHTS: changed to 015400\n"
+        )
+        imp6_selected_line_dead = (
+            imp6_mi3 + b"WDT LIGHTS: changed to 035400\n"
+        )
+
+        self.assertEqual(
+            CONTROLLER.application_evidence_failures(
+                VALID_PDP11,
+                VALID_ITS,
+                imp6_other_line_dead,
+                VALID_IMP62,
+                imp6_mi_device="mi3",
+                imp62_mi_device="mi1",
+            ),
+            [],
+        )
+        self.assertTrue(
+            any(
+                "post-probe modem-line-dead" in failure
+                for failure in CONTROLLER.application_evidence_failures(
+                    VALID_PDP11,
+                    VALID_ITS,
+                    imp6_selected_line_dead,
+                    VALID_IMP62,
+                    imp6_mi_device="mi3",
+                    imp62_mi_device="mi1",
+                )
+            )
+        )
+
     def test_missing_connection_open_is_rejected(self) -> None:
         result = failures(pdp11=VALID_PDP11.replace(b"Connection open\r\n", b""))
         self.assertIn("missing ordered Connection open evidence", result)

@@ -107,7 +107,10 @@ def application_evidence_failures(
     if re.search(SERVICE_PATTERN, its_output) is None:
         failures.append("ITS lacks the incoming HST176 TELNET service job")
 
-    for name, output in (("imp6", imp6_output), ("imp62", imp62_output)):
+    for name, output, modem_device in (
+        ("imp6", imp6_output, imp6_mi_device),
+        ("imp62", imp62_output, imp62_mi_device),
+    ):
         for marker in (b"HI2 MSG: message received", b"HI2 MSG: message sent"):
             if marker not in output:
                 failures.append(
@@ -115,7 +118,7 @@ def application_evidence_failures(
                 )
         if FATAL_TRANSPORT.search(output):
             failures.append(f"{name} reported a fatal transport condition")
-        if b"WDT LIGHTS: changed to 175400" in output:
+        if SHARED.watchdog_reports_modem_dead(output, modem_device):
             failures.append(f"{name} reported a post-probe modem-line-dead transition")
 
     imp6_mi = SHARED.mi_link_messages_from_bytes(
@@ -269,11 +272,11 @@ def run(args: argparse.Namespace) -> int:
         host106.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
 
-        imp6_modem_up = SHARED.wait_for_log_marker(
-            imp6, "WDT LIGHTS: changed to 077400", 60
+        imp6_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
+            imp6, modem_device=imp6_mi_device, timeout=60
         )
-        imp62_modem_up = SHARED.wait_for_log_marker(
-            imp62, "WDT LIGHTS: changed to 077400", 60
+        imp62_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
+            imp62, modem_device=imp62_mi_device, timeout=60
         )
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + args.route_settle
 
@@ -291,17 +294,32 @@ def run(args: argparse.Namespace) -> int:
         wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
 
-        SHARED.wait_for_log_marker(imp6, "WDT LIGHTS: changed to 075400", 120)
-        SHARED.wait_for_log_marker(imp62, "WDT LIGHTS: changed to 075400", 120)
+        SHARED.wait_for_watchdog_devices_ready(
+            imp6,
+            modem_device=imp6_mi_device,
+            host_device="hi2",
+            timeout=120,
+        )
+        SHARED.wait_for_watchdog_devices_ready(
+            imp62,
+            modem_device=imp62_mi_device,
+            host_device="hi2",
+            timeout=120,
+        )
         remaining = route_settle_deadline - time.monotonic()
         if remaining > 0:
             time.sleep(remaining)
-        for imp in imps:
+        for imp, modem_device in (
+            (imp6, imp6_mi_device),
+            (imp62, imp62_mi_device),
+        ):
             imp.ensure_alive()
-            if SHARED.latest_watchdog(imp.debug_path) != "075400":
+            latest = SHARED.latest_watchdog(imp.debug_path)
+            if not SHARED.watchdog_devices_ready(
+                latest, modem_device=modem_device, host_device="hi2"
+            ):
                 raise RuntimeError(
-                    f"{imp.name} is not host-link ready: "
-                    f"{SHARED.latest_watchdog(imp.debug_path)}"
+                    f"{imp.name} selected modem/host path is not ready: {latest}"
                 )
         for host in hosts:
             ensure_process_alive(host)
@@ -353,8 +371,14 @@ def run(args: argparse.Namespace) -> int:
             imp6_mi_device=imp6_mi_device,
             imp62_mi_device=imp62_mi_device,
         )
-        for imp in imps:
-            if SHARED.latest_watchdog(imp.debug_path) != "075400":
+        for imp, modem_device in (
+            (imp6, imp6_mi_device),
+            (imp62, imp62_mi_device),
+        ):
+            latest = SHARED.latest_watchdog(imp.debug_path)
+            if not SHARED.watchdog_devices_ready(
+                latest, modem_device=modem_device, host_device="hi2"
+            ):
                 failures.append(f"{imp.name} did not remain host-link ready")
         if failures:
             raise RuntimeError("; ".join(failures))

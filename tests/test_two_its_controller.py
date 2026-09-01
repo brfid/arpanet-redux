@@ -16,6 +16,41 @@ SPEC.loader.exec_module(CONTROLLER)
 
 
 class TwoItsEvidenceTests(unittest.TestCase):
+    def test_watchdog_readiness_selects_bits_instead_of_a_whole_word(self) -> None:
+        self.assertTrue(
+            CONTROLLER.watchdog_devices_ready(
+                "017400", modem_device="mi3"
+            )
+        )
+        self.assertFalse(
+            CONTROLLER.watchdog_devices_ready(
+                "017400", modem_device="mi4"
+            )
+        )
+        self.assertTrue(
+            CONTROLLER.watchdog_devices_ready(
+                "015400", modem_device="mi3", host_device="hi2"
+            )
+        )
+        self.assertFalse(
+            CONTROLLER.watchdog_devices_ready(
+                "017400", modem_device="mi3", host_device="hi2"
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "unsupported watchdog modem"):
+            CONTROLLER.watchdog_devices_ready("000000", modem_device="mi5")
+
+    def test_watchdog_regression_uses_the_selected_modem_bit(self) -> None:
+        other_line_only = b"WDT LIGHTS: changed to 015400\n"
+        selected_line = b"WDT LIGHTS: changed to 035400\n"
+
+        self.assertFalse(
+            CONTROLLER.watchdog_reports_modem_dead(other_line_only, "mi3")
+        )
+        self.assertTrue(
+            CONTROLLER.watchdog_reports_modem_dead(selected_line, "mi3")
+        )
+
     def test_client_evidence_rejects_partial_and_closed_sessions(self) -> None:
         partial = b"CONNECT MIT Dynamic Modelling PDP-10\r\nWelcome to ITS!\r\n"
         with self.assertRaisesRegex(RuntimeError, "remote-session evidence"):

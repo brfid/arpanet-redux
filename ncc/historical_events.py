@@ -40,6 +40,7 @@ class HistoricalEventStream:
 
     _header: Mapping[str, Any]
     _records: tuple[Mapping[str, Any], ...]
+    _has_incomplete_final_record: bool = False
 
     @property
     def run_id(self) -> str:
@@ -52,6 +53,12 @@ class HistoricalEventStream:
         """Return fresh, ordered direct events suitable for replay."""
 
         return tuple(_event_from_record(record) for record in self._records)
+
+    @property
+    def has_incomplete_final_record(self) -> bool:
+        """Report whether a non-newline final record was ignored while reading."""
+
+        return self._has_incomplete_final_record
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-safe copy for a read-only replay consumer."""
@@ -164,7 +171,8 @@ def read_historical_event_stream(path: str | Path) -> HistoricalEventStream:
             f"could not read historical event stream {stream_path}: {error}"
         ) from error
     lines = contents.splitlines()
-    if contents and not contents.endswith("\n"):
+    has_incomplete_final_record = bool(contents and not contents.endswith("\n"))
+    if has_incomplete_final_record:
         lines.pop()
     if not lines:
         raise HistoricalEventStreamError("historical event stream has no complete header")
@@ -183,6 +191,7 @@ def read_historical_event_stream(path: str | Path) -> HistoricalEventStream:
     return HistoricalEventStream(
         _header=MappingProxyType(_copy_json_value(header)),
         _records=tuple(MappingProxyType(_copy_json_value(record)) for record in event_records),
+        _has_incomplete_final_record=has_incomplete_final_record,
     )
 
 

@@ -8,11 +8,12 @@ substitutes modern harness state for a missing historical report.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import re
+from types import MappingProxyType
 
 from .events import NccEvent
 from .shared_topology import SharedTopology
@@ -153,6 +154,29 @@ class NominalTopology:
 
 
 @dataclass(frozen=True)
+class HistoricalLineTopology:
+    """One shared mapping used by reconciliation, summaries, and displays."""
+
+    nominal: NominalTopology
+    endpoint_subject_ids: Mapping[str, str]
+    line_link_ids: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class ReconciledEndpoint:
+    """One mapped direct endpoint at a deterministic observation time."""
+
+    line_id: str
+    endpoint: Endpoint
+    direction: str
+    state: LineState
+    last_known_state: str | None
+    observed_at: str | None
+    topology_match: bool | None
+    supporting_sequences: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class ReconciledLine:
     """One inferred line condition and the direct events supporting it."""
 
@@ -176,6 +200,7 @@ class Reconciliation:
 
     lines: tuple[ReconciledLine, ...]
     imps: tuple[ReconciledImp, ...]
+    endpoints: tuple[ReconciledEndpoint, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -195,7 +220,22 @@ class _ImpObservation:
 def nominal_topology_from_shared(topology: SharedTopology) -> NominalTopology:
     """Build the existing reducer input from explicit shared report-line mappings."""
 
-    lines = []
+    return historical_line_topology_from_shared(topology).nominal
+
+
+def historical_line_topology_from_shared(
+    topology: SharedTopology,
+) -> HistoricalLineTopology:
+    """Map explicit shared report lines to reducer and normalized identities."""
+
+    links_by_endpoints: dict[frozenset[str], list[str]] = {}
+    for link in topology.topology["links"]:
+        pair = frozenset(str(endpoint) for endpoint in link["endpoints"])
+        links_by_endpoints.setdefault(pair, []).append(str(link["id"]))
+
+    lines: list[NominalLine] = []
+    endpoint_subject_ids: dict[str, str] = {}
+    line_link_ids: dict[str, str] = {}
     for binding in topology.modem_interfaces:
         first_report_line = binding.first_report_line
         second_report_line = binding.second_report_line
@@ -205,24 +245,43 @@ def nominal_topology_from_shared(topology: SharedTopology) -> NominalTopology:
             raise ReconciliationError(
                 f"shared modem binding {binding.id!r} has a one-sided report-line mapping"
             )
-        lines.append(
-            NominalLine(
-                binding.id,
-                Endpoint(
-                    imp=_shared_imp_number(binding.first_imp_id),
-                    interface=first_report_line,
-                ),
-                Endpoint(
-                    imp=_shared_imp_number(binding.second_imp_id),
-                    interface=second_report_line,
-                ),
-            )
+        line = NominalLine(
+            binding.id,
+            Endpoint(
+                imp=_shared_imp_number(binding.first_imp_id),
+                interface=first_report_line,
+            ),
+            Endpoint(
+                imp=_shared_imp_number(binding.second_imp_id),
+                interface=second_report_line,
+            ),
         )
+        lines.append(line)
+        pair = frozenset((binding.first_endpoint, binding.second_endpoint))
+        matching_links = links_by_endpoints.get(pair, [])
+        if len(matching_links) != 1:
+            raise ReconciliationError(
+                f"shared modem binding {binding.id!r} must map to exactly one normalized link"
+            )
+        line_link_ids[binding.id] = matching_links[0]
+        for endpoint, normalized_id in (
+            (line.first, binding.first_endpoint),
+            (line.second, binding.second_endpoint),
+        ):
+            if endpoint.subject in endpoint_subject_ids:
+                raise ReconciliationError(
+                    f"shared topology repeats report subject {endpoint.subject!r}"
+                )
+            endpoint_subject_ids[endpoint.subject] = normalized_id
     if not lines:
         raise ReconciliationError(
             f"shared topology {topology.id!r} has no reciprocal report-line mapping"
         )
-    return NominalTopology(tuple(lines))
+    return HistoricalLineTopology(
+        nominal=NominalTopology(tuple(lines)),
+        endpoint_subject_ids=MappingProxyType(endpoint_subject_ids),
+        line_link_ids=MappingProxyType(line_link_ids),
+    )
 
 
 def reconcile(
@@ -283,8 +342,22 @@ def reconcile(
                     observed_at=_timestamp(event.observed_at, "event.observed_at"),
                 )
 
+    reconciled_endpoints = tuple(
+        _reconcile_endpoint(
+            line,
+            endpoint,
+            endpoint_observations.get(endpoint),
+            current,
+            report_interval,
+        )
+        for line in topology.lines
+        for endpoint in (line.minus_endpoint, line.plus_endpoint)
+    )
+    endpoints_by_identity = {
+        endpoint.endpoint: endpoint for endpoint in reconciled_endpoints
+    }
     lines = tuple(
-        _reconcile_line(line, endpoint_observations, current, report_interval)
+        _reconcile_line(line, endpoints_by_identity)
         for line in topology.lines
     )
     imps = tuple(
@@ -299,30 +372,84 @@ def reconcile(
         )
         for imp in topology.imps
     )
-    return Reconciliation(lines=lines, imps=imps)
+    return Reconciliation(lines=lines, imps=imps, endpoints=reconciled_endpoints)
+
+
+def observation_is_stale(
+    observed_at: str,
+    *,
+    as_of: str,
+    report_interval: timedelta,
+) -> bool:
+    """Apply the reducer's exact freshness boundary to one direct observation."""
+
+    if report_interval <= timedelta(0):
+        raise ReconciliationError("report_interval must be positive")
+    observed = _timestamp(observed_at, "observed_at")
+    current = _timestamp(as_of, "as_of")
+    if current < observed:
+        raise ReconciliationError("as_of precedes observed_at")
+    return _expired(observed, current, report_interval)
+
+
+def _reconcile_endpoint(
+    line: NominalLine,
+    endpoint: Endpoint,
+    observation: _EndpointObservation | None,
+    current: datetime,
+    report_interval: timedelta,
+) -> ReconciledEndpoint:
+    direction = "minus" if endpoint == line.minus_endpoint else "plus"
+    if observation is None:
+        return ReconciledEndpoint(
+            line_id=line.id,
+            endpoint=endpoint,
+            direction=direction,
+            state=LineState.UNKNOWN,
+            last_known_state=None,
+            observed_at=None,
+            topology_match=None,
+            supporting_sequences=(),
+        )
+    if _expired(observation.observed_at, current, report_interval):
+        state = LineState.STALE
+    elif not observation.matches_topology:
+        state = LineState.CONTRADICTORY
+    else:
+        state = LineState(observation.state)
+    return ReconciledEndpoint(
+        line_id=line.id,
+        endpoint=endpoint,
+        direction=direction,
+        state=state,
+        last_known_state=observation.state,
+        observed_at=observation.event.observed_at,
+        topology_match=observation.matches_topology,
+        supporting_sequences=(observation.event.sequence,),
+    )
 
 
 def _reconcile_line(
     line: NominalLine,
-    observations: dict[Endpoint, _EndpointObservation],
-    current: datetime,
-    report_interval: timedelta,
+    endpoints: Mapping[Endpoint, ReconciledEndpoint],
 ) -> ReconciledLine:
-    minus = observations.get(line.minus_endpoint)
-    plus = observations.get(line.plus_endpoint)
+    minus = endpoints[line.minus_endpoint]
+    plus = endpoints[line.plus_endpoint]
     support = _support_sequences(minus, plus)
-    if minus is None and plus is None:
+    if minus.observed_at is None and plus.observed_at is None:
         return ReconciledLine(line.id, LineState.UNKNOWN, support)
-    if any(
-        observation is not None and _expired(observation.observed_at, current, report_interval)
-        for observation in (minus, plus)
-    ):
+    if LineState.STALE in {minus.state, plus.state}:
         return ReconciledLine(line.id, LineState.STALE, support)
-    if minus is None or plus is None:
+    if minus.observed_at is None or plus.observed_at is None:
         return ReconciledLine(line.id, LineState.UNKNOWN, support)
-    if not minus.matches_topology or not plus.matches_topology:
+    if LineState.CONTRADICTORY in {minus.state, plus.state}:
         return ReconciledLine(line.id, LineState.CONTRADICTORY, support)
-    return ReconciledLine(line.id, _paired_line_state(minus.state, plus.state), support)
+    assert minus.last_known_state is not None and plus.last_known_state is not None
+    return ReconciledLine(
+        line.id,
+        _paired_line_state(minus.last_known_state, plus.last_known_state),
+        support,
+    )
 
 
 def _reconcile_imp(
@@ -429,8 +556,18 @@ def _matches_expected_peer(event: NccEvent, line: NominalLine, endpoint: Endpoin
     return reported_peer == line.peer(endpoint).imp
 
 
-def _support_sequences(*observations: _EndpointObservation | _ImpObservation | None) -> tuple[int, ...]:
-    return tuple(sorted(observation.event.sequence for observation in observations if observation is not None))
+def _support_sequences(
+    *observations: _EndpointObservation | _ImpObservation | ReconciledEndpoint | None,
+) -> tuple[int, ...]:
+    sequences = []
+    for observation in observations:
+        if observation is None:
+            continue
+        if isinstance(observation, ReconciledEndpoint):
+            sequences.extend(observation.supporting_sequences)
+        else:
+            sequences.append(observation.event.sequence)
+    return tuple(sorted(sequences))
 
 
 def _expired(observed: datetime, current: datetime, interval: timedelta) -> bool:

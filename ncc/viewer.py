@@ -172,7 +172,7 @@ code {{ font: 12px/1.35 var(--mono); overflow-wrap: anywhere; }}
     <section class="panel"><h2>Ordered observations</h2>{_observations_table(document['observations'])}</section>
     <section class="panel"><h2>Provenance</h2>{_provenance_list(document['run']['provenance'])}<h2 style="margin-top:18px">External evidence pointers</h2>{_evidence_list(document.get('external_evidence', []))}</section>
   </section>
-  <p class="footnote">The timeline replays direct observations in stored sequence. Derived conclusions retain their supporting observation identifiers; the browser does not recalculate topology or acceptance results.</p>
+  <p class="footnote">The timeline replays direct historical, harness, and application observations in stored sequence with their named sources. Derived conclusions retain their basis and supporting observation identifiers; the browser does not recalculate topology or acceptance results.</p>
 </main>
 <script>
 const frames = {frame_json};
@@ -315,10 +315,15 @@ def _observations_table(observations: list[dict[str, Any]]) -> str:
         + _text(observation["subject_id"])
         + "</code></td><td>"
         + _text(observation["state"])
+        + "</td><td><code>"
+        + _text(observation["source"]["id"])
+        + "</code><br><span class=\"quiet\">"
+        + _text(observation["source"]["kind"])
+        + "</span>"
         + "</td></tr>"
         for observation in observations
     )
-    return "<table><thead><tr><th>#</th><th>Time</th><th>Kind</th><th>Subject</th><th>State</th></tr></thead><tbody>" + rows + "</tbody></table>"
+    return "<table><thead><tr><th>#</th><th>Time</th><th>Authority</th><th>Subject</th><th>State</th><th>Source</th></tr></thead><tbody>" + rows + "</tbody></table>"
 
 
 def _provenance_list(provenance: list[dict[str, Any]]) -> str:

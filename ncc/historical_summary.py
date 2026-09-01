@@ -26,7 +26,7 @@ from .reconciliation import (
     LineState,
     Reconciliation,
     ReconciliationError,
-    nominal_topology_from_shared,
+    historical_line_topology_from_shared,
     reconcile,
 )
 from .run_summary import (
@@ -150,7 +150,8 @@ def summarize_historical_line_result(
     try:
         shared = load_shared_topology(topology_path)
         stream = read_historical_event_stream(result_path / "historical-events.jsonl")
-        nominal = nominal_topology_from_shared(shared)
+        historical_topology = historical_line_topology_from_shared(shared)
+        nominal = historical_topology.nominal
     except (
         HistoricalEventStreamError,
         ReconciliationError,
@@ -233,7 +234,6 @@ def summarize_historical_line_result(
             "the validated historical-event stream"
         )
 
-    endpoint_subjects, line_links = _mapped_topology_identities(shared)
     try:
         document = _summary_document(
             run_name=run_name,
@@ -242,8 +242,8 @@ def summarize_historical_line_result(
             shared=shared,
             events=events,
             reconciliation=result,
-            endpoint_subjects=endpoint_subjects,
-            line_links=line_links,
+            endpoint_subjects=historical_topology.endpoint_subject_ids,
+            line_links=historical_topology.line_link_ids,
         )
         return run_summary_from_mapping(document)
     except (HistoricalLineSummaryError, RunSummaryValidationError) as error:
@@ -432,47 +432,6 @@ def _summary_document(
             }
         ],
     }
-
-
-def _mapped_topology_identities(
-    shared: SharedTopology,
-) -> tuple[dict[str, str], dict[str, str]]:
-    links_by_endpoints: dict[frozenset[str], list[str]] = {}
-    for link in shared.topology["links"]:
-        pair = frozenset(str(endpoint) for endpoint in link["endpoints"])
-        links_by_endpoints.setdefault(pair, []).append(str(link["id"]))
-
-    endpoint_subjects: dict[str, str] = {}
-    line_links: dict[str, str] = {}
-    for binding in shared.modem_interfaces:
-        if binding.first_report_line is None and binding.second_report_line is None:
-            continue
-        if binding.first_report_line is None or binding.second_report_line is None:
-            raise HistoricalLineSummaryError(
-                f"shared binding {binding.id!r} has a one-sided report-line mapping"
-            )
-        pair = frozenset((binding.first_endpoint, binding.second_endpoint))
-        matching_links = links_by_endpoints.get(pair, [])
-        if len(matching_links) != 1:
-            raise HistoricalLineSummaryError(
-                f"shared binding {binding.id!r} must map to exactly one normalized link"
-            )
-        line_links[binding.id] = matching_links[0]
-        for imp_id, report_line, endpoint in (
-            (binding.first_imp_id, binding.first_report_line, binding.first_endpoint),
-            (binding.second_imp_id, binding.second_report_line, binding.second_endpoint),
-        ):
-            subject = f"{imp_id}:line:{report_line}"
-            if subject in endpoint_subjects:
-                raise HistoricalLineSummaryError(
-                    f"shared topology repeats report subject {subject!r}"
-                )
-            endpoint_subjects[subject] = endpoint
-    if not line_links:
-        raise HistoricalLineSummaryError(
-            f"shared topology {shared.id!r} has no mapped historical line"
-        )
-    return endpoint_subjects, line_links
 
 
 def _supporting_observation_ids(

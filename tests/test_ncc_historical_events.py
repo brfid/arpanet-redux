@@ -180,7 +180,14 @@ class HistoricalEventStreamTests(unittest.TestCase):
             with path.open("a", encoding="utf-8") as stream:
                 stream.write('{"incomplete":')
 
-            self.assertEqual(len(read_historical_event_stream(path).events), 1)
+            stream = read_historical_event_stream(path)
+            self.assertEqual(len(stream.events), 1)
+            self.assertTrue(stream.has_incomplete_final_record)
+
+            with path.open("a", encoding="utf-8") as output:
+                output.write("ignored}\n")
+            with self.assertRaisesRegex(HistoricalEventStreamError, "line 3"):
+                read_historical_event_stream(path)
 
 
 if __name__ == "__main__":

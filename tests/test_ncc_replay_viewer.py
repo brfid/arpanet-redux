@@ -39,6 +39,8 @@ class ReplayAndViewerTests(unittest.TestCase):
         self.assertIn('class="ribbon state-up"', page)
         self.assertIn("gate:two-its-application", page)
         self.assertIn("observation:3, observation:4", page)
+        self.assertIn("fixture:controller", page)
+        self.assertIn("synthetic-controller", page)
         self.assertIn("const frames =", page)
 
     def test_command_renders_a_self_contained_html_document(self) -> None:

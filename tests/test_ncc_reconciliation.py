@@ -223,6 +223,55 @@ class ReconciliationTests(unittest.TestCase):
         )
         self.assertEqual(stale.lines[0].state, LineState.STALE)
 
+    def test_endpoint_view_uses_the_same_strict_freshness_and_match_rules(self) -> None:
+        events = [
+            line_event(
+                imp=5,
+                interface=1,
+                state="up",
+                neighbor_imp=31,
+                sequence=1,
+                observed_at="2026-08-30T12:00:10Z",
+            ),
+            line_event(
+                imp=31,
+                interface=2,
+                state="down",
+                neighbor_imp=6,
+                sequence=2,
+                observed_at="2026-08-30T12:00:10Z",
+            ),
+        ]
+        at_boundary = reconcile(
+            two_imp_topology(),
+            events,
+            started_at=STARTED_AT,
+            observed_at="2026-08-30T12:00:40Z",
+            report_interval=INTERVAL,
+        )
+
+        minus, plus = at_boundary.endpoints
+        self.assertEqual(minus.direction, "minus")
+        self.assertEqual(minus.state, LineState.UP)
+        self.assertTrue(minus.topology_match)
+        self.assertEqual(plus.direction, "plus")
+        self.assertEqual(plus.state, LineState.CONTRADICTORY)
+        self.assertFalse(plus.topology_match)
+        self.assertEqual(at_boundary.lines[0].state, LineState.CONTRADICTORY)
+
+        expired = reconcile(
+            two_imp_topology(),
+            events,
+            started_at=STARTED_AT,
+            observed_at="2026-08-30T12:00:40.000001Z",
+            report_interval=INTERVAL,
+        )
+        self.assertEqual(
+            [endpoint.state for endpoint in expired.endpoints],
+            [LineState.STALE, LineState.STALE],
+        )
+        self.assertEqual(expired.lines[0].state, LineState.STALE)
+
     def test_uses_multiple_fresh_peer_reports_for_partition_inference(self) -> None:
         topology = NominalTopology(
             (

@@ -96,6 +96,19 @@ Given one completed passing heterogeneous coexistence result and the exact proje
 
 Source-only fixtures own fail-closed artifact, reducer, authority, determinism, rendering, and transport behavior. Read-only replay of the canonical coexistence result owns exact agreement with support 322/355, later mapped sequences 377/399/421/443/475, six configured-only links, and the separate application and journey conclusions.
 
+### Passive topology-first network board
+
+Given the exact shared topology and a named result directory that may be absent, growing, or terminal, the passive network board must reuse rather than reinterpret the existing display projections. Accept it only if:
+
+1. Before `historical-events.jsonl` exists, the fixed configured topology renders with every link neutral and the snapshot endpoint returns an explicit waiting state rather than inventing a run or observation.
+2. While the historical sidecar grows, the board returns the existing validated historical-display snapshot unchanged, shows attributed IMP report freshness and the mapped paired-line reducer conclusion, pulses only on a newly received direct event, and leaves application, journey, and every unmapped link without observed state.
+3. A terminal manifest triggers the existing completed coexistence adapter. The board must fail closed on an invalid terminal result and may show application, typed-journey, accepted-line, run-finish, report-count, and lifecycle conclusions only after that adapter validates.
+4. The default page is a restrained fixed topology plus current evidence and a short direct-observation list. The detailed scenario folio remains a separate `/report` route backed by the same completed snapshot; navigating between them performs no artifact read in JavaScript and no evidence reduction.
+5. Both routes and the snapshot endpoint accept GET and HEAD only, bind IPv4 loopback, remain responsive when another browser connection is idle, expose no arbitrary-file route, and provide no simulator, controller, guest-input, relay, or result-mutation method.
+6. The separate one-command terminal runner invokes the existing formal smoke with the exact supplied inputs and one safe run identity, starts the browser server before evidence exists, isolates the owned harness session, and on Control-C gives the harness cleanup trap a bounded opportunity to stop every exact child. It does not add a second lifecycle implementation or a browser command endpoint.
+
+Source-only tests own absent/live/completed transition, terminal validation, safe route and method behavior, runner command construction and stop delegation, presentation-only JavaScript, keyboard focus, reduced-motion behavior, and stable Make targets. Read-only canonical replay plus desktop and narrow-viewport inspection own the final presentation check. The formal scenario itself is not rerun merely to verify this presentation layer.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

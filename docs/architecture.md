@@ -66,7 +66,7 @@ The outer lifecycle owns the passive receiver plus IMPs 5 and 7. The existing he
 
 The exact accepted composition proves coexistence, not application rerouting through the NCC triangle. Its receiver deliberately outlives the application controller, so the later historical tape contains teardown observations after the accepted fresh direct-line `up` pair. A combined diagnostic view must present that phase distinction rather than reducing the last tape record to an application verdict.
 
-The completed coexistence desk is that read-only handoff. It does not merge or replace the existing persistence contracts:
+The completed coexistence projection is that read-only handoff. It does not merge or replace the existing persistence contracts:
 
 ```text
 shared topology + manifest + application evidence + composition verdict
@@ -79,7 +79,20 @@ shared topology + manifest + application evidence + composition verdict
                            loopback GET/HEAD presentation only
 ```
 
-The adapter verifies the application result, journey reducer, direct report counts, and composition support independently. Its historical-event sequence rail marks the exact verdict support and the later receiver tail, but it does not invent the unpersisted controller-exit sequence or align independent simulator clocks. The fixed map leaves every unmapped link configured-only; the browser receives resolved authority and state and performs no evidence reduction.
+The adapter verifies the application result, journey reducer, direct report counts, and composition support independently. Its detailed run report marks the exact verdict support and the later receiver tail, but it does not invent the unpersisted controller-exit sequence or align independent simulator clocks. The fixed map leaves every unmapped link configured-only; the browser receives resolved authority and state and performs no evidence reduction.
+
+The default network board is a smaller passive presentation boundary over the already validated projections:
+
+```text
+growing historical-event sidecar ── existing historical projection ──┐
+                                                                    ├── passive board ── fixed topology + state + attention
+terminal structured artifacts ─── existing coexistence projection ─┘                         │
+                                                                                              └── detailed run report
+```
+
+Before a run starts, only the configured topology is present. During a run, the board can show direct report activity, IMP report freshness, and the mapped paired-line conclusion from the progressive historical projection. After a terminal manifest appears, the board fails closed unless the completed coexistence adapter validates every required artifact; only then may it add the application and typed-journey conclusions and expose the detailed report. This switching layer creates no new persisted evidence contract.
+
+The convenience runner is separate from both browser routes. One operator terminal launches the unchanged formal smoke as an exactly owned child session and serves the passive board beside it. Control-C signals that exact harness, whose existing trap owns cleanup. The browser cannot invoke the runner, signal a process, write a guest console, switch a relay, or restart a component.
 
 ## Composition roles
 
@@ -100,7 +113,7 @@ Additional hosts, IMPs, links, or routes enter the project as new bounded compos
 |---|---|---|
 | Guest data plane | Historical guest NCP and applications | Payload enters one historical guest, crosses the configured IMP route, and exits another historical guest |
 | Simulated network | Host-interface device models and H316 firmware | Converts 1822 leaders where required, routes packets, and reports network conditions |
-| Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children |
+| Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children; the combined terminal runner may own one complete formal smoke but exposes no browser command route |
 | Evidence plane | Test assertions and run manifests | Correlates claimed behavior with post-start observations and pinned inputs |
 | NCC observation plane | Versioned v1/v2 completed summaries, bounded v1 controller stream, validated historical-event and message-journey sidecars, topology-aware reducers, deterministic replay, and passive viewers | Separates configured topology, direct observations, harness-derived peer evidence, in-memory reconciliation, and completed gate evidence; progressive consumers receive already-resolved snapshots, independent simulator order never becomes a global clock, and only an exactly matching completed-result adapter may grant a final reducer state gate authority |
 | Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
@@ -109,7 +122,7 @@ The repository never uses a guest-media directory as a transfer channel between 
 
 A version-2 completed network-behavior summary is a derived evidence artifact, not a second topology or a live controller channel. Its passed gate must close over a supported completed harness outcome and every direct historical observation supporting the cited final reducer state. The adapter maps report identities only through the supplied shared topology's explicit reciprocal bindings; unmatched configured links remain unobserved.
 
-The passive historical display reuses that same mapping and reducer in Python. It reads only complete validated JSONL records, retains an interrupted final record as input status rather than evidence, and gives the browser a presentation-ready snapshot over loopback GET requests. The browser never pairs endpoints or infers freshness. At terminal completion the server compares the final last-event reduction with the accepted version-2 summary's mapped line state and supporting observation identifiers before exposing the completed viewer; disagreement remains visible and blocks handoff.
+The passive historical display reuses that same mapping and reducer in Python. It reads only complete validated JSONL records, retains an interrupted final record as input status rather than evidence, and gives the browser a presentation-ready snapshot over loopback GET requests. The browser never pairs endpoints or infers freshness. The topology-first board may consume that projection while the integrated result grows, but it does not use the historical display's completed-summary handoff for the heterogeneous result; after a terminal manifest it instead requires the separately validated coexistence projection before exposing completed application, journey, and report detail.
 
 The formal heterogeneous harness writes a separate version-1 message-journey sidecar over fixed post-probe H316 trace windows. Its header contains the one shared topology and expected route boundaries; its typed observation records retain direct versus harness-derived provenance and source-local order; and its terminal record must exactly match the existing pure reducer. This diagnostic stream neither changes the Gate 4H application verdict nor extends a completed-summary, live-observation, or historical-report schema. The H316 adapter stops at unproved guest ingress instead of inferring it from topology or application success.
 

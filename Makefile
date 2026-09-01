@@ -11,7 +11,9 @@ PDP11_BIN ?= $(IMP11A_ROOT)/BIN/pdp11
 RESULTS_ROOT ?= $(LAB_ROOT)/results
 NCP_BUILD_RECEIPT ?= $(LINUX_NCP_ROOT)/.brfid-build-receipt.json
 ITS_BUILD_RECEIPT ?= $(ITS_ROOT)/.brfid-build-receipt.json
-RUN_ID ?= $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + str(uuid.uuid4()))')
+ifndef RUN_ID
+RUN_ID := $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + str(uuid.uuid4()))')
+endif
 PDP11_BASE_ROOT ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_root.rl01
 PDP11_BASE_SWAP ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_swap.rl01
 PDP11_BUILD_ROOT ?= $(RESULTS_ROOT)/pdp11-telnet-build-$(RUN_ID)
@@ -27,7 +29,7 @@ NCC_WATCH_PORT ?= 8765
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its run-ncc watch-ncc view-ncc
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its ncc run-ncc watch-ncc view-ncc
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -128,8 +130,11 @@ smoke-ncc-pdp11-its: verify-ncc-pdp11-its
 run-ncc: smoke-ncc-pdp11-its
 	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
 
+ncc: verify-ncc-pdp11-its
+	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" $(PYTHON) ./scripts/ncc-operate-pdp11-its.py --arpanet-root "$(ARPANET_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --pdp11-build-root "$(PDP11_BUILD_ROOT)" --results-root "$(RESULTS_ROOT)" --run-id "$(RUN_ID)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
+
 watch-ncc:
-	$(PYTHON) ./scripts/ncc-serve-historical.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
+	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
 
 view-ncc:
-	$(PYTHON) ./scripts/ncc-serve-coexistence.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)"
+	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)"

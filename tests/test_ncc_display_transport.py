@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from socketserver import ThreadingMixIn
 
+from ncc.board_server import NccBoardHTTPServer
 from ncc.coexistence_server import CoexistenceDisplayHTTPServer
 from ncc.historical_server import HistoricalDisplayHTTPServer
 from ncc.journey_server import JourneyDisplayHTTPServer
@@ -11,6 +12,7 @@ from ncc.journey_server import JourneyDisplayHTTPServer
 class PassiveDisplayTransportTests(unittest.TestCase):
     def test_idle_browser_connection_cannot_block_another_request(self) -> None:
         server_types = (
+            NccBoardHTTPServer,
             CoexistenceDisplayHTTPServer,
             HistoricalDisplayHTTPServer,
             JourneyDisplayHTTPServer,

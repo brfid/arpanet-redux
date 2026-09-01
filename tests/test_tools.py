@@ -46,7 +46,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
             cwd=ROOT,
         )
         self.assertEqual(view.returncode, 0, view.stderr)
-        self.assertIn("scripts/ncc-serve-coexistence.py", view.stdout)
+        self.assertIn("scripts/ncc-serve-board.py", view.stdout)
         self.assertIn("/tmp/ncc-result", view.stdout)
         self.assertIn("--port \"9877\"", view.stdout)
 
@@ -59,7 +59,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
             cwd=ROOT,
         )
         self.assertEqual(watch.returncode, 0, watch.stderr)
-        self.assertIn("scripts/ncc-serve-historical.py", watch.stdout)
+        self.assertIn("scripts/ncc-serve-board.py", watch.stdout)
         self.assertIn("/tmp/ncc-result", watch.stdout)
         self.assertIn("--port \"9875\"", watch.stdout)
 
@@ -74,6 +74,20 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertEqual(run_target.returncode, 0, run_target.stderr)
         self.assertIn("scripts/smoke-ncc-pdp11-its.sh", run_target.stdout)
         self.assertIn("ncc-pdp11-its-coexistence-watch-demo", run_target.stdout)
+
+        operated = run(
+            "make",
+            "-n",
+            "RUN_ID=operated-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "NCC_WATCH_PORT=9875",
+            "ncc",
+            cwd=ROOT,
+        )
+        self.assertEqual(operated.returncode, 0, operated.stderr)
+        self.assertIn("scripts/ncc-operate-pdp11-its.py", operated.stdout)
+        self.assertIn('--run-id "operated-demo"', operated.stdout)
+        self.assertIn('--port "9875"', operated.stdout)
 
 
 class NativeTemplateTests(unittest.TestCase):

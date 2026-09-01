@@ -110,25 +110,32 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID PDP11_BUI
 
 The target verifies the five external source trees, three simulators, mixed assets, build receipt, firmware, topology, and configurations; leases fourteen UDP ports; starts the receiver and IMPs 5/7 under the outer runtime; delegates IMPs 6/62 and both guests to the existing application controller; retains both existing sidecars; and evaluates the combined result after bounded cleanup. Its default receiver duration is 150 seconds. Interpret it against the NCC-observed heterogeneous coexistence gate in the [test plan](test-plan.md). The target proves one application and NCC composition, not application rerouting through IMPs 5 or 7.
 
-The dedicated NCC worktree provides shorter operator aliases without changing that lifecycle. `run-ncc` delegates to the same formal smoke and still requires the receipt-bound PDP-11 build root. Give the run a stable identity so a second terminal can name its growing result exactly:
+The dedicated NCC worktree provides one combined operator command without changing that lifecycle. `ncc` verifies the same inputs, starts the formal smoke as one exactly owned child session, and serves a passive loopback network board over its named result directory:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" ncc
+```
+
+Open the printed `http://127.0.0.1:PORT/` URL. The fixed configured map is available before the first sidecar record, then the same page consumes the existing validated progressive historical snapshot and switches to the existing completed coexistence projection only after the terminal manifest and all structured artifacts validate. The browser remains GET/HEAD-only and never owns the harness. Control-C in the launching terminal stops the exact still-running smoke through its existing cleanup trap; after a successful smoke it only closes the board server. The detailed coexistence desk remains available as the board's **Run report** link at `/report`.
+
+For separate terminals, `run-ncc` still delegates to the formal smoke and `watch-ncc` serves the same board over a named growing or completed result:
 
 ```sh
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" run-ncc
-```
-
-After that run creates `historical-events.jsonl`, a second terminal can open the passive polling view over the genuine growing sidecar:
-
-```sh
 make NCC_RESULT=/absolute/path/to/arpanet-redux-lab/results/ncc-pdp11-its-coexistence-watch-demo watch-ncc
 ```
 
-`watch-ncc` shows historical reports and in-memory line reconciliation while the harness runs; it does not control the harness, infer application traffic, or make the completed composition claim. Once the smoke passes, stop the watcher with Control-C and open the completed evidence-composed desk with the same result path:
+`watch-ncc` does not control the separately launched harness. Before terminal completion it shows only configured topology, attributed IMP report freshness, mapped-line reconciliation, and genuine report activity. After terminal completion it exposes the accepted application, journey, and line conclusions without converting an unmapped link into observed state.
+
+To inspect the retained canonical result without running a simulator:
 
 ```sh
-make NCC_RESULT=/absolute/path/to/arpanet-redux-lab/results/ncc-pdp11-its-coexistence-watch-demo view-ncc
+make view-ncc
 ```
 
-`view-ncc` detects the project's adjacent external laboratory and defaults to its retained canonical coexistence result, so the dedicated NCC worktree can preview that result with just `make view-ncc`. Override `NCC_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when using another result or loopback port.
+`view-ncc` detects the project's adjacent external laboratory and defaults to its retained canonical coexistence result. Override `NCC_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when using another result or loopback port. The old historical-line and journey-specific viewers remain directly runnable diagnostic tools; the network board is the default operator surface.
+
+The formal controller still owns a single fixed Network UNIX TELNET transaction and remote `:TIME`. The board and combined runner do not add arbitrary terminal input, browser-side process signals, link switching, or individual IMP/host restart. Those controls require a separate typed session supervisor and proven restart or command-attribution semantics; killing an individual simulator is not treated as a supported down/up operation.
 
 Set `RUN_ID` to a unique value when a stable result-directory name is useful. Otherwise the Makefile creates a UTC timestamp plus UUID. A collision is an error; a prior result is never overwritten.
 

@@ -138,6 +138,19 @@ h1 {
   top: 56px;
   transform: rotate(-.6deg);
 }
+.board-return {
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font: 700 9px/1 var(--mono);
+  letter-spacing: .06em;
+  padding: 7px 9px;
+  position: absolute;
+  right: 40px;
+  text-decoration: none;
+  text-transform: uppercase;
+  top: 20px;
+}
+.board-return:hover, .board-return:focus-visible { background: var(--ink); color: var(--cover); }
 .outcome-seal span { display: block; font: 700 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .outcome-seal strong { display: block; font: 700 22px/1 var(--display); letter-spacing: .08em; margin-top: 5px; text-transform: uppercase; }
 .status-strip {
@@ -334,6 +347,7 @@ td:first-child { color: var(--observed); font-weight: 700; }
   .eyebrow { display: block; line-height: 1.5; }
   .eyebrow span { display: block; }
   .outcome-seal { margin: 19px auto 0; position: static; width: 154px; }
+  .board-return { display: inline-block; margin: 0 0 18px; position: static; }
   .status-strip { grid-template-columns: 1fr 1fr; }
   .status-cell:nth-child(2) { border-right: 0; }
   .status-cell:nth-child(-n+2) { border-bottom: 1px dotted var(--graphite); }
@@ -355,6 +369,7 @@ td:first-child { color: var(--observed); font-weight: 700; }
 <body>
 <main class="desk">
   <header class="masthead">
+    <a class="board-return" href="/">Network board</a>
     <div class="cover-title">
       <p class="eyebrow"><span>ARPANET Redux</span><span>Observation folio NCC / 01</span></p>
       <p class="cover-kicker">Scenarios</p>

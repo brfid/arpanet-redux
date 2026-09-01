@@ -66,6 +66,21 @@ The outer lifecycle owns the passive receiver plus IMPs 5 and 7. The existing he
 
 The exact accepted composition proves coexistence, not application rerouting through the NCC triangle. Its receiver deliberately outlives the application controller, so the later historical tape contains teardown observations after the accepted fresh direct-line `up` pair. A combined diagnostic view must present that phase distinction rather than reducing the last tape record to an application verdict.
 
+The completed coexistence desk is that read-only handoff. It does not merge or replace the existing persistence contracts:
+
+```text
+shared topology + manifest + application evidence + composition verdict
+                         + typed journey + historical events + cleanup
+                                             │
+                                             ▼
+                         fail-closed in-memory Python projection
+                                             │
+                                             ▼
+                           loopback GET/HEAD presentation only
+```
+
+The adapter verifies the application result, journey reducer, direct report counts, and composition support independently. Its historical-event sequence rail marks the exact verdict support and the later receiver tail, but it does not invent the unpersisted controller-exit sequence or align independent simulator clocks. The fixed map leaves every unmapped link configured-only; the browser receives resolved authority and state and performs no evidence reduction.
+
 ## Composition roles
 
 | Role | Boundary |

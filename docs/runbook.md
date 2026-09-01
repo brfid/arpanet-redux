@@ -198,9 +198,23 @@ An integrated coexistence result can be inspected with its seven-component topol
 python3 scripts/ncc-serve-historical.py /absolute/path/to/arpanet-redux-lab/results/ncc-pdp11-its-coexistence-<run-id> --topology config/topologies/ncc-pdp11-its-coexistence.json
 ```
 
-That display validates the complete historical sidecar, retains all six unmapped links as configured-only, and reconciles only the mapped IMP 5 / IMP 6 direct line. It deliberately remains in progressive mode after the run because the completed-summary adapter supports only fault and loopback verdicts. Use the integrated run's `verdict.json` for its accepted support pair; a unified phase-aware coexistence handoff is the next bounded NCC display slice.
+That display validates the complete historical sidecar, retains all six unmapped links as configured-only, and reconciles only the mapped IMP 5 / IMP 6 direct line. It deliberately remains in progressive mode after the run because the completed-summary adapter supports only fault and loopback verdicts. Use the completed coexistence desk below when the application, journey, composition verdict, and later receiver tail need one phase-aware handoff.
 
 Retained results in the external laboratory are read-only inputs. Do not copy, normalize, complete, or rewrite their sidecars merely to serve them; an interrupted final record is an explicit display condition, and a completed retained fault or loopback result should hand off without changing any artifact digest.
+
+## View a completed NCC/application coexistence result
+
+The completed coexistence desk accepts only the integrated result shape. It validates the exact shared topology path and digest, terminal manifest and lifecycle, application and cleanup facts, verdict digest and checks, typed journey digest and reducer result, complete historical stream identities, direct Type 303/302 counts, and the verdict's latest observed reciprocal `up` support. It reads no raw simulator log or receiver dump and changes no result artifact:
+
+```sh
+python3 scripts/ncc-serve-coexistence.py /absolute/path/to/arpanet-redux-lab/results/ncc-pdp11-its-coexistence-<run-id> --topology config/topologies/ncc-pdp11-its-coexistence.json
+```
+
+Open the printed loopback URL in a local browser. The evidence phase rail uses historical-event sequence, not a shared simulator clock. Its amber 322/355 pair is the composition verdict's accepted line support; red or stale later events belong to the post-support receiver tail and do not rewrite the application verdict. The desk explicitly reports that no controller-exit sequence was persisted instead of guessing a teardown boundary.
+
+The judgment ledger should show the application as `passed`, the typed journey as `missing-boundary` with first unresolved `boundary:request:6`, and the mapped line as accepted `up` with a separate run-finish tail reduction. The fixed topology should retain six configured-only links. Select phase markers or journey boundaries to inspect their exact authority; application success never fills an unobserved boundary or assigns traffic to a configured link.
+
+The server binds only `127.0.0.1`, accepts GET and HEAD, and exposes only `/`, `/api/snapshot`, and an empty favicon response. A manifest, digest, identity, lifecycle, report-count, typed-journey, or reducer-support disagreement prevents startup. Retained laboratory results remain read-only; do not repair a failed display by editing or reevaluating its inputs in place.
 
 ## Cleanup and failures
 

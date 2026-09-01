@@ -83,6 +83,19 @@ Start Network UNIX host `176`, IMP 62, IMP 6, ITS host `106`, the IMP 5/6/7 NCC 
 
 A passing Gate 4H transaction from another run, reports replayed from another result, a report from only the NCC triangle, application traffic inferred from configured topology, or an assumed MI-device-to-report-line mapping cannot satisfy this gate. This first composition proves coexistence, not application rerouting around a fault; an application-relevant alternate route remains a separate future gate.
 
+### Passive completed coexistence desk
+
+Given one completed passing heterogeneous coexistence result and the exact project topology recorded by its manifest, the passive desk must validate and combine only `application-evidence.txt`, `cleanup-evidence.txt`, `outcome.txt`, `runtime/run.env`, `verdict.json`, `historical-events.jsonl`, and `message-journey.jsonl`. It must not read a raw simulator log, receiver dump, disk image, or arbitrary path. Accept the desk projection only if:
+
+1. The manifest, result directory, topology, NCC interface, historical stream, typed journey, verdict, and available SHA-256 bindings agree exactly; the run outcome, controller and receiver exits, source cleanliness, and both cleanup layers pass.
+2. The application evidence independently retains every displayed Gate 4H fact, while the terminal typed journey independently recomputes ten observations, `missing-boundary`, and first unresolved `boundary:request:6` through the existing reducer.
+3. Direct Type 303 and Type 302 event counts by source IMP exactly match the composition verdict, and the existing historical-line reducer proves the verdict's saved sequences as the stream's latest observed reciprocal `up` support for the one mapped line.
+4. The accepted support is displayed under composition-verdict authority and remains separate from every later mapped endpoint report plus the deterministic run-finish freshness reduction. A controller-exit historical-event sequence remains explicitly unavailable because the harness did not persist one; the browser must not place a guessed teardown marker.
+5. All unmapped application, alternate, and receiver links remain configured-only. Application success does not assign traffic to those links or fill either missing host-ingress boundary.
+6. The Python snapshot is in memory only. The browser performs presentation only, keyboard-native evidence controls expose consistent pressed state and inspector content, reduced-motion preferences are honored, and the loopback server accepts GET and HEAD only with no simulator, controller, guest, result-mutation, raw-log, arbitrary-file, WebSocket, or external-network route.
+
+Source-only fixtures own fail-closed artifact, reducer, authority, determinism, rendering, and transport behavior. Read-only replay of the canonical coexistence result owns exact agreement with support 322/355, later mapped sequences 377/399/421/443/475, six configured-only links, and the separate application and journey conclusions.
+
 ## Gate 2: Router oracle
 
 Start diagnostic NCP hosts `002` and `003`, H316 IMPs 2 and 3, and adjacent IMP 4 with no attached host. Accept only if:

@@ -38,6 +38,7 @@ _FATAL_POST_CUT_TRANSPORT = re.compile(
     rb"tmxr_put_packet_ln\(\) failed|HARDWARE ERROR",
     re.IGNORECASE,
 )
+NETWORK_UNIX_HOST106_READY_PATTERN = rb"SKTRACE hh h=106 bytes=1 op=15"
 
 
 def parse_args() -> argparse.Namespace:
@@ -61,10 +62,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--post-cut-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
+    parser.add_argument("--ncp-ready-timeout", type=float, default=120.0)
     args = parser.parse_args()
-    if args.route_settle <= 0 or args.post_cut_settle <= 0 or args.daemon_settle <= 0:
+    if (
+        args.route_settle <= 0
+        or args.post_cut_settle <= 0
+        or args.daemon_settle <= 0
+        or args.ncp_ready_timeout <= 0
+    ):
         parser.error("settle durations must be positive")
     return args
+
+
+def wait_for_network_unix_host106_ready(
+    process: PtyProcess, timeout: float
+) -> re.Match[bytes]:
+    """Wait until Network UNIX consumes host 106's Reset Reply.
+
+    The retained guest emits ``SKTRACE`` from the NCP daemon's host-host
+    decoder. Opcode 15 is octal RRP; the preserved daemon handles it by
+    marking the remote host alive before returning from that decoder.
+    """
+
+    return process.expect(NETWORK_UNIX_HOST106_READY_PATTERN, timeout=timeout)
 
 
 def devices_ready(
@@ -343,6 +363,12 @@ def run(args: argparse.Namespace) -> int:
         pdp11.send("/usr/net/etc/smalldaemon &\r")
         BASE.wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
+        wait_for_network_unix_host106_ready(pdp11, args.ncp_ready_timeout)
+        SHARED.append_manifest(
+            manifest,
+            "application.network-unix-host106-ready",
+            "host-host-rrp-consumed",
+        )
 
         wait_for_imp_devices_ready(
             imp6,

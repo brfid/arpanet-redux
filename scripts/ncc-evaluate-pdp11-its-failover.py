@@ -258,6 +258,10 @@ def evaluate(
             and application.get("session_survived_cut") == "1"
             and application.get("post_cut_remote_time") == "structured"
         ),
+        "network-unix-host-ready-before-open": manifest.get(
+            "application.network-unix-host106-ready"
+        )
+        == "host-host-rrp-consumed",
         "typed-alternate-journey": (
             journey.get("journey_id") == PDP11_ITS_FAILOVER_JOURNEY_ID
             and journey.get("route_id") == PDP11_ITS_FAILOVER_ROUTE_ID

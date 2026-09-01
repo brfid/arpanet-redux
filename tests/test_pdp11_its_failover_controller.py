@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,33 @@ class Pdp11ItsFailoverControllerTests(unittest.TestCase):
             imp62_alternate_device="mi2",
         )
         self.assertTrue(any("post-cut remote date" in item for item in failures))
+
+    def test_network_unix_readiness_waits_for_guest_consumed_rrp(self) -> None:
+        class FakeGuest:
+            def __init__(self) -> None:
+                self.pattern: bytes | None = None
+                self.timeout: float | None = None
+
+            def expect(self, pattern: bytes, timeout: float):
+                self.pattern = pattern
+                self.timeout = timeout
+                return re.search(pattern, b"SKTRACE hh h=106 bytes=1 op=15\n")
+
+        guest = FakeGuest()
+        match = self.controller.wait_for_network_unix_host106_ready(guest, 17.0)
+
+        self.assertIsNotNone(match)
+        self.assertEqual(
+            guest.pattern,
+            self.controller.NETWORK_UNIX_HOST106_READY_PATTERN,
+        )
+        self.assertEqual(guest.timeout, 17.0)
+        self.assertIsNone(
+            re.search(
+                self.controller.NETWORK_UNIX_HOST106_READY_PATTERN,
+                b"HI2 MSG: - 000106 000000 000010 000001 000015",
+            )
+        )
 
     def test_expected_direct_line_death_is_not_a_fatal_transport_error(self) -> None:
         pdp11 = (

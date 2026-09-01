@@ -84,6 +84,15 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertFalse(result["checks"]["typed-alternate-journey"])
 
+    def test_rejects_a_run_without_the_guest_host_ready_gate(self) -> None:
+        manifest = self.manifest()
+        del manifest["application.network-unix-host106-ready"]
+
+        result = self.evaluate(manifest=manifest)
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["network-unix-host-ready-before-open"])
+
     def test_rejects_a_missing_reciprocal_down_report(self) -> None:
         receiver = self.receiver()
         receiver["trouble_reports"] = [
@@ -119,6 +128,7 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
         *,
         receiver: dict[str, object] | None = None,
         journey: dict[str, object] | None = None,
+        manifest: dict[str, str] | None = None,
     ):
         return self.evaluator.evaluate(
             receiver=receiver or self.receiver(),
@@ -145,7 +155,7 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
             journey=journey or self.journey(),
             cleanup={"surviving_owned_processes": "0"},
             outcome="passed",
-            manifest=self.manifest(),
+            manifest=manifest or self.manifest(),
             identities={
                 "topology_id": "topology:ncc-pdp11-its-application-failover",
                 "receiver_topology_id": "topology:ncc-pdp11-its-application-failover",
@@ -210,6 +220,7 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
             "source.h316-simh.tracked_dirty": "0",
             "source.ka10-simh.tracked_dirty": "0",
             "source.imp11a-simh.tracked_dirty": "0",
+            "application.network-unix-host106-ready": "host-host-rrp-consumed",
             "cleanup.outer-runtime": "passed",
         }
 

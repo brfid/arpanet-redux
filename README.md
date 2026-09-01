@@ -18,16 +18,7 @@ The repository contains orchestration, project-authored SIMH configurations, nor
 
 ## Project status
 
-ARPANET Redux is under active development. Several bounded application, routing, fault, and observability results are reproducibly verified, but the project is neither a complete reconstruction of the ARPANET nor a one-command distribution of the historical assets it depends on.
-
-| Area | Current result | Open boundary |
-|---|---|---|
-| Host applications | Formal ITS-to-ITS and SRI/NOSC Network UNIX-to-ITS TELNET passes, including a two-ITS anti-bypass payload proof | Additional historical hosts, applications, and an eventual site-integrated workload |
-| Network compositions | Two-IMP application paths and a three-IMP alternate path that preserves observation while a direct line is cut or looped | Additional bounded routes and historically sourced site or topology reconstructions |
-| NCC observability | Completed-run and bounded controller-event contracts, genuine IMP report decoding and replay, a static viewer, and evidenced `up`, `down`, and `looped` line reconciliation | Bridging genuine report and reducer results into the common contracts, formal message-journey producers, and a browser-based live view |
-| Publishing integration | The replacement boundary is documented, and the vintage-to-vintage application and payload prerequisites pass | The network stage is not yet connected to the publishing pipeline |
-
-The next NCC or network-expansion slice is intentionally not implied by the completed line gates. The living [workstream handoff](docs/workstreams.md) records the current decision point; [NCC observability](docs/ncc.md) owns its implemented scope and open product boundaries.
+ARPANET Redux is under active development. The repository contains reproducibly verified but deliberately bounded application, routing, fault, and observability compositions. It is neither a complete reconstruction of the ARPANET nor a one-command distribution of the historical assets it depends on.
 
 ## Five-minute local check
 
@@ -43,7 +34,7 @@ This verifies the repository's source-only policy and deterministic contracts. I
 
 ## Verified compositions
 
-These are promoted milestones at the current pins, not an exhaustive list of what the project may eventually model.
+These are promoted milestones at the current pins. Their exact scope is defined by the linked gates and evidence records.
 
 | Composition | Established result |
 |---|---|
@@ -63,7 +54,6 @@ These are promoted milestones at the current pins, not an exhaustive list of wha
 - NCC consumers are passive observers and receive no authority to control the simulators.
 - Each run owns its ports, processes, media copies, logs, and result directory.
 - Generated and third-party artifacts stay outside Git and are checked against the source-only policy.
-- The existing publishing pipeline is an eventual integration consumer, not a runtime dependency of this laboratory.
 
 ## Documentation
 
@@ -73,11 +63,11 @@ These are promoted milestones at the current pins, not an exhaustive list of wha
 - **Understand the system and evidence boundaries:** [architecture](docs/architecture.md)
 - **Evaluate a result:** [test plan](docs/test-plan.md)
 
-### Current implementation and development
+### Implementation and project records
 
 - **Understand orchestration internals:** [harness design](docs/harness.md)
-- **See current branches, completed slices, and decision points:** [workstreams and fresh-context handoff](docs/workstreams.md)
-- **Understand NCC observability scope and remaining boundaries:** [NCC observability](docs/ncc.md)
+- **See current branches, workstream state, and handoffs:** [workstreams and fresh-context handoff](docs/workstreams.md)
+- **Understand NCC observability scope and implementation:** [NCC observability](docs/ncc.md)
 
 ### Decisions, evidence, and policy
 

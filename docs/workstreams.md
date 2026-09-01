@@ -4,6 +4,12 @@
 - **Canonical repository:** [`brfid/arpanet-redux`](https://github.com/brfid/arpanet-redux)
 - **Integration policy:** `main` remains test-passing and receives completed feature slices; feature work happens in dedicated branches and worktrees
 
+## Purpose and ownership
+
+This is the project's operational planning and handoff document. It records active workstreams, their checked-out branches, completed state that a new task must preserve, and either the next selected task or an explicit decision point when no task has been selected. The [README](../README.md) owns only the high-level present status and verified-composition summary; it does not duplicate plans from this page.
+
+Subsystem living pages such as [NCC observability](ncc.md) own their detailed implementation sequence, current boundaries, and next decision. Dated experiments retain evidence rather than plans, and ADRs retain accepted decisions rather than mutable status. Do not create a second free-standing roadmap that competes with these owners.
+
 ## Local worktree convention
 
 This machine uses one Git repository with an integration checkout and a grouped worktree container. They share Git object storage and remote history but have independent checked-out branches and uncommitted files.

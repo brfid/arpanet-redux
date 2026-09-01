@@ -33,7 +33,7 @@ Write Markdown with one source line per paragraph or list item. Do not wrap pros
 
 - README owns the high-level current status and verified-composition summary.
 - `docs/architecture.md` owns the reusable system boundaries and composition roles.
-- `docs/workstreams.md` owns active branches, worktrees, handoffs, and next-task decisions.
+- `docs/workstreams.md` owns operational planning, active branches, worktrees, handoffs, and next-task decisions.
 - `docs/test-plan.md` owns pass/fail requirements.
 - `docs/harness.md` owns orchestration implementation details.
 - ADRs own decisions and consequences.

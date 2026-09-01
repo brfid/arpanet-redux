@@ -44,7 +44,7 @@ Operator commands and application responses are neither historical IMP observati
 
 ## Consequences
 
-- `make telnet` can build the guest client, boot the accepted two-IMP composition, and provide a line-oriented ITS session in the invoking terminal.
+- `make telnet` reuses and verifies the retained receipt-bound guest build when present, boots the accepted two-IMP composition, and provides a line-oriented ITS session in the invoking terminal. A new laboratory must run `make build-pdp11-telnet` first.
 - The first slice supports prompt-returning printable DDT and colon commands, not full-screen programs, character-at-a-time editing, arbitrary control characters, or paged subsystems.
 - Every forwarded line and captured response is attributable, bounded, retained, read-back validated, and separate from raw simulator logs.
 - The browser and NCC board remain passive and receive no command, simulator, process, link, or result-mutation authority.

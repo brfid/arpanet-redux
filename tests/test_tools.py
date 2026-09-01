@@ -118,7 +118,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("--scenario failover", operated_failover.stdout)
         self.assertIn("ncc-pdp11-its-application-failover.json", operated_failover.stdout)
 
-    def test_telnet_target_builds_then_delegates_to_terminal_owned_session(self) -> None:
+    def test_telnet_target_verifies_then_delegates_to_terminal_owned_session(self) -> None:
         operated = run(
             "make",
             "-n",
@@ -130,11 +130,36 @@ class NccConvenienceTargetTests(unittest.TestCase):
             cwd=ROOT,
         )
         self.assertEqual(operated.returncode, 0, operated.stderr)
-        self.assertIn("scripts/build-pdp11-telnet.sh", operated.stdout)
+        self.assertIn("verify-pdp11-its", operated.stdout)
+        self.assertIn('PDP11_BUILD_ROOT="/tmp/pdp11-build"', operated.stdout)
         self.assertIn("scripts/telnet-pdp11-its.sh", operated.stdout)
         self.assertIn('BRFID_TELNET_COMMAND_TIMEOUT="45"', operated.stdout)
         self.assertIn('BRFID_TELNET_MAX_COMMANDS="12"', operated.stdout)
         self.assertIn("pdp11-its-interactive-interactive-demo", operated.stdout)
+
+    def test_telnet_target_reuses_the_retained_receipt_bound_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            results = Path(directory_name)
+            retained = results / "pdp11-telnet-formal-build-20260831T200328Z"
+            retained.mkdir()
+            (retained / "pdp11-build-receipt.json").write_text(
+                "{}\n", encoding="ascii"
+            )
+            operated = run(
+                "make",
+                "-n",
+                f"RESULTS_ROOT={results}",
+                "RUN_ID=interactive-demo",
+                "telnet",
+                cwd=ROOT,
+            )
+
+            self.assertEqual(operated.returncode, 0, operated.stderr)
+            self.assertIn(f'PDP11_BUILD_ROOT="{retained}"', operated.stdout)
+            self.assertIn(
+                f'"{retained}" "{results}/pdp11-its-interactive-interactive-demo"',
+                operated.stdout,
+            )
 
 
 class NativeTemplateTests(unittest.TestCase):

@@ -380,20 +380,22 @@ function renderActivity(events) {
 
 function renderHistorical(snapshot) {
   resetMap();
-  setMode("live", snapshot.run.id);
+  const completed = snapshot.mode === "completed";
+  setMode(completed ? "completed" : "live", snapshot.run.id);
   setText("report-count", snapshot.stream.complete_event_count);
   setText("last-observed", snapshot.event_tape.at(-1)?.observed_at || snapshot.run.started_at);
-  setText("stream-state", `generation ${snapshot.stream.generation} · ${snapshot.stream.change}`);
+  setText("stream-state", completed ? `${snapshot.completion.outcome} · completed v2 summary` : `generation ${snapshot.stream.generation} · ${snapshot.stream.change}`);
   setText("activity-title", "Recent observations");
   snapshot.direct.imps.forEach((imp) => matching("data-component-lamp", imp.subject_id).forEach((lamp) => {
     applyState(lamp, imp.state);
     lamp.parentElement.querySelector("title").textContent = `${imp.subject_id} · ${imp.meaning} · ${imp.state_authority}`;
   }));
   snapshot.reconciled.lines.forEach((line) => matching("data-link-id", line.subject_id).forEach((link) => applyState(link, line.state)));
-  const line = snapshot.reconciled.lines[0];
-  setSummary("application", "unknown", "The progressive report stream does not make an application claim.");
-  setSummary("journey", "unknown", "Typed journey evidence is validated separately after the formal transaction.");
-  setSummary("line", line?.state || "unknown", line?.supporting_observation_ids.length ? line.supporting_observation_ids.join(" · ") : "No reciprocal report support yet.");
+  const line = completed ? snapshot.completion.summary_lines[0] : snapshot.reconciled.lines[0];
+  const scope = completed ? "This completed network-behavior run makes no application claim." : "The progressive report stream does not make an application claim.";
+  setSummary("application", "unknown", scope);
+  setSummary("journey", "unknown", completed ? "This line-state run has no typed application journey." : "Typed journey evidence is validated separately after the formal transaction.");
+  setSummary("line", line?.state || "unknown", line?.supporting_observation_ids.length ? `${completed ? "Completed support" : "Current support"} ${line.supporting_observation_ids.join(" · ")}.` : "No reciprocal report support yet.");
   renderActivity(snapshot.event_tape);
   document.getElementById("report-link").hidden = true;
 }

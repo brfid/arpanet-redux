@@ -1,0 +1,21 @@
+# IMP 62 PDP-11 attachment, cuttable direct application link, and IMP 7 alternate.
+set debug stdout
+do %BRFID_H316_MINI_ROOT%/impconfig.simh
+set imp num=62
+do %BRFID_H316_MINI_ROOT%/impcode.simh
+
+set mi1 enabled
+set mi1 debug
+attach -u mi1 %BRFID_IMP62_MI_PORT%:127.0.0.1:%BRFID_APP_RELAY62_PORT%
+set mi2 enabled
+set mi2 debug
+attach -u mi2 %BRFID_IMP62_TO7_PORT%:127.0.0.1:%BRFID_IMP7_TO62_PORT%
+
+set hi1 disabled
+set hi2 enabled
+set hi2 debug
+attach -u hi2 %BRFID_IMP62_HI_PORT%:127.0.0.1:%BRFID_HOST_B_IMP_PORT%
+set hi2 convert
+
+set throttle 10000K
+go

@@ -21,6 +21,8 @@ PDP11_BUILD_RECEIPT ?= $(PDP11_BUILD_ROOT)/pdp11-build-receipt.json
 NCC_ALTERNATE_DURATION ?= 130
 NCC_LOOPBACK_DURATION ?= 130
 NCC_PDP11_ITS_DURATION ?= 150
+NCC_PDP11_ITS_FAILOVER_DURATION ?= 300
+NCC_APPLICATION_RELAY_DURATION ?= 420
 NCC_DIRECT_FORWARD_SECONDS ?= 45
 NCC_LAB_ROOT ?= $(if $(wildcard $(LAB_ROOT)/results),$(LAB_ROOT),$(abspath ../../arpanet-redux-lab))
 NCC_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-coexistence-canonical-20260901T153758Z
@@ -29,7 +31,7 @@ NCC_WATCH_PORT ?= 8765
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its ncc run-ncc watch-ncc view-ncc
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover ncc run-ncc watch-ncc view-ncc
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -106,6 +108,8 @@ verify-ncc-line-loopback: verify-ncc-alternate-path
 
 verify-ncc-pdp11-its: verify-pdp11-its
 
+verify-ncc-pdp11-its-failover: verify-pdp11-its
+
 smoke-router: verify-router
 	./scripts/smoke-router-oracle.sh "$(LINUX_NCP_ROOT)" "$(H316_BIN)" "$(NCP_BUILD_RECEIPT)" "$(RESULTS_ROOT)/router-oracle-$(RUN_ID)"
 
@@ -126,6 +130,9 @@ smoke-ncc-line-loopback: verify-ncc-line-loopback
 
 smoke-ncc-pdp11-its: verify-ncc-pdp11-its
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
+
+smoke-ncc-pdp11-its-failover: verify-ncc-pdp11-its-failover
+	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_FAILOVER_DURATION)" BRFID_APPLICATION_RELAY_DURATION="$(NCC_APPLICATION_RELAY_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its-failover.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-application-failover-$(RUN_ID)"
 
 run-ncc: smoke-ncc-pdp11-its
 	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"

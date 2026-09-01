@@ -146,6 +146,15 @@ from .pdp11_its_journey import (
     transaction_window_source,
     write_pdp11_its_journey_stream,
 )
+from .pdp11_its_failover_journey import (
+    PDP11_ITS_FAILOVER_JOURNEY_ID,
+    PDP11_ITS_FAILOVER_ROUTE_ID,
+    Pdp11ItsFailoverJourneyError,
+    Pdp11ItsFailoverJourneyExtraction,
+    extract_pdp11_its_failover_journey,
+    pdp11_its_failover_modem_devices,
+    write_pdp11_its_failover_journey_stream,
+)
 from .report_checksum import has_valid_report_checksum, report_checksum
 from .reconciliation import (
     Endpoint,
@@ -248,6 +257,10 @@ __all__ = [
     "PDP11_ITS_ROUTE_ID",
     "Pdp11ItsJourneyError",
     "Pdp11ItsJourneyExtraction",
+    "PDP11_ITS_FAILOVER_JOURNEY_ID",
+    "PDP11_ITS_FAILOVER_ROUTE_ID",
+    "Pdp11ItsFailoverJourneyError",
+    "Pdp11ItsFailoverJourneyExtraction",
     "has_valid_report_checksum",
     "report_checksum",
     "RUN_SUMMARY_SCHEMA_VERSION",
@@ -275,6 +288,7 @@ __all__ = [
     "decode_nosc_short_leader",
     "diagnose_message_journey",
     "extract_pdp11_its_journey",
+    "extract_pdp11_its_failover_journey",
     "decode_trouble_report",
     "decode_imp_to_host_message",
     "decode_old_style_imp_to_host_leader",
@@ -291,6 +305,7 @@ __all__ = [
     "nominal_topology_from_shared",
     "observation_is_stale",
     "parse_h316_trace",
+    "pdp11_its_failover_modem_devices",
     "run_summary_from_mapping",
     "read_live_observation_stream",
     "read_historical_event_stream",
@@ -311,6 +326,7 @@ __all__ = [
     "transaction_window_source",
     "TransactionWindowSource",
     "write_pdp11_its_journey_stream",
+    "write_pdp11_its_failover_journey_stream",
     "validate_normalized_observations",
     "validate_normalized_topology",
 ]

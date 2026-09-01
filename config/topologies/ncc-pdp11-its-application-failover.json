@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "id": "topology:ncc-pdp11-its-application-failover",
+  "topology": {
+    "components": [
+      {
+        "id": "host:176",
+        "kind": "host",
+        "label": "Network UNIX PDP-11 host 176",
+        "position": {"x": 0, "y": 0},
+        "endpoints": [{"id": "host:176:1822", "label": "IMP11-A"}]
+      },
+      {
+        "id": "imp:62",
+        "kind": "imp",
+        "label": "IMP 62",
+        "position": {"x": 1, "y": 0},
+        "endpoints": [
+          {"id": "imp:62:host:1", "label": "HI2"},
+          {"id": "imp:62:mi1", "label": "MI1"},
+          {"id": "imp:62:mi2", "label": "MI2"}
+        ]
+      },
+      {
+        "id": "imp:7",
+        "kind": "imp",
+        "label": "Application alternate-path IMP 7",
+        "position": {"x": 2, "y": 1},
+        "endpoints": [
+          {"id": "imp:7:mi1", "label": "MI1"},
+          {"id": "imp:7:mi2", "label": "MI2"},
+          {"id": "imp:7:mi3", "label": "MI3"}
+        ]
+      },
+      {
+        "id": "imp:6",
+        "kind": "imp",
+        "label": "IMP 6",
+        "position": {"x": 3, "y": 0},
+        "endpoints": [
+          {"id": "imp:6:mi1", "label": "MI1"},
+          {"id": "imp:6:mi2", "label": "MI2"},
+          {"id": "imp:6:mi3", "label": "MI3"},
+          {"id": "imp:6:host:1", "label": "HI2"}
+        ]
+      },
+      {
+        "id": "host:106",
+        "kind": "host",
+        "label": "ITS host 106",
+        "position": {"x": 4, "y": 0},
+        "endpoints": [{"id": "host:106:1822", "label": "KAIMP"}]
+      },
+      {
+        "id": "imp:5",
+        "kind": "imp",
+        "label": "IMP 5",
+        "position": {"x": 3, "y": 2},
+        "endpoints": [
+          {"id": "imp:5:host:0", "label": "Host 0"},
+          {"id": "imp:5:mi1", "label": "MI1"},
+          {"id": "imp:5:mi2", "label": "MI2"}
+        ]
+      },
+      {
+        "id": "host:ncc",
+        "kind": "observer",
+        "label": "NCC receiver (host 0)",
+        "position": {"x": 4, "y": 2},
+        "endpoints": [{"id": "host:ncc:1822", "label": "1822"}]
+      }
+    ],
+    "links": [
+      {
+        "id": "link:host176-imp62",
+        "endpoints": ["host:176:1822", "imp:62:host:1"]
+      },
+      {
+        "id": "link:imp62-imp6-application-direct",
+        "endpoints": ["imp:62:mi1", "imp:6:mi3"]
+      },
+      {
+        "id": "link:imp62-imp7-application-alternate",
+        "endpoints": ["imp:62:mi2", "imp:7:mi3"]
+      },
+      {
+        "id": "link:imp7-imp6-application-alternate",
+        "endpoints": ["imp:7:mi2", "imp:6:mi2"]
+      },
+      {
+        "id": "link:imp6-host106",
+        "endpoints": ["imp:6:host:1", "host:106:1822"]
+      },
+      {
+        "id": "link:imp5-imp6-direct",
+        "endpoints": ["imp:5:mi1", "imp:6:mi1"]
+      },
+      {
+        "id": "link:imp5-imp7-alternate",
+        "endpoints": ["imp:5:mi2", "imp:7:mi1"]
+      },
+      {
+        "id": "link:ncc-imp5",
+        "endpoints": ["host:ncc:1822", "imp:5:host:0"]
+      }
+    ],
+    "routes": [
+      {
+        "id": "route:host176-to-host106",
+        "components": ["host:176", "imp:62", "imp:6", "host:106"]
+      },
+      {
+        "id": "route:host176-to-host106-alternate",
+        "components": ["host:176", "imp:62", "imp:7", "imp:6", "host:106"]
+      },
+      {
+        "id": "route:imp62-to-ncc-after-application-cut",
+        "components": ["imp:62", "imp:7", "imp:5", "host:ncc"]
+      },
+      {
+        "id": "route:imp6-to-ncc",
+        "components": ["imp:6", "imp:5", "host:ncc"]
+      }
+    ]
+  },
+  "interfaces": [
+    {
+      "id": "binding:ncc-host0-imp5",
+      "kind": "host-interface",
+      "imp_id": "imp:5",
+      "imp_endpoint": "imp:5:host:0",
+      "host_id": "host:ncc",
+      "host_endpoint": "host:ncc:1822",
+      "host_number": 0,
+      "simh_device": "hi1",
+      "imp_listen_environment": "BRFID_IMP5_HI_PORT",
+      "host_listen_environment": "BRFID_NCC_HI_PORT",
+      "simh_config": "config/imp/ncc-pdp11-its/imp5.simh"
+    },
+    {
+      "id": "binding:host176-imp62-hi2",
+      "kind": "host-interface",
+      "imp_id": "imp:62",
+      "imp_endpoint": "imp:62:host:1",
+      "host_id": "host:176",
+      "host_endpoint": "host:176:1822",
+      "host_number": 1,
+      "simh_device": "hi2",
+      "imp_listen_environment": "BRFID_IMP62_HI_PORT",
+      "host_listen_environment": "BRFID_HOST_B_IMP_PORT",
+      "simh_config": "config/imp/ncc-pdp11-its-failover/imp62.simh"
+    },
+    {
+      "id": "binding:imp6-hi2-host106",
+      "kind": "host-interface",
+      "imp_id": "imp:6",
+      "imp_endpoint": "imp:6:host:1",
+      "host_id": "host:106",
+      "host_endpoint": "host:106:1822",
+      "host_number": 1,
+      "simh_device": "hi2",
+      "imp_listen_environment": "BRFID_IMP6_HI_PORT",
+      "host_listen_environment": "BRFID_HOST_A_IMP_PORT",
+      "simh_config": "config/imp/ncc-pdp11-its-failover/imp6.simh"
+    }
+  ],
+  "modem_interfaces": [
+    {
+      "id": "binding:imp5-mi1-imp6-mi1",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:5",
+      "first_endpoint": "imp:5:mi1",
+      "first_simh_device": "mi1",
+      "first_report_line": 1,
+      "first_listen_environment": "BRFID_IMP5_DIRECT_PORT",
+      "first_simh_config": "config/imp/ncc-pdp11-its/imp5.simh",
+      "second_imp_id": "imp:6",
+      "second_endpoint": "imp:6:mi1",
+      "second_simh_device": "mi1",
+      "second_report_line": 1,
+      "second_listen_environment": "BRFID_IMP6_DIRECT_PORT",
+      "second_simh_config": "config/imp/ncc-pdp11-its-failover/imp6.simh"
+    },
+    {
+      "id": "binding:imp5-mi2-imp7-mi1",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:5",
+      "first_endpoint": "imp:5:mi2",
+      "first_simh_device": "mi2",
+      "first_listen_environment": "BRFID_IMP5_ALT_PORT",
+      "first_simh_config": "config/imp/ncc-pdp11-its/imp5.simh",
+      "second_imp_id": "imp:7",
+      "second_endpoint": "imp:7:mi1",
+      "second_simh_device": "mi1",
+      "second_listen_environment": "BRFID_IMP7_TO5_PORT",
+      "second_simh_config": "config/imp/ncc-pdp11-its-failover/imp7.simh"
+    },
+    {
+      "id": "binding:imp7-mi2-imp6-mi2",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:7",
+      "first_endpoint": "imp:7:mi2",
+      "first_simh_device": "mi2",
+      "first_listen_environment": "BRFID_IMP7_TO6_PORT",
+      "first_simh_config": "config/imp/ncc-pdp11-its-failover/imp7.simh",
+      "second_imp_id": "imp:6",
+      "second_endpoint": "imp:6:mi2",
+      "second_simh_device": "mi2",
+      "second_listen_environment": "BRFID_IMP6_ALT_PORT",
+      "second_simh_config": "config/imp/ncc-pdp11-its-failover/imp6.simh"
+    },
+    {
+      "id": "binding:imp62-mi1-imp6-mi3-application-direct",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:62",
+      "first_endpoint": "imp:62:mi1",
+      "first_simh_device": "mi1",
+      "first_listen_environment": "BRFID_IMP62_MI_PORT",
+      "first_simh_config": "config/imp/ncc-pdp11-its-failover/imp62.simh",
+      "second_imp_id": "imp:6",
+      "second_endpoint": "imp:6:mi3",
+      "second_simh_device": "mi3",
+      "second_listen_environment": "BRFID_IMP6_MI_PORT",
+      "second_simh_config": "config/imp/ncc-pdp11-its-failover/imp6.simh"
+    },
+    {
+      "id": "binding:imp62-mi2-imp7-mi3-application-alternate",
+      "kind": "modem-interface",
+      "first_imp_id": "imp:62",
+      "first_endpoint": "imp:62:mi2",
+      "first_simh_device": "mi2",
+      "first_listen_environment": "BRFID_IMP62_TO7_PORT",
+      "first_simh_config": "config/imp/ncc-pdp11-its-failover/imp62.simh",
+      "second_imp_id": "imp:7",
+      "second_endpoint": "imp:7:mi3",
+      "second_simh_device": "mi3",
+      "second_listen_environment": "BRFID_IMP7_TO62_PORT",
+      "second_simh_config": "config/imp/ncc-pdp11-its-failover/imp7.simh"
+    }
+  ],
+  "proof": {
+    "kind": "passive-h316-host-interface",
+    "requirements": [
+      "host-ready-sent",
+      "imp-ready-received",
+      "complete-imp-message-received"
+    ]
+  }
+}

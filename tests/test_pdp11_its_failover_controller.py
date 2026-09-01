@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+CONTROLLER_PATH = ROOT / "scripts" / "pdp11-its-failover-controller.py"
+
+
+def load_controller():
+    spec = importlib.util.spec_from_file_location(
+        "pdp11_its_failover_controller", CONTROLLER_PATH
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load failover controller")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class Pdp11ItsFailoverControllerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.controller = load_controller()
+
+    def test_post_cut_evidence_requires_the_second_structured_response(self) -> None:
+        pdp11 = (
+            b"The time is 12:34:56 EDT.\r\n"
+            b"Today is Tuesday, the 1st of September, 2026.\r\n"
+            b"KA ITS 1652 has run for 1:23:45.\r\n"
+        )
+        imp6 = b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+        imp62 = b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+
+        self.assertEqual(
+            self.controller.post_cut_application_failures(
+                pdp11,
+                imp6,
+                b"",
+                imp62,
+                imp6_alternate_device="mi2",
+                imp7_in_device="mi3",
+                imp7_out_device="mi2",
+                imp62_alternate_device="mi2",
+            ),
+            [],
+        )
+        failures = self.controller.post_cut_application_failures(
+            pdp11.split(b"Today is", 1)[0],
+            imp6,
+            b"",
+            imp62,
+            imp6_alternate_device="mi2",
+            imp7_in_device="mi3",
+            imp7_out_device="mi2",
+            imp62_alternate_device="mi2",
+        )
+        self.assertTrue(any("post-cut remote date" in item for item in failures))
+
+    def test_expected_direct_line_death_is_not_a_fatal_transport_error(self) -> None:
+        pdp11 = (
+            b"The time is 12:34:56 EDT.\r\n"
+            b"Today is Tuesday, the 1st of September, 2026.\r\n"
+            b"KA ITS 1652 has run for 1:23:45.\r\n"
+        )
+        imp6 = (
+            b"WDT LIGHTS: changed to 020000\n"
+            b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+        )
+        imp62 = (
+            b"WDT LIGHTS: changed to 100000\n"
+            b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+        )
+
+        failures = self.controller.post_cut_application_failures(
+            pdp11,
+            imp6,
+            b"",
+            imp62,
+            imp6_alternate_device="mi2",
+            imp7_in_device="mi3",
+            imp7_out_device="mi2",
+            imp62_alternate_device="mi2",
+        )
+
+        self.assertEqual(failures, [])
+
+    def test_cut_acknowledgement_is_read_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "cut.state.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "kind": "two-ended-udp-cut-state",
+                        "state": "cut",
+                        "fault_started_at": "2026-09-01T12:00:00Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            value = self.controller.wait_for_cut_state(path, timeout=0.01)
+            self.assertEqual(value["state"], "cut")
+
+            path.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "malformed"):
+                self.controller.wait_for_cut_state(path, timeout=0.01)
+
+
+if __name__ == "__main__":
+    unittest.main()

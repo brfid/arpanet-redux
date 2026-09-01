@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
-from pathlib import Path
+import os
 import selectors
 import signal
 import socket
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 
 def utc_now() -> str:
@@ -23,7 +24,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--relay-b-port", type=int, required=True)
     parser.add_argument("--peer-a-port", type=int, required=True)
     parser.add_argument("--peer-b-port", type=int, required=True)
-    parser.add_argument("--forward-seconds", type=float, required=True)
+    cut = parser.add_mutually_exclusive_group(required=True)
+    cut.add_argument("--forward-seconds", type=float)
+    cut.add_argument("--cut-request", type=Path)
+    parser.add_argument("--cut-state", type=Path)
     parser.add_argument("--duration", type=float, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -31,13 +35,61 @@ def parse_args() -> argparse.Namespace:
         value = getattr(args, name)
         if not 0 < value < 65536:
             parser.error(f"--{name.replace('_', '-')} must be in 1..65535")
-    if args.forward_seconds <= 0 or args.duration <= 0:
+    if args.forward_seconds is not None and args.forward_seconds <= 0:
+        parser.error("--forward-seconds must be positive")
+    if args.duration <= 0:
         parser.error("durations must be positive")
+    if (args.cut_request is None) != (args.cut_state is None):
+        parser.error("--cut-request and --cut-state must be supplied together")
     return args
+
+
+def write_json_atomic(path: Path, value: object) -> None:
+    """Publish one small control record without exposing a partial write."""
+
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def forwarding_enabled(
+    *,
+    elapsed: float,
+    forward_seconds: float | None,
+    cut_request: Path | None,
+) -> bool:
+    """Return the relay state for one loop iteration."""
+
+    if cut_request is not None:
+        return not cut_request.exists()
+    if forward_seconds is None:
+        raise ValueError("elapsed cut mode requires forward_seconds")
+    return elapsed < forward_seconds
+
+
+def publish_cut_state(path: Path, fault_started_at: str) -> None:
+    """Atomically acknowledge the exact moment the relay entered cut state."""
+
+    write_json_atomic(
+        path,
+        {
+            "version": 1,
+            "kind": "two-ended-udp-cut-state",
+            "state": "cut",
+            "fault_started_at": fault_started_at,
+        },
+    )
 
 
 def main() -> int:
     args = parse_args()
+    if args.cut_request is not None and args.cut_request.exists():
+        raise SystemExit("cut request already exists before relay startup")
+    if args.cut_state is not None and args.cut_state.exists():
+        raise SystemExit("cut state already exists before relay startup")
     stopping = False
 
     def stop(_signum: int, _frame: object) -> None:
@@ -78,9 +130,15 @@ def main() -> int:
             elapsed = time.monotonic() - started_monotonic
             if elapsed >= args.duration:
                 break
-            forwarding = elapsed < args.forward_seconds
+            forwarding = forwarding_enabled(
+                elapsed=elapsed,
+                forward_seconds=args.forward_seconds,
+                cut_request=args.cut_request,
+            )
             if not forwarding and fault_started_at is None:
                 fault_started_at = utc_now()
+                if args.cut_state is not None:
+                    publish_cut_state(args.cut_state, fault_started_at)
             for key, _mask in selector.select(timeout=0.1):
                 direction, expected_source_port, output_socket, target_port = key.data
                 payload, source = key.fileobj.recvfrom(65535)
@@ -110,6 +168,7 @@ def main() -> int:
         "finished_at": utc_now(),
         "requested_duration_seconds": args.duration,
         "forward_seconds": args.forward_seconds,
+        "cut_mode": "elapsed" if args.cut_request is None else "request-file",
         "fault_started_at": fault_started_at,
         "ports": {
             "relay_a": args.relay_a_port,
@@ -120,8 +179,11 @@ def main() -> int:
         "directions": directions,
         "unexpected_sources": unexpected_sources,
     }
-    args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return 1 if unexpected_sources else 0
+    args.output.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    missing_requested_cut = args.cut_request is not None and fault_started_at is None
+    return 1 if unexpected_sources or missing_requested_cut else 0
 
 
 if __name__ == "__main__":

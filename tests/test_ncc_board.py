@@ -6,13 +6,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import ANY, patch
 
-from ncc.board_display import NccBoardDisplay, NccBoardPending
+from ncc.board_display import NccBoardDisplay, NccBoardError, NccBoardPending
 from ncc.board_server import (
     create_ncc_board_server,
     ncc_board_response,
 )
 from ncc.board_viewer import render_ncc_board_html
 from tests.test_ncc_coexistence_display import CoexistenceFixture, TOPOLOGY
+from tests.test_ncc_historical_summary import (
+    HistoricalLineSummaryTests,
+    TOPOLOGY as HISTORICAL_TOPOLOGY,
+)
 
 
 class NccBoardTests(unittest.TestCase):
@@ -56,6 +60,28 @@ class NccBoardTests(unittest.TestCase):
                 completed["journey"]["assessment"]["first_boundary_id"],
                 "boundary:request:6",
             )
+
+    def test_completes_existing_fault_and_loopback_result_families(self) -> None:
+        fixture = HistoricalLineSummaryTests()
+        with tempfile.TemporaryDirectory() as directory_name:
+            root = Path(directory_name)
+            for expected_state in ("down", "looped"):
+                with self.subTest(expected_state=expected_state):
+                    result = fixture._result(root, final_state=expected_state)
+                    display = NccBoardDisplay(result, HISTORICAL_TOPOLOGY)
+
+                    snapshot = display.snapshot().to_dict()
+
+                    self.assertEqual(snapshot["mode"], "completed")
+                    self.assertEqual(snapshot["completion"]["status"], "matched")
+                    self.assertEqual(
+                        snapshot["completion"]["summary_lines"][0]["state"],
+                        expected_state,
+                    )
+                    with self.assertRaisesRegex(
+                        NccBoardError, "detailed application report"
+                    ):
+                        display.completed_display()
 
     def test_board_transport_keeps_report_read_only_and_separate(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
@@ -126,6 +152,7 @@ class NccBoardTests(unittest.TestCase):
         self.assertIn('fetch("/api/snapshot"', page)
         self.assertIn("focus-visible", page)
         self.assertIn('href="/report"', page)
+        self.assertIn('snapshot.mode === "completed"', page)
         self.assertNotIn("repeating-linear-gradient", page)
         self.assertNotIn("data:image", page)
         self.assertNotIn("https://", page)

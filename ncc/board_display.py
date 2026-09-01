@@ -32,6 +32,12 @@ class NccBoardPending(NccBoardError):
 class NccBoardDisplay:
     """Expose existing validated live or completed snapshots through one board."""
 
+    _COEXISTENCE_TOPOLOGY = "ncc-pdp11-its-coexistence"
+    _HISTORICAL_LINE_TOPOLOGIES = {
+        "ncc-alternate-path-fault",
+        "ncc-line-loopback",
+    }
+
     def __init__(
         self,
         results_dir: str | Path,
@@ -63,22 +69,48 @@ class NccBoardDisplay:
     ) -> HistoricalDisplaySnapshot | CoexistenceDisplaySnapshot:
         """Return the strongest currently available existing display snapshot."""
 
-        if self._manifest_is_terminal():
-            return self.completed_display().snapshot()
+        manifest = self._terminal_manifest()
+        if manifest is not None:
+            topology = manifest.get("topology")
+            if topology == self._COEXISTENCE_TOPOLOGY:
+                return self.completed_display().snapshot()
+            if topology in self._HISTORICAL_LINE_TOPOLOGIES:
+                snapshot = self._historical_snapshot()
+                if snapshot.mode != "completed":
+                    status = snapshot.to_dict()["completion"]["status"]
+                    raise NccBoardError(
+                        "terminal historical-line result did not validate its "
+                        f"completed summary ({status})"
+                    )
+                return snapshot
+            raise NccBoardError(
+                f"terminal result has unsupported board topology {topology!r}"
+            )
         if not self._historical.stream_path.is_file():
             raise NccBoardPending(
                 "waiting for the run's validated historical event stream"
             )
+        return self._historical_snapshot()
+
+    def _historical_snapshot(self) -> HistoricalDisplaySnapshot:
+        """Return the existing historical projection with one error boundary."""
+
         try:
             return self._historical.snapshot()
         except HistoricalDisplayError as error:
             raise NccBoardError(str(error)) from error
 
     def completed_display(self) -> CoexistenceDisplay:
-        """Return the cached completed adapter only after formal termination."""
+        """Return the detailed coexistence report adapter when applicable."""
 
-        if not self._manifest_is_terminal():
+        manifest = self._terminal_manifest()
+        if manifest is None:
             raise NccBoardPending("validated completed run artifacts are not available")
+        if manifest.get("topology") != self._COEXISTENCE_TOPOLOGY:
+            raise NccBoardError(
+                "the detailed application report is available only for a validated "
+                "NCC/PDP-11/ITS coexistence result"
+            )
         if self._completed is None:
             try:
                 self._completed = CoexistenceDisplay(
@@ -89,19 +121,20 @@ class NccBoardDisplay:
                 raise NccBoardError(str(error)) from error
         return self._completed
 
-    def _manifest_is_terminal(self) -> bool:
+    def _terminal_manifest(self) -> dict[str, str] | None:
+        """Return the manifest only after its three terminal fields are present."""
+
         manifest = self.results_dir / "runtime" / "run.env"
         try:
             lines = manifest.read_text(encoding="utf-8").splitlines()
         except (FileNotFoundError, OSError):
-            return False
+            return None
         values: dict[str, str] = {}
         for line in lines:
             if "=" not in line:
                 continue
             key, value = line.split("=", 1)
             values[key] = value
-        return all(
-            values.get(key)
-            for key in ("finished_utc", "outcome", "exit_status")
-        )
+        if all(values.get(key) for key in ("finished_utc", "outcome", "exit_status")):
+            return values
+        return None

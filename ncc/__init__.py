@@ -147,6 +147,15 @@ from .message_journey_stream import (
     TransactionWindowSource,
     read_message_journey_stream,
 )
+from .interactive_telnet import (
+    INTERACTIVE_TELNET_STREAM_SCHEMA_VERSION,
+    InteractiveTelnetExchange,
+    InteractiveTelnetRecorder,
+    InteractiveTelnetStream,
+    InteractiveTelnetStreamError,
+    read_interactive_telnet_stream,
+    validate_operator_command,
+)
 from .pdp11_its_journey import (
     PDP11_ITS_JOURNEY_ID,
     PDP11_ITS_ROUTE_ID,
@@ -236,6 +245,11 @@ __all__ = [
     "ImpToHostMessageError",
     "ImpToHostTroubleReport",
     "ImpToHostThroughputReport",
+    "INTERACTIVE_TELNET_STREAM_SCHEMA_VERSION",
+    "InteractiveTelnetExchange",
+    "InteractiveTelnetRecorder",
+    "InteractiveTelnetStream",
+    "InteractiveTelnetStreamError",
     "JourneyDiagnosis",
     "JOURNEY_DISPLAY_SNAPSHOT_VERSION",
     "JourneyDisplayError",
@@ -323,6 +337,7 @@ __all__ = [
     "run_summary_from_mapping",
     "read_live_observation_stream",
     "read_historical_event_stream",
+    "read_interactive_telnet_stream",
     "read_message_journey_stream",
     "reconcile",
     "replay_frames",
@@ -343,4 +358,5 @@ __all__ = [
     "write_pdp11_its_failover_journey_stream",
     "validate_normalized_observations",
     "validate_normalized_topology",
+    "validate_operator_command",
 ]

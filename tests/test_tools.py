@@ -116,6 +116,24 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("--scenario failover", operated_failover.stdout)
         self.assertIn("ncc-pdp11-its-application-failover.json", operated_failover.stdout)
 
+    def test_telnet_target_builds_then_delegates_to_terminal_owned_session(self) -> None:
+        operated = run(
+            "make",
+            "-n",
+            "RUN_ID=interactive-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "TELNET_COMMAND_TIMEOUT=45",
+            "TELNET_MAX_COMMANDS=12",
+            "telnet",
+            cwd=ROOT,
+        )
+        self.assertEqual(operated.returncode, 0, operated.stderr)
+        self.assertIn("scripts/build-pdp11-telnet.sh", operated.stdout)
+        self.assertIn("scripts/telnet-pdp11-its.sh", operated.stdout)
+        self.assertIn('BRFID_TELNET_COMMAND_TIMEOUT="45"', operated.stdout)
+        self.assertIn('BRFID_TELNET_MAX_COMMANDS="12"', operated.stdout)
+        self.assertIn("pdp11-its-interactive-interactive-demo", operated.stdout)
+
 
 class NativeTemplateTests(unittest.TestCase):
     def test_configs_use_native_simh_environment_expansion(self) -> None:

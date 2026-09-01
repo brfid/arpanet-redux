@@ -29,10 +29,14 @@ NCC_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-coexistence-canonical-202609
 NCC_FAILOVER_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-application-failover-canonical-20260901T204637Z
 NCC_VIEW_PORT ?= 8767
 NCC_WATCH_PORT ?= 8765
+TELNET_COMMAND_TIMEOUT ?= 60
+TELNET_MAX_COMMAND_BYTES ?= 256
+TELNET_MAX_COMMANDS ?= 100
+TELNET_MAX_RESPONSE_BYTES ?= 1048576
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -134,6 +138,9 @@ smoke-ncc-pdp11-its: verify-ncc-pdp11-its
 
 smoke-ncc-pdp11-its-failover: verify-ncc-pdp11-its-failover
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_FAILOVER_DURATION)" BRFID_APPLICATION_RELAY_DURATION="$(NCC_APPLICATION_RELAY_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its-failover.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-application-failover-$(RUN_ID)"
+
+telnet: build-pdp11-telnet verify-pdp11-its
+	BRFID_TELNET_COMMAND_TIMEOUT="$(TELNET_COMMAND_TIMEOUT)" BRFID_TELNET_MAX_COMMAND_BYTES="$(TELNET_MAX_COMMAND_BYTES)" BRFID_TELNET_MAX_COMMANDS="$(TELNET_MAX_COMMANDS)" BRFID_TELNET_MAX_RESPONSE_BYTES="$(TELNET_MAX_RESPONSE_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-$(RUN_ID)"
 
 run-ncc: smoke-ncc-pdp11-its
 	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"

@@ -1,30 +1,14 @@
 # ARPANET Redux
 
-ARPANET Redux runs native TELNET from PDP-11/Network UNIX through simulated H316 systems running recovered 1973 Interface Message Processor (IMP) software to PDP-10/ITS. The historical guests originate and consume the application data, and the accepted growing-network composition preserves one session while its direct application link is cut and traffic reroutes through a third IMP.
+ARPANET Redux runs native TELNET from PDP-11/Network UNIX through simulated H316 systems running recovered 1973 Interface Message Processor (IMP) software to PDP-10/ITS. The accepted failover composition preserves one TELNET session when its direct application link is cut and the IMPs reroute traffic through a third IMP.
 
-The project is an active, source-only laboratory for rebuilding working pieces of the early ARPANET from preserved host software, recovered IMP software, and modern simulators. Each composition has a bounded claim and its own evidence. Current host counts, IMP counts, and routes do not define a finished network.
+This repository contains source-only orchestration, project-authored simulator configurations, observability code, pins, documentation, and tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and raw results remain in an external laboratory because several inputs have unresolved redistribution terms.
 
-```text
-              modern orchestration and lifecycle control
-                               │
-                               ▼
-historical / diagnostic hosts ↔ configured H316 IMP topology ↔ host / NCC attachments
-                               │
-                               ▼
-             guest results + IMP observations + run manifests
-```
+The project promotes bounded, reproducible compositions. It does not claim to reconstruct the complete ARPANET or identify configured IMPs as historical sites.
 
-The modern control and evidence planes drive consoles, allocate resources, and observe results; they do not carry an application payload around the historical guest networking. Exact host and IMP identities below name reproducible test compositions, not a fixed network size, a final topology, or automatic claims about historical sites.
+## Run source checks
 
-The repository contains orchestration, project-authored SIMH configurations, normalized observability code, source pins, checksums, documentation, and acceptance tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and raw run logs remain in a separate local laboratory.
-
-## Project status
-
-ARPANET Redux is under active development. The repository contains reproducibly verified but deliberately bounded application, routing, fault, and observability compositions. It is neither a complete reconstruction of the ARPANET nor a one-command distribution of the historical assets it depends on.
-
-## Five-minute source-only check
-
-The source-only checks need Python 3.11 or newer, POSIX shell tools, Git, and Make. They do not download or boot historical software.
+Install Git, Make, Python 3.11 or newer, and standard POSIX shell tools. Then run:
 
 ```sh
 git clone https://github.com/brfid/arpanet-redux.git
@@ -32,58 +16,49 @@ cd arpanet-redux
 make test
 ```
 
-This verifies the repository's source-only policy and deterministic contracts. Integration smokes require separately obtained and locally built historical assets; the [existing-laboratory runbook](docs/runbook.md) explains the expected layout and commands without pretending to grant or automate access to those materials.
+This command downloads no historical software and starts no simulator. To use an existing external laboratory, follow the [runbook](docs/runbook.md).
 
 ## Verified compositions
 
-These are promoted milestones at the current pins. Their exact scope is defined by the linked gates and evidence records.
+The following results pass at the revisions in [`pins/`](pins/). The linked test gates define their exact claims.
 
-| Composition | Established result |
+| Composition | Verified result |
 |---|---|
-| Linux NCP 002 ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP 003, with hostless IMP 4 as an adjacent peer | Diagnostic echo and explicit host-dead behavior through recovered routing firmware; see [Gate 2](docs/test-plan.md#gate-2-router-oracle) |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Native ITS NCP and its simulated 1822 interface interoperate with the two-IMP diagnostic path; see [Gate 3](docs/test-plan.md#gate-3-mixed-vintage-and-diagnostic-hosts) |
-| KA10/ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ KA10/ITS 176 | Guest-to-guest TELNET, remote DDT and `:TIME`, correlated modem traffic, and recovery of a unique `:OSEND` sentinel only through guest NCP; see [the readiness and evidence record](docs/experiments/2026-08-28-two-its-readiness.md) |
-| PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Formal heterogeneous TELNET from the preserved client to ITS, with a remote `:TIME`, receipt-bound media, correlated IMP traffic, a typed reducer-verified journey sidecar over exact trace windows, and complete cleanup; see the [Gate 4H application evidence](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31) and [typed journey evidence](docs/experiments/2026-09-01-pdp11-its-message-journey.md) |
-| NCC receiver on IMP 5, a direct IMP 5/IMP 6 line, and an alternate path through IMP 7 | Genuine reports from all three IMPs and reciprocal direct-line transitions from `up` to evidenced [`down`](docs/experiments/2026-08-31-ncc-alternate-path-fault.md) or [`looped`](docs/experiments/2026-08-31-ncc-line-loopback.md) while both endpoints remain observable |
-| Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ ITS 106 plus the IMP 5/6/7 NCC triangle and passive receiver | One bounded lifecycle preserves the accepted application transaction and typed journey while independently receiving both report forms from all four IMPs and reconciling the mapped direct line; see the [coexistence evidence](docs/experiments/2026-09-01-ncc-pdp11-its-coexistence.md) |
-| Network UNIX 176 ↔ IMP 62 ⇢ IMP 7 ⇢ IMP 6 ↔ ITS 106 after cutting the direct IMP 62/IMP 6 cable, with the passive NCC receiver still attached | The same TELNET session returns structured ITS `:TIME` output before and after the cut, complete H316 records retain fourteen alternate-route observations, and post-cut trouble reports arrive from all four IMPs; see the [application-failover evidence](docs/experiments/2026-09-01-ncc-pdp11-its-application-failover.md) |
+| Linux NCP 002 ↔ IMP 2 ↔ IMP 3 ↔ Linux NCP 003, with adjacent hostless IMP 4 | Diagnostic echo, ordinary routing, and explicit host-dead behavior ([Gate 2](docs/test-plan.md#gate-2-router-oracle)) |
+| ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ Linux NCP 076 | Native ITS NCP interoperates with the diagnostic endpoint ([Gate 3](docs/test-plan.md#gate-3-mixed-vintage-and-diagnostic-hosts)) |
+| ITS 106 ↔ IMP 6 ↔ IMP 62 ↔ ITS 176 | Guest-to-guest TELNET, remote DDT and `:TIME`, correlated IMP traffic, and anti-bypass sentinel transfer ([Gates 4 and 5](docs/test-plan.md#gate-4-two-vintage-its-hosts)) |
+| Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ ITS 106 | Receipt-bound heterogeneous TELNET, structured remote `:TIME`, correlated IMP traffic, and a typed journey that stops at unproved guest ingress ([Gate 4H](docs/test-plan.md#gate-4h-network-unix-pdp-11-to-its)) |
+| NCC receiver on IMP 5 with IMPs 5, 6, and 7 | Genuine trouble and throughput reports plus reciprocal direct-line transitions from `up` to evidenced [`down`](docs/experiments/2026-08-31-ncc-alternate-path-fault.md) or [`looped`](docs/experiments/2026-08-31-ncc-line-loopback.md) |
+| Network UNIX/ITS route plus the IMP 5/6/7 NCC triangle | One lifecycle preserves the accepted application transaction and typed journey while receiving both report forms from IMPs 5, 6, 7, and 62 ([coexistence gate](docs/test-plan.md#ncc-observed-heterogeneous-coexistence-gate)) |
+| The same composition with the IMP 62/IMP 6 application cable cut and an alternate route through IMP 7 | The same TELNET session returns structured `:TIME` output before and after the cut, the post-cut H316 journey covers IMPs 62, 7, and 6, and all four IMPs remain observable ([failover gate](docs/test-plan.md#ncc-observed-application-link-failover-gate)) |
 
-The NCC results can be watched through passive local browser displays that keep evidence authority visible. The default topology-first board shows configured structure, genuine report activity, and only validated completed conclusions; the detailed coexistence desk, historical-line desk, and message-journey bench preserve their separate evidence authorities. The application-failover cut remains controller-owned and is not exposed as a browser command. See the [network-board runner](docs/runbook.md#run-the-passing-smokes), [historical display](docs/runbook.md#view-a-growing-ncc-historical-event-sidecar), and [journey display](docs/runbook.md#view-a-growing-typed-message-journey) commands in the existing-laboratory runbook.
+`linux-ncp` is a diagnostic oracle, not a historical application endpoint. A vintage-to-vintage application pass must originate and consume application data inside the historical guests.
 
-`linux-ncp` is a diagnostic oracle, not a historical application endpoint. An accepted vintage-to-vintage application pass must originate and consume its application data inside the historical guests. IMPs 5, 6, and 7 in the NCC fault compositions are configured test components, not asserted historical sites.
+## Evidence boundaries
 
-## Evidence and project boundaries
+- Configured topology records intent. It does not prove that a component ran, a link worked, or a route was historically real.
+- Loopback UDP models point-to-point simulator cabling. It cannot bypass a guest NCP for application traffic.
+- Direct observations, derived state, and acceptance verdicts retain separate authority and supporting evidence.
+- NCC browser views are passive and have no simulator, relay, guest, or result-mutation authority.
+- Each run owns its ports, processes, media copies, logs, locks, and result directory.
+- Generated and third-party artifacts stay outside Git.
 
-- Configured topology records the intended composition; it does not by itself prove that a component ran, a link was up, or a route was historically real.
-- Loopback UDP represents point-to-point simulator cabling; it must not carry an application payload around a guest NCP.
-- Direct observations, derived state, and acceptance verdicts remain distinct and retain their supporting evidence.
-- NCC consumers are passive observers and receive no authority to control the simulators.
-- Each run owns its ports, processes, media copies, logs, and result directory.
-- Generated and third-party artifacts stay outside Git and are checked against the source-only policy.
+## Find documentation
 
-## Documentation
+| Need | Owner |
+|---|---|
+| Run checks, smokes, or passive viewers | [Runbook](docs/runbook.md) |
+| Understand stable system boundaries | [Architecture](docs/architecture.md) |
+| Evaluate a result | [Test plan](docs/test-plan.md) |
+| Understand NCC contracts and authority | [NCC observability](docs/ncc.md) |
+| Understand orchestration internals | [Harness design](docs/harness.md) |
+| Select simulator and topology inputs | [Configuration boundary](config/README.md) |
+| Check active branches and decisions | [Workstreams](docs/workstreams.md) |
+| Review decisions or dated evidence | [ADRs](docs/adr/), [experiments](docs/experiments/), and [research](docs/research/) |
+| Check source identities or redistribution boundaries | [`pins/`](pins/), [NOTICE](NOTICE.md), and [credits](CREDITS.md) |
 
-### Start here
+Active source revisions and asset hashes live only in [`pins/`](pins/). Dated reports record observations at those pins; they are not lock files or current status pages.
 
-- **Run source checks or an existing laboratory:** [existing-laboratory runbook](docs/runbook.md)
-- **Understand the system and evidence boundaries:** [architecture](docs/architecture.md)
-- **Evaluate a result:** [test plan](docs/test-plan.md)
+## License
 
-### Implementation and project records
-
-- **Understand orchestration internals:** [harness design](docs/harness.md)
-- **See current branches, workstream state, and handoffs:** [workstreams and fresh-context handoff](docs/workstreams.md)
-- **Understand NCC observability scope and implementation:** [NCC observability](docs/ncc.md)
-
-### Decisions, evidence, and policy
-
-- **Review design decisions:** [architecture decision records](docs/adr/)
-- **Review dated results:** [experiments](docs/experiments/) and [research](docs/research/)
-- **Contribute safely:** [contributor guide](CONTRIBUTING.md) and [agent instructions](AGENTS.md)
-- **Understand provenance and redistribution:** [asset and licensing notice](NOTICE.md) and [credits](CREDITS.md)
-
-Active source revisions and asset hashes live only in [`pins/`](pins/); dated reports describe what was observed at those pins without acting as a second lock file.
-
-## License status
-
-Original work in this repository, including orchestration code, project-authored SIMH configurations, documentation, ADRs, tests, scripts, and research tooling, is MIT-licensed; see [`LICENSE`](LICENSE). Third-party material this project reads from or points at (`arpanet-in-a-box`, `linux-ncp`, PDP-10/ITS, the KA10 and H316 simulator forks, SRI/NOSC Network UNIX V6, and everything else pinned or cited) is not vendored here and retains its own, separately tracked terms; see [`NOTICE.md`](NOTICE.md) and [`CREDITS.md`](CREDITS.md).
+Original work in this repository is MIT-licensed; see [`LICENSE`](LICENSE). External material retains its own terms and is not vendored or relicensed here. See [`NOTICE.md`](NOTICE.md) before publishing any derived artifact.

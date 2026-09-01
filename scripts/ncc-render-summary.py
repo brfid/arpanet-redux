@@ -16,8 +16,12 @@ from ncc.viewer import render_summary_html
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("summary", type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "summary",
+        type=Path,
+        help="validated completed-run summary JSON",
+    )
     return parser.parse_args()
 
 

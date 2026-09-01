@@ -1,10 +1,4 @@
-"""Passive progressive snapshots for typed NCC message-journey streams.
-
-The observer reads only a stable, validated complete JSONL prefix. It projects
-the existing message-journey reducer result into a browser-facing view model;
-it does not parse traces, compare simulator clocks, or infer route activity from
-configured topology.
-"""
+"""Project validated message journeys into passive reducer-backed snapshots."""
 
 from __future__ import annotations
 

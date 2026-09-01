@@ -1,11 +1,4 @@
-"""Passive progressive snapshots for historical NCC event sidecars.
-
-The display observer reads only a validated complete JSONL prefix and a supplied
-project topology. It delegates endpoint pairing and freshness to
-``ncc.reconciliation`` and delegates terminal authority to the accepted
-version-2 completed-summary adapter. It never opens raw logs or controls a
-simulator, receiver, relay, reflector, or external network endpoint.
-"""
+"""Project validated historical events into passive reducer-backed snapshots."""
 
 from __future__ import annotations
 

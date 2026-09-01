@@ -22,10 +22,22 @@ from ncc.pdp11_its_journey import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("result_dir", type=Path)
-    parser.add_argument("topology", type=Path)
-    parser.add_argument("output", type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "result_dir",
+        type=Path,
+        help="read-only completed Gate 4H result directory",
+    )
+    parser.add_argument(
+        "topology",
+        type=Path,
+        help="project-authored shared topology used by the run",
+    )
+    parser.add_argument(
+        "output",
+        type=Path,
+        help="new message-journey JSONL path; existing files are rejected",
+    )
     return parser.parse_args()
 
 

@@ -15,8 +15,12 @@ from ncc.two_its_summary import TwoItsSummaryError, summarize_two_its_result
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("results_dir", type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "results_dir",
+        type=Path,
+        help="read-only completed two-ITS result directory",
+    )
     return parser.parse_args()
 
 

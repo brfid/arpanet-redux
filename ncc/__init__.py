@@ -1,4 +1,8 @@
-"""Network Control Center telemetry primitives."""
+"""Validated NCC observations, reducers, and read-only projections.
+
+Configured topology, direct evidence, inference, and verdicts retain separate
+authority. Browser-facing APIs have no simulator-control authority.
+"""
 
 from .events import EventSource, NccEvent, throughput_report_events, trouble_report_events
 from .run_summary import (

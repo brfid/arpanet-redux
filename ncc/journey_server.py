@@ -15,7 +15,7 @@ from .journey_viewer import render_journey_display_html
 
 
 class JourneyDisplayHTTPServer(ThreadingHTTPServer):
-    """A GET-only loopback server over one passive journey observer."""
+    """A GET/HEAD-only loopback server over one passive journey observer."""
 
     observer: JourneyDisplayObserver
     page: str
@@ -23,7 +23,7 @@ class JourneyDisplayHTTPServer(ThreadingHTTPServer):
 
 @dataclass(frozen=True)
 class JourneyDisplayResponse:
-    """One transport-neutral result from the GET-only journey application."""
+    """One transport-neutral result from the GET/HEAD journey application."""
 
     status: int
     content_type: str

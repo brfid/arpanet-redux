@@ -2,11 +2,11 @@
 
 ## Purpose
 
-ARPANET Redux separates historically authentic guest and IMP behavior from a modern orchestration, observation, and validation plane. The project advances by promoting bounded compositions with explicit claims and evidence, not by treating one host pair or IMP route as a permanent network definition.
+ARPANET Redux separates historical guest and IMP behavior from modern orchestration, observation, and validation. The project advances by promoting bounded compositions with explicit claims, not by treating one host pair or route as a permanent network definition.
 
-For an application-bearing composition, success requires a historical guest application to send data through the configured IMP route and another historical guest application to consume it. For an NCC or network-behavior composition, success requires genuine attributed IMP observations and a verdict derived under the composition's explicit evidence rules. Configured topology is intent in both cases; it is never proof that a component ran, a link worked, or a route was historically real.
+An application composition passes only when one historical guest application sends data through the configured IMP route and another historical guest application consumes it. A network-behavior composition passes only when genuine, attributed IMP observations support its verdict. Configured topology is intent, never proof of activity or historical identity.
 
-## System shape
+## System boundary
 
 ```text
               modern orchestration and lifecycle control
@@ -19,161 +19,88 @@ For an application-bearing composition, success requires a historical guest appl
                   additional IMPs and endpoints
                                │
                                ▼
-       transcripts + IMP traces/reports + per-run manifest
+       transcripts + IMP observations + per-run manifest
 ```
 
-The modern plane allocates resources, drives simulator consoles, observes bounded results, and performs exact cleanup. It surrounds the simulated network but does not become an application bridge or substitute configured facts for observations.
+The modern plane allocates resources, drives simulator consoles, records evidence, evaluates a bounded claim, and cleans up exact child processes. It does not bridge application traffic around a guest NCP. Loopback UDP represents point-to-point simulator cables, not an application shortcut.
 
-## Baseline application composition
+## Composition model
 
-ADR-001 selected the following as the first complete vintage-to-vintage acceptance baseline:
+Each composition owns:
 
-```text
-control: simulator consoles and per-run lifecycle management
-             │                                      │
-             ▼                                      ▼
-       KA10 / ITS 106                         KA10 / ITS 176
-       native NCP                             native NCP
-             │ 1822 long leader                    │ 1822 long leader
-             ▼                                      ▼
-         H316 IMP 6 ───── simulated modem ───── H316 IMP 62
-             │                                      │
-             └──────────── guest data path ─────────┘
+- a project-authored topology and simulator configuration;
+- an exact set of external inputs and executable identities;
+- one bounded lifecycle and private resource namespace;
+- a claim with normative acceptance criteria;
+- direct evidence and derived verdicts that retain their authority;
+- cleanup that releases every owned process, socket, port lock, and media copy.
 
-validation: console transcripts + both IMP traces + per-run manifest
-```
-
-This remains the normative Gate 4 and Gate 5 baseline, not a maximum network size or the project's final topology. Gate 4H reuses the proven IMP route while replacing ITS host 176 with SRI/NOSC Network UNIX on a PDP-11. The later NCC fault compositions add a third IMP and a passive receiver under separate network-behavior claims rather than extending the application gate by implication.
-
-Loopback UDP models the point-to-point electrical links between simulator devices. It is transport for simulated interfaces, not an application bridge.
-
-## Integrated application and NCC composition
-
-The first accepted growing-network composition combines the Gate 4H route with the passive NCC triangle under one shared topology and lifecycle:
-
-```text
-Network UNIX 176 ↔ HI2 IMP 62 MI1 ══ MI3 IMP 6 HI2 ↔ ITS 106
-                                      │ MI1
-                                      │
-NCC receiver ↔ HI1 IMP 5 MI1 ═════════╝
-                  ╲ MI2            MI2 ╱
-                   ╲────── IMP 7 ─────╱
-```
-
-IMP 6's MI1/MI2 links preserve the earlier NCC composition, and MI3 carries only the application cable to IMP 62. The shared topology maps report lines only on the previously evidenced IMP 5 MI1 / IMP 6 MI1 binding. The alternate links and application link remain configured-only for historical-line reconciliation.
-
-The outer lifecycle owns the passive receiver plus IMPs 5 and 7. The existing heterogeneous application controller owns hosts 176 and 106 plus IMPs 62 and 6, emits the typed journey, and performs its existing cleanup. One composition evaluator reads the already separate application, journey, historical-event, receiver, manifest, and cleanup artifacts. It does not let one artifact fill another plane's missing evidence.
-
-The exact accepted composition proves coexistence, not application rerouting through the NCC triangle. Its receiver deliberately outlives the application controller, so the later historical tape contains teardown observations after the accepted fresh direct-line `up` pair. A combined diagnostic view must present that phase distinction rather than reducing the last tape record to an application verdict.
-
-## Application-relevant failover composition
-
-The accepted failover composition changes one application-relevant network condition without adding a simulator component:
-
-```text
-Network UNIX 176 ↔ IMP 62 ───── run-owned cut relay ───── IMP 6 ↔ ITS 106
-                         ╲ MI2                         MI2 ╱
-                          ╲────────── IMP 7 ─────────────╱
-                                        │
-                              existing NCC triangle
-                                        │
-                                 IMP 5 ↔ receiver
-```
-
-The direct IMP 62 MI1 / IMP 6 MI3 cable initially traverses the two-ended relay. IMP 62 MI2 / IMP 7 MI3 adds the alternate application edge, while the existing IMP 7 MI2 / IMP 6 MI2 edge completes the post-cut route. Both application bindings remain report-line-unmapped. The relay keeps its direct-cable ports bound after the cut and drops both directions, so post-cut application service cannot be satisfied by a recovered direct datagram.
-
-The formal controller waits for the Network UNIX guest to consume the host-106 Reset Reply, opens one TELNET session, obtains a structured ITS time, and only then writes the run-local cut request. A pass requires an atomic relay acknowledgement, a second structured time from that same session, and all fourteen supported H316 request/reply observations through IMPs 62, 7, and 6. The passive receiver independently requires post-cut trouble reports from all four IMPs. The browser has no path to the request file or any other simulator, relay, or guest-control method.
-
-The exact accepted result proves the configured application's survival of this cut, not a historical route or general network availability. The evaluator may discover reciprocal direct and alternate report-line candidates from that run, but it persists them only in the verdict with `promoted_to_topology: false`. Independent fresh reciprocal evidence and a separate topology decision are required before those identities can become configured authority.
-
-The completed coexistence projection is that read-only handoff. It does not merge or replace the existing persistence contracts:
-
-```text
-shared topology + manifest + application evidence + composition verdict
-                         + typed journey + historical events + cleanup
-                                             │
-                                             ▼
-                         fail-closed in-memory Python projection
-                                             │
-                                             ▼
-                           loopback GET/HEAD presentation only
-```
-
-The adapter verifies the application result, journey reducer, direct report counts, and composition support independently. Its detailed run report marks the exact verdict support and the later receiver tail, but it does not invent the unpersisted controller-exit sequence or align independent simulator clocks. The fixed map leaves every unmapped link configured-only; the browser receives resolved authority and state and performs no evidence reduction.
-
-The default network board is a smaller passive presentation boundary over the already validated projections:
-
-```text
-growing historical-event sidecar ── existing historical projection ──┐
-                                                                    ├── passive board ── fixed topology + state + attention
-terminal structured artifacts ─── existing coexistence projection ─┘                         │
-                                                                                              └── detailed run report
-```
-
-Before a run starts, only the configured topology is present. During a run, the board can show direct report activity, IMP report freshness, and the mapped paired-line conclusion from the progressive historical projection. After a terminal manifest appears, the board fails closed unless the completed coexistence adapter validates every required artifact; only then may it add the application and typed-journey conclusions and expose the detailed report. This switching layer creates no new persisted evidence contract.
-
-The convenience runner is separate from both browser routes. One operator terminal launches the unchanged formal smoke as an exactly owned child session and serves the passive board beside it. Control-C signals that exact harness, whose existing trap owns cleanup. The browser cannot invoke the runner, signal a process, write a guest console, switch a relay, or restart a component.
+A composition may reuse a proven component, but it does not inherit a broader claim. Adding a host, IMP, link, route, fault, or evidence source requires a new bounded composition or an explicit extension of an existing gate.
 
 ## Composition roles
 
 | Role | Boundary |
 |---|---|
-| Historical application | Both application endpoints are historical guests, and post-probe IMP evidence corroborates the configured route |
-| Heterogeneous application | Different historical host families share the same application and evidence requirements |
-| Mixed diagnostic | `linux-ncp` replaces one historical endpoint to isolate a guest interface or route; it cannot satisfy a vintage-to-vintage application gate |
-| Router oracle | Diagnostic endpoints and a hostless adjacent peer test ordinary routing and explicit host-dead behavior |
-| NCC and network behavior | A passive receiver, genuine attributed IMP reports, and topology-aware reducers test specific observation and fault claims without asserting an application exchange |
-| Integrated application and NCC | One shared topology and bounded lifecycle run an accepted historical application exchange while the passive NCC path independently records genuine IMP reports; application and network claims retain separate evidence and verdicts |
-| Application-relevant failover | A formal controller cuts one run-owned application cable only after a pre-cut guest transaction, then the same guest session, complete alternate-route H316 observations, post-cut NCC reports, and cleanup must all pass independently |
+| Historical application | Both endpoints are historical guests; guest-visible output and post-probe IMP evidence prove the exchange |
+| Heterogeneous application | Different historical host families meet the same application and route-evidence requirements |
+| Mixed diagnostic | `linux-ncp` replaces one historical endpoint to isolate an interface or route; it cannot satisfy a vintage-to-vintage application gate |
+| Router oracle | Diagnostic endpoints and a hostless peer prove ordinary routing and explicit host-dead behavior |
+| NCC network behavior | A passive receiver, genuine IMP reports, explicit topology, and reducers support a specific line or reachability claim |
+| Integrated application and NCC | One lifecycle runs an accepted application exchange and passive NCC observation while keeping their evidence and verdicts separate |
+| Application failover | A controller cuts one run-owned cable after a pre-cut transaction; the same guest session, alternate-route observations, post-cut reports, and cleanup must pass independently |
 
-Additional hosts, IMPs, links, or routes enter the project as new bounded compositions. A composition may reuse proven components, but it must own its topology, lifecycle, acceptance boundary, and evidence. The repository does not infer historical site identity from an IMP number or turn a configured route into a historical reconstruction claim.
+IMPs 5, 6, and 7 in NCC compositions are configured test components, not asserted historical sites. An IMP number or simulator device name does not establish historical identity or report-line mapping.
 
 ## Separation of concerns
 
-| Concern | Owner | Boundary |
+| Concern | Owner | Rule |
 |---|---|---|
-| Guest data plane | Historical guest NCP and applications | Payload enters one historical guest, crosses the configured IMP route, and exits another historical guest |
-| Simulated network | Host-interface device models and H316 firmware | Converts 1822 leaders where required, routes packets, and reports network conditions |
-| Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children; the combined terminal runner may own one complete formal smoke but exposes no browser command route |
-| Evidence plane | Test assertions and run manifests | Correlates claimed behavior with post-start observations and pinned inputs |
-| NCC observation plane | Versioned v1/v2 completed summaries, bounded v1 controller stream, validated historical-event and message-journey sidecars, topology-aware reducers, deterministic replay, and passive viewers | Separates configured topology, direct observations, harness-derived peer evidence, in-memory reconciliation, and completed gate evidence; progressive consumers receive already-resolved snapshots, independent simulator order never becomes a global clock, and only an exactly matching completed-result adapter may grant a final reducer state gate authority |
-| Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
+| Guest data plane | Historical guest NCP and applications | Payload enters and exits through guest networking |
+| Simulated network | Host-interface models and recovered H316 firmware | Interfaces convert leaders where required, route packets, and emit network reports |
+| Control plane | Launchers and controllers | Code allocates resources, drives consoles, applies owned faults, and performs exact cleanup |
+| Evidence plane | Structured artifacts, assertions, and manifests | Every claim binds to post-start observations and exact inputs |
+| NCC observation plane | Decoders, validated streams, reducers, and read-only projections | Configured facts, direct evidence, harness evidence, inference, and verdicts remain distinct |
+| Artifact plane | External laboratory | Third-party inputs, generated media, executables, and raw results stay outside Git |
 
-The repository never uses a guest-media directory as a transfer channel between endpoints. Guest workspaces are distinct, and a payload test is invalid if the controller can satisfy it by copying a host file.
+The controller cannot satisfy an application test by copying a payload between guest workspaces. A process exit, configured route, absent report, or successful application transaction cannot substitute for evidence owned by another plane.
 
-A version-2 completed network-behavior summary is a derived evidence artifact, not a second topology or a live controller channel. Its passed gate must close over a supported completed harness outcome and every direct historical observation supporting the cited final reducer state. The adapter maps report identities only through the supplied shared topology's explicit reciprocal bindings; unmatched configured links remain unobserved.
+## NCC data flow
 
-The passive historical display reuses that same mapping and reducer in Python. It reads only complete validated JSONL records, retains an interrupted final record as input status rather than evidence, and gives the browser a presentation-ready snapshot over loopback GET requests. The browser never pairs endpoints or infers freshness. The topology-first board may consume that projection while the integrated result grows, but it does not use the historical display's completed-summary handoff for the heterogeneous result; after a terminal manifest it instead requires the separately validated coexistence projection before exposing completed application, journey, and report detail.
+```text
+configured topology ─────────────────────────────────────────┐
+genuine IMP reports ── validated historical-event stream ── reducer
+H316 trace windows ─── validated message-journey stream ──── reducer
+application + lifecycle artifacts ───────────────────────────┤
+                                                             ▼
+                                               validated in-memory projection
+                                                             │
+                                                             ▼
+                                             loopback GET/HEAD presentation
+```
 
-The formal heterogeneous harness writes a separate version-1 message-journey sidecar over fixed post-probe H316 trace windows. Its header contains the one shared topology and expected route boundaries; its typed observation records retain direct versus harness-derived provenance and source-local order; and its terminal record must exactly match the existing pure reducer. This diagnostic stream neither changes the Gate 4H application verdict nor extends a completed-summary, live-observation, or historical-report schema. The H316 adapter stops at unproved guest ingress instead of inferring it from topology or application success.
+The historical-event stream records direct reports. The message-journey stream records route-boundary observations with source-local order and provenance. Completed summaries and composition verdicts derive conclusions from those inputs. No stream becomes a second topology, independent simulator clocks never become a global clock, and missing evidence remains unknown rather than down.
 
-The failover controller writes the same sidecar schema under a distinct journey and route identity, using fixed post-cut windows from three H316 processes. Its fourteen observations extend only proven H316 and connected-peer seams through IMP 7 and stop at `boundary:request:8`; it does not create KA10/IMP11-A host-ingress evidence or change the direct route's accepted diagnosis.
+Browser code receives resolved presentation data. It does not parse raw traces, pair report endpoints, reduce evidence, control a simulator, send guest input, switch a link, or mutate a result. The terminal runner may own one complete supported scenario through its existing lifecycle; that authority is not exposed through HTTP.
 
-The passive message-journey display reuses that validated reader and reducer in Python and projects their resolved route, boundary assessments, observations, provenance, and retained byte-window metadata into a deterministic in-memory snapshot. Its loopback server accepts GET and HEAD only, and its browser is a presentation client: it neither parses the sidecar nor assigns evidence to boundaries. The observer reports interrupted final records and resets its stream generation on truncation, replacement, restart, or identity change without treating independent simulator ticks as a common clock. A terminal view means only that the persisted diagnosis matched the reducer; it does not create a completed-run verdict or fill either unproved guest-ingress boundary.
+See [NCC observability](ncc.md) for the supported contracts and [the test plan](test-plan.md) for their pass/fail rules.
 
 ## Resource model
 
-Every run receives a unique result directory, UDP port set, Unix-domain control sockets, and exact child-process set. Simulator configurations obtain port numbers from the run environment. External source and executable identities are verified before launch; result manifests record the exact inputs used.
+Every run receives a new result directory, leased UDP ports, private control sockets, distinct guest-media workspaces, and an exact child-process set. The harness verifies source and executable identities before launch and records the inputs, configuration hashes, resource allocation, outcome, and cleanup in the result.
 
-The external laboratory is a sibling of the source checkout by default. Its contents are replaceable build inputs and evidence, not repository state. See the [runbook](runbook.md) for its layout and the [harness design](harness.md) for lifecycle mechanics.
+The sibling external laboratory contains replaceable build inputs and immutable run evidence, not repository state. See the [runbook](runbook.md) for its layout and [harness design](harness.md) for lifecycle mechanics.
 
-## Future site integration
+## Publication seam
 
-The original consumer generates a vintage YAML input, runs two historical-machine stages, validates a final text artifact, records provenance, and publishes through Hugo. The intended replacement seam begins after YAML generation and ends before artifact validation.
+The eventual site pipeline may replace its two historical-machine stages with a network stage only if it preserves these external contracts:
 
-The network stage may replace the two current machine stages, but it must preserve these external contracts:
+- final bundle names `brad.bio.txt`, `build.log.html`, and `pipeline-status.json`;
+- exact name and headline plus summary equality after whitespace normalization;
+- pipeline identity, success result, zero exit status, build ID, and source revision;
+- build-log identity, provenance, reuse fingerprints, semantic validation, and fail-closed publication.
 
-- Final bundle identities remain `brad.bio.txt`, `build.log.html`, and `pipeline-status.json`.
-- Name and headline remain exact; summary text remains equal after whitespace normalization.
-- Status retains the expected pipeline identity, success result, zero exit status, build ID, and source revision.
-- Build-log identity, provenance, reuse fingerprints, semantic validation, and fail-closed publication remain intact.
-
-The site checkout is not read or modified by the laboratory smokes. The two-vintage-host and payload-integrity prerequisites in the [test plan](test-plan.md) now pass; connecting the network stage to the publishing pipeline remains future work.
+The laboratory smokes do not read or modify the site checkout. [Gate 6](test-plan.md#gate-6-site-integration) owns acceptance of any integration.
 
 ## Decisions and evidence
 
-- [ADR-001](adr/0001-two-imp-baseline.md) records why the two-IMP, two-ITS composition was selected as the first acceptance baseline.
-- [Phase-one feasibility](research/2026-08-28-phase-one-feasibility.md) records the resource survey and passing diagnostic experiments.
-- [Two-ITS readiness findings](experiments/2026-08-28-two-its-readiness.md) records the evidence and failed trials that established the application baseline's current readiness rule.
-- [The test plan](test-plan.md) owns the normative gates for the diagnostic, application, heterogeneous, NCC, and eventual site-integration compositions.
-- [NCC observability](ncc.md) owns the current observation product shape, implemented scope, and next decision.
+[ADRs](adr/) own accepted design decisions. [Experiments](experiments/) and [research notes](research/) own dated observations and unresolved evidence. The [README](../README.md) owns public status, and the [test plan](test-plan.md) owns normative gates.

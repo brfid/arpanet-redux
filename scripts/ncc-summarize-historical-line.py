@@ -19,8 +19,17 @@ from ncc.historical_summary import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("results_dir", type=Path)
-    parser.add_argument("--topology", required=True, type=Path)
+    parser.add_argument(
+        "results_dir",
+        type=Path,
+        help="read-only completed fault or loopback result directory",
+    )
+    parser.add_argument(
+        "--topology",
+        required=True,
+        type=Path,
+        help="project-authored shared topology used by the run",
+    )
     return parser.parse_args()
 
 

@@ -17,8 +17,12 @@ from ncc.live import LiveObservationStreamError, read_live_observation_stream
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("stream", type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "stream",
+        type=Path,
+        help="append-only ncc-observations.jsonl stream",
+    )
     parser.add_argument(
         "--at",
         help="RFC 3339 UTC snapshot time, for deterministic inspection",

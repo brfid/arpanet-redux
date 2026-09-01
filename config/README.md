@@ -1,69 +1,55 @@
 # Simulator configuration boundary
 
-These command files contain only the project-owned composition for each test topology: node identities, live point-to-point links, host attachments, and the minimum KA10 settings needed to boot ITS. They are deliberately not copies of a complete upstream simulator runner.
+The files under `config/` define only project-owned composition: node identities, point-to-point links, host attachments, named routes, display positions, and the minimum host settings required by the harness. They do not copy complete upstream simulator runners or include external firmware and media.
 
-## Choose a topology
+## Directory layout
 
-| Configuration | Responsibility |
+| Path | Contents |
 |---|---|
-| `imp/router-oracle/imp2.simh` | Attach Linux NCP host 002 to IMP 2, link IMP 2 to IMP 3, and leave the second modem pointed at the intentionally absent peer. |
-| `imp/router-oracle/imp3.simh` | Attach Linux NCP host 003 to IMP 3 and join IMP 3 to IMPs 2 and 4. |
-| `imp/router-oracle/imp4.simh` | Model the hostless IMP 4 used to prove host-dead signaling. |
-| `imp/mixed/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62. |
-| `imp/mixed/imp62.simh` | Join IMP 62 to the Linux NCP diagnostic host 076. |
-| `hosts/its70-mixed.simh` | Boot the prepared ITS host-106 media and attach its NCP device to IMP 6. |
-| `imp/its-pair/imp6.simh` | Join ITS host 106 to IMP 6 and IMP 6 to IMP 62 for the two-ITS guest-to-guest topology. |
-| `imp/its-pair/imp62.simh` | Join ITS host 176 to IMP 62 and IMP 62 to IMP 6 for the two-ITS guest-to-guest topology. |
-| `imp/pdp11-its/imp62.simh` | Join the short-leader Network UNIX PDP-11 host 176 to IMP 62 without ITS leader conversion. |
-| `topologies/pdp11-its-telnet.json` | Share the formal Network UNIX host 176 to ITS host 106 route, host attachments, modem link, positions, and port identities with typed message-journey emission. |
-| `hosts/its106-pair.simh` | Boot the independently prepared ITS host-106 media. |
-| `hosts/its176-pair.simh` | Boot the independently prepared ITS host-176 media. |
-| `hosts/pdp11-176.simh` | Attach the receipt-bound Network UNIX root and swap media and its IMP11-A interface without booting before controller readiness. |
-| `topologies/imp5-ncc-host-interface.json` | Share the configured NCC/IMP 5 host interface, IMP 5/IMP 6 modem link, positions, port names, and passive-proof scope. |
-| `imp/ncc-proof/imp5.simh` | Attach the NCC receiver to IMP 5 host 0 and IMP 5 MI1 to the proof peer. |
-| `imp/ncc-proof/imp6.simh` | Supply the proof peer at the other end of IMP 5 MI1. |
-| `topologies/ncc-alternate-path-fault.json` | Share a nonhistorical IMP 5/6/7 triangle, the NCC receiver on IMP 5, direct and alternate IMP 6-to-NCC routes, and the evidenced direct-line report identities. |
-| `imp/ncc-alternate-path/imp5.simh` | Attach the NCC receiver, the relay-mediated direct IMP 5/6 line, and IMP 5's alternate link to IMP 7. |
-| `imp/ncc-alternate-path/imp6.simh` | Attach IMP 6 to the other end of the direct-line relay and to IMP 7. |
-| `imp/ncc-alternate-path/imp7.simh` | Join the two alternate-path links between IMPs 5 and 6. |
-| `topologies/ncc-pdp11-its-coexistence.json` | Share one integrated Network UNIX-to-ITS application route, the IMP 5/6/7 NCC triangle, the NCC host attachment, and only the previously evidenced direct-line report identities. |
-| `imp/ncc-pdp11-its/imp5.simh` | Attach the NCC receiver and join IMP 5 directly to IMP 6 and through IMP 7 without a fault instrument. |
-| `imp/ncc-pdp11-its/imp6.simh` | Preserve the NCC triangle on MI1/MI2, attach the application link to IMP 62 on MI3, and attach ITS host 106 on HI2. |
-| `topologies/ncc-pdp11-its-application-failover.json` | Add an unmapped IMP 62/IMP 7 application route and place the direct IMP 62/IMP 6 application cable behind the controller-owned cut relay without adding a component. |
-| `imp/ncc-pdp11-its-failover/imp6.simh` | Preserve the NCC bindings, attach the relay-mediated direct application cable on MI3, and attach ITS host 106 on HI2. |
-| `imp/ncc-pdp11-its-failover/imp62.simh` | Attach short-leader Network UNIX on HI2 without conversion, join the direct relay on MI1, and join the alternate route through IMP 7 on MI2. |
-| `imp/ncc-pdp11-its-failover/imp7.simh` | Preserve the NCC triangle and add the application-facing IMP 62 binding on MI3. |
+| `hosts/` | KA10 and PDP-11 host attachments and boot settings |
+| `imp/<composition>/` | H316 identity, host-interface, modem, debug, and external firmware-loading commands for one composition |
+| `topologies/` | Shared typed component, binding, route, position, and port identities used by controllers and NCC reducers |
 
-The `router-oracle` files are consumed by `make smoke-router`, the `mixed` files by `make smoke-mixed`, and the `its-pair` files by the two-vintage-host design in the [test plan](../docs/test-plan.md). `make smoke-pdp11-its` reuses `imp/its-pair/imp6.simh` and `hosts/its106-pair.simh`, then pairs them with the committed PDP-11-specific IMP 62 and host configurations above. It validates `topologies/pdp11-its-telnet.json` before launch and uses the named route only to derive typed expected journey boundaries; configured crossings do not become observations. `make smoke-ncc-pdp11-its` uses the dedicated coexistence topology and IMP 5/IMP 6 configurations while reusing the accepted IMP 7, IMP 62, and host configurations. `make smoke-ncc-pdp11-its-failover` uses the dedicated failover topology and three failover IMP configurations plus the existing IMP 5 and host configurations. The older [`scripts/research/two-imp-its-with-pdp11.py`](../scripts/research/two-imp-its-with-pdp11.py) remains exploratory reproduction support rather than a formal lifecycle owner. Formal smoke outcomes are summarized in the project [README](../README.md).
+## Select a composition
+
+| Composition | Configuration | Shared topology | Make target |
+|---|---|---|---|
+| Router oracle | `imp/router-oracle/` | None | `smoke-router` |
+| ITS and diagnostic Linux NCP | `imp/mixed/`, `hosts/its70-mixed.simh` | None | `smoke-mixed` |
+| Two ITS hosts | `imp/its-pair/`, `hosts/its106-pair.simh`, `hosts/its176-pair.simh` | None | `smoke-two-its` |
+| Network UNIX to ITS | `imp/pdp11-its/imp62.simh`, reused ITS-pair IMP 6, `hosts/pdp11-176.simh`, `hosts/its106-pair.simh` | `topologies/pdp11-its-telnet.json` | `smoke-pdp11-its` |
+| NCC host-interface proof | `imp/ncc-proof/` | `topologies/imp5-ncc-host-interface.json` | Bounded proof tools |
+| NCC alternate-path fault or loopback | `imp/ncc-alternate-path/` | `topologies/ncc-alternate-path-fault.json` | `smoke-ncc-alternate-path`, `smoke-ncc-line-loopback` |
+| Application and NCC coexistence | `imp/ncc-pdp11-its/` plus reused IMP 7, IMP 62, and host files | `topologies/ncc-pdp11-its-coexistence.json` | `smoke-ncc-pdp11-its` |
+| Application failover | `imp/ncc-pdp11-its-failover/` plus reused IMP 5 and host files | `topologies/ncc-pdp11-its-application-failover.json` | `smoke-ncc-pdp11-its-failover` |
+
+Use the [runbook](../docs/runbook.md) for commands and the [test plan](../docs/test-plan.md) for claims. Dated experiments own why a composition was introduced and what its canonical run observed.
 
 ## Runtime contract
 
-The orchestration scripts start each simulator with an external asset directory as its working directory. Every IMP configuration therefore expects `impconfig.simh` and `impcode.simh` there; the former supplies the generic H316 device setup and the latter deposits the recovered IMP program. Every ITS host configuration expects `dskdmp.rim` and `rp03.0` through `rp03.3` in its working directory. None of those external files belongs in this repository.
+Launchers start each simulator in a run-specific external workspace. IMP configurations expect the external generic `impconfig.simh` and recovered `impcode.simh`. ITS configurations expect `dskdmp.rim` and four `rp03.*` disk images. PDP-11 configurations receive receipt-bound root and swap copies. None of these files belongs in Git.
 
-The launch scripts reserve loopback UDP ports and export the `BRFID_*_PORT` variables referenced by these files. The port pairs are simulated cables only. Host application traffic must still enter and leave through a guest or Linux NCP implementation; a direct host-side application bridge would invalidate the test.
+The harness leases loopback UDP ports and exports the `BRFID_*_PORT` variables used through SIMH `%NAME%` expansion. This keeps tracked configurations immutable. Each pair of ports models one simulator cable; application traffic must still enter and leave through guest or diagnostic NCP code.
 
-The KA10 and PDP-11 host files retain the octal `034` console WRU character because the interactive controllers use it to enter the simulator prompt during orderly shutdown. The KA10 files' four disk-pack attachments preserve the DSKDMP-to-RP03 ordering used by the prepared images. The IMP files retain interface debugging because acceptance evidence is extracted from the resulting packet logs.
+H316 compositions that load nested external command files also receive `BRFID_H316_MINI_ROOT`, the absolute path to the pinned external `mini/` directory. SIMH resolves nested command files relative to the project command file, so an explicit root is required.
 
-Exact external source revisions and binary identities are maintained in [`../pins/`](../pins/). The reproduction sequence and result interpretation live in [`../docs/runbook.md`](../docs/runbook.md) and [`../docs/test-plan.md`](../docs/test-plan.md), respectively.
+KA10 and PDP-11 host files retain octal `034` as the console WRU character for orderly controller shutdown. KA10 disk attachments preserve the prepared DSKDMP-to-RP03 order. IMP files retain interface debugging because formal evidence uses bounded post-probe trace windows.
 
-## Shared topology input
+## Shared topology rules
 
-[`topologies/pdp11-its-telnet.json`](topologies/pdp11-its-telnet.json) represents the already accepted heterogeneous Gate 4H composition without adding a route or changing simulator commands. It names Network UNIX host 176, IMP 62, IMP 6, and ITS host 106; the two host-interface bindings; the one modem binding; their existing six port-environment names; stable positions; and the single host-176-to-host-106 route. The formal controller and read-only retained-result adapter derive the same twelve request/reply boundary identities from this file. Direct trace observations and harness-derived connected-peer observations remain separately typed, and the topology alone never proves activity or host delivery.
+A topology file is configuration, not evidence. It may name:
 
-[`topologies/imp5-ncc-host-interface.json`](topologies/imp5-ncc-host-interface.json) is the first project-authored topology input shared between a simulator configuration and an NCC receiver. It gives the configured NCC receiver, IMP 5, and proof-peer IMP 6 identities; fixed display positions; the host-interface and modem endpoints; the `host 0` to `hi1` mapping; all four port-environment names; and the explicit report-line-1 identity at each end of this modem binding. The receiver resolves its two ports from the host-interface binding; the two simulator command files consume the corresponding host and modem names. The NCC reconciliation adapter consumes only a reciprocal pair of explicit report-line fields and never derives a report identity from `mi1`.
+- stable component and interface identities;
+- host-interface and modem endpoint bindings;
+- named application routes composed from existing bindings;
+- fixed display positions;
+- environment-variable names for run-owned ports;
+- explicit reciprocal report-line numbers backed by independent evidence.
 
-The two command files also require `BRFID_H316_MINI_ROOT` to name the external pinned `mini/` directory containing the generic H316 setup and recovered firmware. SIMH resolves nested command files beside the project command file, not the process working directory, so this explicit external-root variable keeps those third-party inputs out of the repository and makes the composition reproducible.
+Controllers use topology to select configuration and derive expected boundaries. Reducers use it to interpret observations. Neither may turn a configured crossing into an observation.
 
-The route is a fidelity-minimal local proof path from IMP 6 through IMP 5 to the NCC receiver. Exact run `ncc-imp6-original-20260831T215714Z` independently observed checksum-valid reports and reciprocal line-1 endpoint identities from both IMPs before the report-line fields were added; the [dated experiment](../docs/experiments/2026-08-31-ncc-imp6-report-proof.md) owns that evidence. The fields are still configured facts, not a claim that every `MI1` corresponds to report line 1. The composition does not identify a historical site, recreate a historical route, or establish an NCP application exchange. The passive transport proof succeeds only after the receiver has sent its ready signal, received IMP readiness, and reassembled at least one complete IMP-to-host message.
+Report-line fields are valid only as a reciprocal pair of line numbers on one modem binding. Never infer them from `MI1`, another simulator device name, an application route, or a successful transaction. The accepted IMP 5/IMP 6 direct binding is mapped because both endpoints were independently observed. Alternate, application, and failover bindings remain unmapped unless separately promoted.
 
-[`topologies/ncc-alternate-path-fault.json`](topologies/ncc-alternate-path-fault.json) reuses that exact NCC host attachment and direct IMP 5/6 report-line identity, then adds IMP 7 as an alternate route. Only the direct binding carries report-line fields: no line number is inferred for either alternate binding. Its ten environment variables represent the NCC host cable, two alternate modem cables, both simulator ends of the direct cable, and the two ports held by a project-owned direct-line instrument. The fault relay initially forwards the direct cable in both directions, then remains bound while dropping both directions. The loopback reflector uses the same initial forwarding phase, then returns each endpoint's unmodified datagrams to that same endpoint through the same bound socket. In either case, a later report from IMP 6 can reach the receiver only through IMP 7 and IMP 5. This is a deliberately nonhistorical line-state evidence composition, not a claim about a historical ARPANET route.
+The failover topology names direct and alternate application routes but leaves both application bindings report-line-unmapped. The accepted run's unique reciprocal candidates remain `candidate-only-one-exact-run`; one run does not change configuration authority.
 
-`make smoke-ncc-alternate-path` owns the cut lifecycle, and `make smoke-ncc-line-loopback` owns the reflection lifecycle. The [test plan](../docs/test-plan.md) defines their separate acceptance checks, the [runbook](../docs/runbook.md) gives both invocations, and the dated [fault](../docs/experiments/2026-08-31-ncc-alternate-path-fault.md) and [loopback](../docs/experiments/2026-08-31-ncc-line-loopback.md) experiments record why the composition and state-specific neighbor rules exist.
-
-[`topologies/ncc-pdp11-its-coexistence.json`](topologies/ncc-pdp11-its-coexistence.json) composes the already accepted heterogeneous route and NCC triangle without copying either topology's observations or widening a report-line mapping. IMP 5 MI1 and IMP 6 MI1 retain the exact reciprocal line-1 mapping proved by the earlier NCC runs. IMP 6 MI2 retains the unmapped alternate path through IMP 7, and MI3 carries the application link to IMP 62 without acquiring a report-line identity. The pinned H316 simulator exposes five independent modem devices, and the recovered firmware's unchanged `HOST34=0` configuration supports five modem interfaces and two host interfaces, so IMP 6 can use MI1, MI2, MI3, and HI2 without a firmware deposit or simulator change. The typed application adapter selects the two SIMH modem devices from this shared binding rather than assuming MI1 at both ends.
-
-The coexistence composition is one lifecycle with separate evidence authorities. The existing PDP-11 controller owns application proof, typed message-journey emission, and its four simulator children. The outer runtime owns IMPs 5 and 7 plus the passive receiver. The receiver writes the existing historical-event sidecar, and the composition evaluator requires attributed checksum-valid trouble and throughput reports from IMPs 5, 6, 7, and 62 plus at least one fresh reciprocal `up` reduction on the already mapped IMP 5/IMP 6 line. Application success does not fill a report or message-journey boundary, and configured alternate and application links remain configured-only in historical-line reconciliation.
-
-[`topologies/ncc-pdp11-its-application-failover.json`](topologies/ncc-pdp11-its-application-failover.json) retains those seven components, places the IMP 62 MI1 / IMP 6 MI3 cable behind two relay-owned ports, and adds one IMP 62 MI2 / IMP 7 MI3 binding. Its named application routes distinguish the initial direct path from the post-cut IMP 62 / IMP 7 / IMP 6 path. Neither application binding has report-line fields. Eighteen named environment ports cover the NCC host cable, three NCC modem cables, two host cables, the direct application endpoints and relay endpoints, and the two ends of the added alternate cable.
-
-The failover controller alone may create the run-local cut request after Network UNIX has consumed the host-106 Reset Reply and the same TELNET session has returned a structured pre-cut time. A passing run requires an atomic cut acknowledgement, a structured post-cut time in that session, fourteen typed H316 route observations ending at missing `boundary:request:8`, post-cut trouble reports from all four IMPs, and complete cleanup. The evaluator may discover unique reciprocal report-line candidates from those direct reports, but the topology intentionally remains unmapped and one exact run cannot promote a candidate.
+Exact external revisions and assets live in [`../pins/`](../pins/). The [NCC page](../docs/ncc.md) defines observation authority, and [`NOTICE.md`](../NOTICE.md) defines the redistribution boundary.

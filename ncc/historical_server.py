@@ -15,7 +15,7 @@ from .viewer import render_summary_html
 
 
 class HistoricalDisplayHTTPServer(ThreadingHTTPServer):
-    """A GET-only loopback server over one passive observer."""
+    """A GET/HEAD-only loopback server over one passive observer."""
 
     observer: HistoricalDisplayObserver
     page: str
@@ -23,7 +23,7 @@ class HistoricalDisplayHTTPServer(ThreadingHTTPServer):
 
 @dataclass(frozen=True)
 class HistoricalDisplayResponse:
-    """One transport-neutral result from the GET-only display application."""
+    """One transport-neutral result from the GET/HEAD display application."""
 
     status: int
     content_type: str

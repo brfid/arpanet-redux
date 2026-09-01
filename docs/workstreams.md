@@ -1,75 +1,57 @@
-# Parallel workstreams and fresh-context handoff
+# Workstreams
 
 - **Updated:** 2026-09-01
 - **Canonical repository:** [`brfid/arpanet-redux`](https://github.com/brfid/arpanet-redux)
-- **Integration policy:** `main` remains test-passing; feature work uses dedicated branches and worktrees
+- **Integration policy:** Keep `main` test-passing; develop in dedicated branches and worktrees.
 
-## Purpose and ownership
-
-This is the project's operational planning and handoff document: active local checkouts, current workstream state, and either the next selected task or an explicit decision point. The [README](../README.md) owns present public status, subsystem living pages own implementation detail, dated notes own evidence, and ADRs own accepted decisions. Do not duplicate those records here or create a competing roadmap.
+This page owns active local checkouts, selected work, and decision points. The [README](../README.md) owns public status, subsystem pages own current contracts, [ADRs](adr/) own decisions, and dated notes own evidence.
 
 ## Local checkouts
 
-These directories share Git object storage but have independent branches and working trees.
-
 | Directory | Branch | Use |
 |---|---|---|
-| `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not develop here |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-application-failover` | NCC-diagnosed application-link fault and alternate-route proof |
-| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Gate 4H and typed message-journey emission |
-| `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Completed line-state proof; coordinated network expansion only |
+| `/Users/brf/src/arpanet-redux` | `main` | Integration only |
+| `/Users/brf/src/arpanet-redux-worktrees/docs` | `codex/docs-concision` | Documentation maintenance |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-application-failover` | Accepted NCC application-failover line |
+| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Accepted Gate 4H and typed journey line |
+| `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Accepted line-state proof and coordinated expansion |
 
-The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-party assets and raw results, not Git worktree state. GitHub `origin` is canonical; treat the `gitlab` remote as historical unless explicitly directed otherwise.
+The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-party inputs and raw results, not Git worktree state. GitHub `origin` is canonical. Treat `gitlab` as historical unless explicitly directed otherwise.
 
 ## Branch safety
 
-Use the active branches above. `codex/ncc-telemetry` and `codex/ncc-run-summary` preserve already-integrated NCC history and are not development branches.
-
-The following refs are recovery anchors, not development branches:
+`codex/ncc-telemetry` and `codex/ncc-run-summary` preserve integrated history and are not development branches. These refs are recovery anchors, not development branches:
 
 - `backup/pre-ncc-integration-20260830` at `d16b5d9`
 - `backup/ncc-pre-rebase-20260830` at `bee5c91`
 
-Do not delete, rebase, merge into, or develop on a recovery branch. Prefer reverting the relevant commit on `main` for an ordinary rollback. Never switch, rebase, remove, or repurpose a worktree with uncommitted changes.
+Do not delete, rebase, merge into, or develop on a recovery ref. Prefer reverting the relevant commit on `main` for an ordinary rollback. Never switch, remove, or repurpose a worktree with uncommitted changes.
 
-## Workstream handoffs
+## Current handoffs
 
-### NCC
+| Workstream | State | Decision | Read first |
+|---|---|---|---|
+| Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
+| NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, passive displays, board, and same-session application failover are integrated | No required follow-up. Keep discovered application-link report identities candidate-only until independent fresh reciprocal evidence and a separate decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
+| PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, ten-observation typed journey, and cleanup pass | No required follow-up. Optional work includes bounded legacy-client and NCP anomalies | [IMP11-A record](research/imp11a-device.md), [Network UNIX research](research/pdp11-network-unix.md) |
+| Network expansion | The three-IMP fault, loopback, coexistence, board, and failover compositions are integrated | No expansion is selected. A new host, IMP, mapping, or claim requires a separate bounded decision and evidence | [Configuration boundary](../config/README.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md) |
 
-- **Read first:** [NCC observability](ncc.md) and the dated [telemetry research note](research/2026-08-30-ncc-telemetry.md).
-- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, separate passive historical-line and message-journey browser displays, the accepted seven-component coexistence composition, its verified completed-result projection, a restrained topology-first network board, the earlier scenario folio retained as `/report`, and a one-command terminal runner over the unchanged formal smoke. The accepted application-failover composition adds a controller-owned two-ended cut of the IMP 62 / IMP 6 cable, one configured alternate IMP 62 / IMP 7 edge, same-session post-cut Network UNIX-to-ITS service through IMP 7, a fourteen-observation typed journey, continued NCC reporting, and candidate-only discovered line identities.
-- **Decision:** No required NCC implementation follow-up is selected. The application-failover slice is complete at its bounded claim. Its discovered direct and alternate report-line identities remain candidate-only after one exact run and may enter topology authority only after independent fresh reciprocal evidence and a separate decision. Interactive TELNET input, browser controls, per-component restart, a complete KA10 or IMP11-A grammar, new hosts, and original NCC System 52 remain separate later choices.
-- **Evidence:** The [IMP 6 report](experiments/2026-08-31-ncc-imp6-report-proof.md), [alternate-path fault](experiments/2026-08-31-ncc-alternate-path-fault.md), [line-loopback](experiments/2026-08-31-ncc-line-loopback.md), [typed Gate 4H journey](experiments/2026-09-01-pdp11-its-message-journey.md), [KA10 grammar feasibility](experiments/2026-09-01-ka10-host-ingress-grammar.md), [integrated coexistence](experiments/2026-09-01-ncc-pdp11-its-coexistence.md), [coexistence desk](experiments/2026-09-01-ncc-coexistence-desk.md), and [application failover](experiments/2026-09-01-ncc-pdp11-its-application-failover.md) records own the canonical runs, bounded stops, retained display replay, and accepted fault result. [ADR-006](adr/0006-ncc-line-reconciliation.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md), [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md), and [ADR-013](adr/0013-ncc-message-journey-stream.md) own the accepted reconciliation, topology, completed-summary, and typed-sidecar rules.
-- **Guardrails:** Displays have no simulator or controller authority, never animate unobserved traffic, and never convert configured topology, application success, or absence into observed state. The separate convenience runner may launch and stop only the complete existing formal scenario through its exact lifecycle and cleanup path; it exposes no browser command route. The historical-line evidence slice is complete. The formal journey producer owns its manifest, ports, cleanup, transaction window, and application verdict; it does not depend on or modify the exploratory PDP-11 driver. Do not implement a KA10 parser by predicting unlogged simulator service timing or selecting the reconstruction that matches H316 egress. Add KA10 or IMP11-A parsers only after their full extraction formats are proven.
+Do not reopen accepted byte order, leader handling, RFNM accounting, topology, report-line identity, state-specific neighbor rules, or application proof without new contradictory exact-run evidence. IMPs 5, 6, and 7 remain configured test components, not historical-site claims. Displays remain passive; the failover cut remains controller-owned.
 
-### PDP-11 TELNET
+## Integrate a workstream
 
-- **Read first:** [IMP11-A device record](research/imp11a-device.md) and [Network UNIX research](research/pdp11-network-unix.md).
-- **State:** The heterogeneous application proof and formal Gate 4H harness are complete. `make smoke-pdp11-its` verifies receipt-bound media, a usable Network UNIX-to-ITS TELNET session with remote `:TIME`, correlated traffic through both IMPs, a reducer-verified typed message-journey sidecar over fixed post-probe H316 trace windows, and complete cleanup. The sidecar records ten proven route-boundary observations and retains unproved destination-host ingress as missing evidence. Active revisions live in [`pins/`](../pins/).
-- **Decision:** No required follow-up remains. Optional bounded investigations are `TIMOUT` or error-summary handling, output buffer chaining, the `IMP: Phantom Out Int` anomaly, and the non-fatal legacy TELNET option diagnostic.
-- **Guardrails:** Do not reopen the accepted byte order, ITS leader handling, balanced RFNM accounting, receive continuation, topology, firmware, or application proof without contradictory exact-run evidence. The exploratory driver remains reproduction support, not a formal lifecycle or evidence owner.
+1. Work and commit only in the selected clean worktree. Preserve unrelated changes and keep third-party inputs and raw results in the laboratory.
+2. Run `make test` and the narrowest relevant external smoke.
+3. Fetch `origin`, rebase the feature branch onto current `origin/main`, and rerun relevant checks.
+4. Fast-forward the integration checkout to the tested feature branch, run `make test`, and push `main`. Never force-push `main`.
+5. Advance another clean active branch only when it needs the new `main`; do not merge feature branches into one another.
 
-### Network expansion
+## Start a task
 
-- **Read first:** [simulator configuration boundary](../config/README.md), the [fault](experiments/2026-08-31-ncc-alternate-path-fault.md) and [loopback](experiments/2026-08-31-ncc-line-loopback.md) records, and [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), and [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md).
-- **State:** The two-IMP NCC attachment, coordinated three-IMP fault and loopback compositions, seven-component application/NCC coexistence composition, passive network board, detailed report, and application-link failover composition are integrated on `main`. [`imp5-ncc-host-interface.json`](../config/topologies/imp5-ncc-host-interface.json) owns the evidenced IMP 5/IMP 6 report-line mapping; [`ncc-alternate-path-fault.json`](../config/topologies/ncc-alternate-path-fault.json) adds IMP 7 and two deliberately unmapped alternate bindings; [`ncc-pdp11-its-coexistence.json`](../config/topologies/ncc-pdp11-its-coexistence.json) adds the accepted heterogeneous application route on IMP 6 MI3 without mapping it; and [`ncc-pdp11-its-application-failover.json`](../config/topologies/ncc-pdp11-its-application-failover.json) adds the controller-cut direct cable plus the unmapped IMP 62 / IMP 7 edge. The accepted run proves one post-cut application transaction over IMP 62 / IMP 7 / IMP 6.
-- **Decision:** No network-expansion implementation is currently selected. The application and alternate edges remain unmapped despite the run's unique reciprocal candidates. Another host or IMP requires a new bounded claim; report-line promotion requires independent fresh reciprocal evidence rather than reuse of the one accepted discovery run.
-- **Guardrails:** IMPs 5, 6, and 7 are configured test components, not asserted historical sites. Configuration alone does not establish a historical route, application exchange, live component, or line state. Never infer report-line identity from a SIMH device name or copy the direct binding's mapping onto alternate links.
-
-## Integration procedure
-
-1. Work and commit only in the selected clean feature worktree; preserve unrelated changes and keep third-party assets and raw logs in the external laboratory.
-2. Run `make test` and the narrowest relevant external smoke before integration.
-3. Fetch `origin`, rebase the feature branch onto current `origin/main`, and rerun the relevant checks. Never force-push `main`.
-4. Fast-forward the integration checkout to the tested feature branch, rerun `make test`, and push `main`.
-5. Advance other clean active branches to the new `main` only when needed; do not merge feature branches directly into one another.
-
-## Starting a fresh task
-
-1. Choose a workstream. If its handoff says no task is selected, discuss and select the bounded objective before implementation.
-2. Open its recorded directory and read the root [`AGENTS.md`](../AGENTS.md), this page, and its **Read first** documents.
-3. Confirm the expected branch and a clean or understood `git status --short --branch`; do not disturb another worktree's changes.
-4. State the objective, evidence required, and explicit out-of-scope components.
+1. Choose a workstream and a bounded objective. If no task is selected, decide one before implementation.
+2. Open its recorded worktree and read [`AGENTS.md`](../AGENTS.md), this page, and the workstream's **Read first** documents.
+3. Confirm the expected branch and an understood `git status --short --branch`.
+4. State the claim, required evidence, and explicit exclusions.
 5. Treat ADRs and dated findings as settled unless new exact-run or primary-source evidence contradicts them.
 
-Update this page only when an active directory or branch, selected task, decision point, or integration policy changes. Link to the owning document for implementation detail, evidence, and acceptance criteria.
+Update this page only when a checkout, active task, decision point, or integration policy changes.

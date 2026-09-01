@@ -1,10 +1,4 @@
-"""Completed, passive projection for the integrated NCC coexistence result.
-
-The adapter composes only project-authored structured artifacts from one formal
-result directory. It validates their identities and existing reducers, then
-builds a deterministic in-memory display document. It never parses simulator
-logs, mutates a result, assigns report-line identities, or controls a process.
-"""
+"""Project one validated coexistence result into a passive completed snapshot."""
 
 from __future__ import annotations
 

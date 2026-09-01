@@ -210,6 +210,11 @@ class FailoverTopologyTests(unittest.TestCase):
         )
         self.assertEqual(bound - configured, set())
         self.assertNotIn("deposit 1005", config_text.lower())
+        imp62_config = (
+            ROOT / "config" / "imp" / "ncc-pdp11-its-failover" / "imp62.simh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("set hi2 noconvert", imp62_config)
+        self.assertNotIn("set hi2 convert", imp62_config)
 
 
 class FailoverJourneyTests(unittest.TestCase):

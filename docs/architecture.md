@@ -66,6 +66,26 @@ The outer lifecycle owns the passive receiver plus IMPs 5 and 7. The existing he
 
 The exact accepted composition proves coexistence, not application rerouting through the NCC triangle. Its receiver deliberately outlives the application controller, so the later historical tape contains teardown observations after the accepted fresh direct-line `up` pair. A combined diagnostic view must present that phase distinction rather than reducing the last tape record to an application verdict.
 
+## Application-relevant failover composition
+
+The accepted failover composition changes one application-relevant network condition without adding a simulator component:
+
+```text
+Network UNIX 176 ↔ IMP 62 ───── run-owned cut relay ───── IMP 6 ↔ ITS 106
+                         ╲ MI2                         MI2 ╱
+                          ╲────────── IMP 7 ─────────────╱
+                                        │
+                              existing NCC triangle
+                                        │
+                                 IMP 5 ↔ receiver
+```
+
+The direct IMP 62 MI1 / IMP 6 MI3 cable initially traverses the two-ended relay. IMP 62 MI2 / IMP 7 MI3 adds the alternate application edge, while the existing IMP 7 MI2 / IMP 6 MI2 edge completes the post-cut route. Both application bindings remain report-line-unmapped. The relay keeps its direct-cable ports bound after the cut and drops both directions, so post-cut application service cannot be satisfied by a recovered direct datagram.
+
+The formal controller waits for the Network UNIX guest to consume the host-106 Reset Reply, opens one TELNET session, obtains a structured ITS time, and only then writes the run-local cut request. A pass requires an atomic relay acknowledgement, a second structured time from that same session, and all fourteen supported H316 request/reply observations through IMPs 62, 7, and 6. The passive receiver independently requires post-cut trouble reports from all four IMPs. The browser has no path to the request file or any other simulator, relay, or guest-control method.
+
+The exact accepted result proves the configured application's survival of this cut, not a historical route or general network availability. The evaluator may discover reciprocal direct and alternate report-line candidates from that run, but it persists them only in the verdict with `promoted_to_topology: false`. Independent fresh reciprocal evidence and a separate topology decision are required before those identities can become configured authority.
+
 The completed coexistence projection is that read-only handoff. It does not merge or replace the existing persistence contracts:
 
 ```text
@@ -104,6 +124,7 @@ The convenience runner is separate from both browser routes. One operator termin
 | Router oracle | Diagnostic endpoints and a hostless adjacent peer test ordinary routing and explicit host-dead behavior |
 | NCC and network behavior | A passive receiver, genuine attributed IMP reports, and topology-aware reducers test specific observation and fault claims without asserting an application exchange |
 | Integrated application and NCC | One shared topology and bounded lifecycle run an accepted historical application exchange while the passive NCC path independently records genuine IMP reports; application and network claims retain separate evidence and verdicts |
+| Application-relevant failover | A formal controller cuts one run-owned application cable only after a pre-cut guest transaction, then the same guest session, complete alternate-route H316 observations, post-cut NCC reports, and cleanup must all pass independently |
 
 Additional hosts, IMPs, links, or routes enter the project as new bounded compositions. A composition may reuse proven components, but it must own its topology, lifecycle, acceptance boundary, and evidence. The repository does not infer historical site identity from an IMP number or turn a configured route into a historical reconstruction claim.
 
@@ -125,6 +146,8 @@ A version-2 completed network-behavior summary is a derived evidence artifact, n
 The passive historical display reuses that same mapping and reducer in Python. It reads only complete validated JSONL records, retains an interrupted final record as input status rather than evidence, and gives the browser a presentation-ready snapshot over loopback GET requests. The browser never pairs endpoints or infers freshness. The topology-first board may consume that projection while the integrated result grows, but it does not use the historical display's completed-summary handoff for the heterogeneous result; after a terminal manifest it instead requires the separately validated coexistence projection before exposing completed application, journey, and report detail.
 
 The formal heterogeneous harness writes a separate version-1 message-journey sidecar over fixed post-probe H316 trace windows. Its header contains the one shared topology and expected route boundaries; its typed observation records retain direct versus harness-derived provenance and source-local order; and its terminal record must exactly match the existing pure reducer. This diagnostic stream neither changes the Gate 4H application verdict nor extends a completed-summary, live-observation, or historical-report schema. The H316 adapter stops at unproved guest ingress instead of inferring it from topology or application success.
+
+The failover controller writes the same sidecar schema under a distinct journey and route identity, using fixed post-cut windows from three H316 processes. Its fourteen observations extend only proven H316 and connected-peer seams through IMP 7 and stop at `boundary:request:8`; it does not create KA10/IMP11-A host-ingress evidence or change the direct route's accepted diagnosis.
 
 The passive message-journey display reuses that validated reader and reducer in Python and projects their resolved route, boundary assessments, observations, provenance, and retained byte-window metadata into a deterministic in-memory snapshot. Its loopback server accepts GET and HEAD only, and its browser is a presentation client: it neither parses the sidecar nor assigns evidence to boundaries. The observer reports interrupted final records and resets its stream generation on truncation, replacement, restart, or identity change without treating independent simulator ticks as a common clock. A terminal view means only that the persisted diagnosis matched the reducer; it does not create a completed-run verdict or fill either unproved guest-ingress boundary.
 

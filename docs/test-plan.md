@@ -81,7 +81,21 @@ Start Network UNIX host `176`, IMP 62, IMP 6, ITS host `106`, the IMP 5/6/7 NCC 
 6. Configured-only application and alternate links acquire no report-line identities or inferred state, and no existing completed-summary, live-observation, historical-event, or message-journey schema changes.
 7. The application controller cleans up its two guests and two IMPs, the outer runtime cleans up the passive receiver and remaining two IMPs, every leased port and cooperative lock is released, and no simulator transport error occurs.
 
-A passing Gate 4H transaction from another run, reports replayed from another result, a report from only the NCC triangle, application traffic inferred from configured topology, or an assumed MI-device-to-report-line mapping cannot satisfy this gate. This first composition proves coexistence, not application rerouting around a fault; an application-relevant alternate route remains a separate future gate.
+A passing Gate 4H transaction from another run, reports replayed from another result, a report from only the NCC triangle, application traffic inferred from configured topology, or an assumed MI-device-to-report-line mapping cannot satisfy this gate. This first composition proves coexistence, not application rerouting around a fault; the application-relevant alternate route is evaluated only by the separate gate below.
+
+## NCC-observed application-link failover gate
+
+Start the accepted seven-component coexistence composition with the direct IMP 62 MI1 / IMP 6 MI3 application cable behind a run-owned two-ended cut relay and one additional IMP 62 MI2 / IMP 7 MI3 binding. Keep both application bindings report-line-unmapped. The controller may request the cut only after the initial direct-path application and readiness evidence passes. Accept application failover only if:
+
+1. The manifest binds the exact topology, configurations, controller, receiver, relay, evaluator, build receipt, pinned sources, assets, simulator binaries, and eighteen leased UDP ports, with every tracked-dirty flag clear.
+2. Before TELNET opens, the Network UNIX guest records consumption of the host-106 Reset Reply. One TELNET session then opens the ITS service and returns a structured remote `:TIME` result before the cut.
+3. The relay initially forwards valid records in both directions, accepts no unexpected source, atomically acknowledges the controller's run-local request, retains the same fault timestamp in its terminal result and cut-state artifact, and drops records in both directions afterward while keeping both ports bound.
+4. Without reconnecting, restarting a guest, or changing controller ownership, that same TELNET session survives the cut and returns a second structured remote `:TIME` result.
+5. Fixed post-cut H316 trace windows on IMPs 62, 7, and 6 yield exactly fourteen typed request/reply observations on `route:host176-to-host106-alternate`. Direct and connected-peer evidence must prove each crossing through IMP 62 MI2, IMP 7 MI3/MI2, and IMP 6 MI2; the reducer must retain `missing-boundary` at `boundary:request:8` rather than inferring either guest ingress from application success.
+6. The passive receiver records a post-cut trouble report from each of IMPs 5, 6, 7, and 62. Direct reports must uniquely identify a pre-cut reciprocal `up` and post-cut reciprocal `down` candidate for the direct application binding plus a post-cut reciprocal `up` candidate for the alternate binding. The verdict must retain those values as `candidate-only-one-exact-run` and the shared topology must remain unmapped.
+7. The application controller, passive receiver, and relay exit successfully; both cleanup layers pass; no simulator transport error or unexpected relay source occurs; no owned process survives; and every port, lock, media copy, and result identity remains within the run's bounded lifecycle.
+
+A second TELNET connection, an elapsed-time cut without controller acknowledgement, configured topology in place of H316 observations, one-sided relay dropping, a report only before the cut, inferred MI-to-report-line identity, a promoted candidate mapping, or application success without the fourteen-observation sidecar cannot satisfy this gate. The browser has no cut, TELNET, process, restart, or result-mutation authority, and the gate changes no completed-summary, historical-event, or message-journey schema.
 
 ### Passive completed coexistence desk
 

@@ -102,6 +102,14 @@ The default base media paths are `$LAB_ROOT/work/unix-v6-install/images/ncp_root
 
 The formal topology is ITS host `106` on IMP 6 and Network UNIX host `176` on IMP 62. The controller validates `config/topologies/pdp11-its-telnet.json`, waits for both modem and host-link states, the ITS console banner, a responsive local ITS command state, a booted PDP-11, and its preserved NCP before capturing application offsets and starting TELNET. After the application evidence passes, it fixes both H316 trace-window end offsets and emits a typed `message-journey.jsonl`. Interpret its result against Gate 4H in the [test plan](test-plan.md); `Connection open` or `SKTRACE` without the service job, structured remote `:TIME`, correlated traffic on both IMPs, and a reducer-verified sidecar is a failure.
 
+The integrated NCC/application smoke reuses the same receipt-bound PDP-11 build. It preserves the NCC triangle on IMP 6 MI1/MI2, moves only the application cable to MI3, adds hosts `176` and `106` plus IMP 62 to the same lifecycle, and keeps the passive receiver on IMP 5 host 0:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab RUN_ID=UNIQUE-RUN-ID PDP11_BUILD_ROOT="$build_root" smoke-ncc-pdp11-its
+```
+
+The target verifies the five external source trees, three simulators, mixed assets, build receipt, firmware, topology, and configurations; leases fourteen UDP ports; starts the receiver and IMPs 5/7 under the outer runtime; delegates IMPs 6/62 and both guests to the existing application controller; retains both existing sidecars; and evaluates the combined result after bounded cleanup. Its default receiver duration is 150 seconds. Interpret it against the NCC-observed heterogeneous coexistence gate in the [test plan](test-plan.md). The target proves one application and NCC composition, not application rerouting through IMPs 5 or 7.
+
 Set `RUN_ID` to a unique value when a stable result-directory name is useful. Otherwise the Makefile creates a UTC timestamp plus UUID. A collision is an error; a prior result is never overwritten.
 
 ## Read the result
@@ -113,6 +121,8 @@ An NCC alternate-path result is named `ncc-alternate-path-fault-<run-id>`. `verd
 An NCC loopback result is named `ncc-line-loopback-<run-id>`. Its `verdict.json` additionally retains each raw final direct endpoint, its self-neighbor, post-loop report counts, reflector forward/reflection counts, and pre-loop/final reducer support. `direct-reflector.json`, `receiver.json`, and `historical-events.jsonl` are its structured direct inputs. The same manifest, controller-exit, cleanup, transport, and immutability requirements apply.
 
 The PDP-11 result additionally retains `application-evidence.txt`, `cleanup-evidence.txt`, `message-journey.jsonl`, the run-local attach-only ITS configuration, PDP-11 IMP device trace, and the receipt hash and path. Its manifest binds the shared topology, exact trace-window end offsets, sidecar digest, observation count, diagnosis, and first unresolved boundary. The accepted bounded extraction contains ten observations and terminates `missing-boundary` at `boundary:request:6`; that explicit lack of host-106 ingress evidence does not replace or weaken the separate passing application verdict. A completed pass has `outcome=passed`, `exit_status=0`, `surviving_owned_processes=0`, and `cleanup.outer-runtime=passed`; the six recorded ports must be free and their cooperative locks absent after exit.
+
+An integrated result is named `ncc-pdp11-its-coexistence-<run-id>`. It adds `receiver.json`, `historical-events.jsonl`, and `verdict.json` to the formal PDP-11 artifacts. The verdict requires the application and typed journey to pass unchanged, both report forms from IMPs 5, 6, 7, and 62, one fresh reciprocal `up` reduction for the already mapped IMP 5 / IMP 6 direct line, clean identities, and both cleanup layers. The receiver outlives the application controller, so later teardown events may make the final progressive line view down or stale; use the verdict's exact supporting sequences for the accepted coexistence claim and keep later direct observations visible rather than rewriting them. Fourteen recorded ports and their cooperative locks must be free after exit.
 
 Interpret evidence using the [test plan](test-plan.md). A successful process exit without the required application and IMP evidence is not a pass.
 
@@ -155,6 +165,8 @@ python3 scripts/ncc-serve-journey.py /absolute/path/to/arpanet-redux-lab/results
 
 Open the printed loopback URL in a local browser. The fixed route and all twelve request/reply boundary sockets are configured expectations, not evidence. Direct H316 trace observations, harness-derived connected-peer observations, and in-memory reducer states use separate labels; the observation tape retains emission order and source-local identities without claiming a common clock. An interrupted final record is ignored and displayed as tail status until its terminating newline arrives. A terminal page means the persisted diagnosis exactly matched the reducer, not that every boundary was observed or that a new completed-run verdict exists. The accepted Gate 4H sidecar should show ten observations, `missing-boundary`, and first unresolved `boundary:request:6`.
 
+The same command accepts `message-journey.jsonl` from an integrated `ncc-pdp11-its-coexistence-<run-id>` result. It still projects only the named application route and its typed evidence; the additional NCC components remain in the shared topology but do not become journey observations.
+
 To view a retained result that predates formal sidecar emission, first use the read-only extraction command above with a fresh temporary output path, then pass that temporary sidecar to `ncc-serve-journey.py`. Never write derived output into the retained result directory.
 
 ## Summarize a completed NCC historical-line result
@@ -179,6 +191,14 @@ python3 scripts/ncc-serve-historical.py /absolute/path/to/arpanet-redux-lab/resu
 ```
 
 Open the printed loopback URL in a local browser. Use `config/topologies/imp5-ncc-host-interface.json` for an original IMP 5/IMP 6 report result; use `config/topologies/ncc-alternate-path-fault.json` for both alternate-path fault and line-loopback results. An active run stays on the progressive display. Once a supported fault or loopback result has a terminal manifest and verdict, exact agreement between the final in-memory line state/support and the derived version-2 summary redirects the page to the completed viewer. Invalid or disagreeing terminal evidence blocks that handoff visibly.
+
+An integrated coexistence result can be inspected with its seven-component topology:
+
+```sh
+python3 scripts/ncc-serve-historical.py /absolute/path/to/arpanet-redux-lab/results/ncc-pdp11-its-coexistence-<run-id> --topology config/topologies/ncc-pdp11-its-coexistence.json
+```
+
+That display validates the complete historical sidecar, retains all six unmapped links as configured-only, and reconciles only the mapped IMP 5 / IMP 6 direct line. It deliberately remains in progressive mode after the run because the completed-summary adapter supports only fault and loopback verdicts. Use the integrated run's `verdict.json` for its accepted support pair; a unified phase-aware coexistence handoff is the next bounded NCC display slice.
 
 Retained results in the external laboratory are read-only inputs. Do not copy, normalize, complete, or rewrite their sidecars merely to serve them; an interrupted final record is an explicit display condition, and a completed retained fault or loopback result should hand off without changing any artifact digest.
 

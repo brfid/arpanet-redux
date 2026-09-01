@@ -47,6 +47,25 @@ This remains the normative Gate 4 and Gate 5 baseline, not a maximum network siz
 
 Loopback UDP models the point-to-point electrical links between simulator devices. It is transport for simulated interfaces, not an application bridge.
 
+## Integrated application and NCC composition
+
+The first accepted growing-network composition combines the Gate 4H route with the passive NCC triangle under one shared topology and lifecycle:
+
+```text
+Network UNIX 176 ↔ HI2 IMP 62 MI1 ══ MI3 IMP 6 HI2 ↔ ITS 106
+                                      │ MI1
+                                      │
+NCC receiver ↔ HI1 IMP 5 MI1 ═════════╝
+                  ╲ MI2            MI2 ╱
+                   ╲────── IMP 7 ─────╱
+```
+
+IMP 6's MI1/MI2 links preserve the earlier NCC composition, and MI3 carries only the application cable to IMP 62. The shared topology maps report lines only on the previously evidenced IMP 5 MI1 / IMP 6 MI1 binding. The alternate links and application link remain configured-only for historical-line reconciliation.
+
+The outer lifecycle owns the passive receiver plus IMPs 5 and 7. The existing heterogeneous application controller owns hosts 176 and 106 plus IMPs 62 and 6, emits the typed journey, and performs its existing cleanup. One composition evaluator reads the already separate application, journey, historical-event, receiver, manifest, and cleanup artifacts. It does not let one artifact fill another plane's missing evidence.
+
+The exact accepted composition proves coexistence, not application rerouting through the NCC triangle. Its receiver deliberately outlives the application controller, so the later historical tape contains teardown observations after the accepted fresh direct-line `up` pair. A combined diagnostic view must present that phase distinction rather than reducing the last tape record to an application verdict.
+
 ## Composition roles
 
 | Role | Boundary |
@@ -56,6 +75,7 @@ Loopback UDP models the point-to-point electrical links between simulator device
 | Mixed diagnostic | `linux-ncp` replaces one historical endpoint to isolate a guest interface or route; it cannot satisfy a vintage-to-vintage application gate |
 | Router oracle | Diagnostic endpoints and a hostless adjacent peer test ordinary routing and explicit host-dead behavior |
 | NCC and network behavior | A passive receiver, genuine attributed IMP reports, and topology-aware reducers test specific observation and fault claims without asserting an application exchange |
+| Integrated application and NCC | One shared topology and bounded lifecycle run an accepted historical application exchange while the passive NCC path independently records genuine IMP reports; application and network claims retain separate evidence and verdicts |
 
 Additional hosts, IMPs, links, or routes enter the project as new bounded compositions. A composition may reuse proven components, but it must own its topology, lifecycle, acceptance boundary, and evidence. The repository does not infer historical site identity from an IMP number or turn a configured route into a historical reconstruction claim.
 

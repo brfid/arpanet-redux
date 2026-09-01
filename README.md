@@ -44,6 +44,8 @@ These are promoted milestones at the current pins. Their exact scope is defined 
 | PDP-11/Network UNIX 176 ↔ IMP 62 ↔ IMP 6 ↔ KA10/ITS 106 | Formal heterogeneous TELNET from the preserved client to ITS, with a remote `:TIME`, receipt-bound media, correlated IMP traffic, and complete cleanup; see [the Gate 4H evidence](docs/research/imp11a-device.md#formal-gate-4h-promotion-2026-08-31) |
 | NCC receiver on IMP 5, a direct IMP 5/IMP 6 line, and an alternate path through IMP 7 | Genuine reports from all three IMPs and reciprocal direct-line transitions from `up` to evidenced [`down`](docs/experiments/2026-08-31-ncc-alternate-path-fault.md) or [`looped`](docs/experiments/2026-08-31-ncc-line-loopback.md) while both endpoints remain observable |
 
+The NCC results can be watched through a passive local browser display that preserves configured-only links, direct endpoint reports, in-memory reconciliation, and completed-summary authority as separate layers; see the [existing-laboratory runbook](docs/runbook.md#view-a-growing-ncc-historical-event-sidecar).
+
 `linux-ncp` is a diagnostic oracle, not a historical application endpoint. An accepted vintage-to-vintage application pass must originate and consume its application data inside the historical guests. IMPs 5, 6, and 7 in the NCC fault compositions are configured test components, not asserted historical sites.
 
 ## Evidence and project boundaries

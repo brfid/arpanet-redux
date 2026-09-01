@@ -15,8 +15,8 @@ These directories share Git object storage but have independent branches and wor
 | Directory | Branch | Use |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only; do not develop here |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-imp6-report-proof` | Selected passive live NCC display |
-| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed Gate 4H proof; optional isolated follow-up only |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-imp6-report-proof` | Passive historical NCC display and observation integration |
+| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Completed Gate 4H proof; selected typed journey-emission follow-up |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Completed line-state proof; coordinated network expansion only |
 
 The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-party assets and raw results, not Git worktree state. GitHub `origin` is canonical; treat the `gitlab` remote as historical unless explicitly directed otherwise.
@@ -37,8 +37,8 @@ Do not delete, rebase, merge into, or develop on a recovery branch. Prefer rever
 ### NCC
 
 - **Read first:** [NCC observability](ncc.md) and the dated [telemetry research note](research/2026-08-30-ncc-telemetry.md).
-- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, and the source-only message-journey model with a narrow H316 trace adapter.
-- **Decision:** The selected next slice is a passive local live display for the existing three-IMP report, fault, and loopback runs. It reads the growing validated historical-event sidecar, shows direct reports and clearly labeled in-memory reconciliation over fixed topology, handles stale or partial input, and hands off to the completed version-2 summary when the formal run ends. The immediate follow-on is typed message-journey emission from the accepted PDP-11-to-ITS TELNET harness.
+- **State:** `main` contains accepted version-1 application and version-2 network-behavior completed-summary profiles, the unchanged bounded version-1 controller stream, deterministic replay and static viewing, genuine Type 301/303/302 report ingestion and event replay, topology-aware paired-line reconciliation with canonical `up`, `down`, and `looped` gates, a read-only final-snapshot adapter for supported fault and loopback results, a passive progressive browser display with exact version-2 handoff, and the source-only message-journey model with a narrow H316 trace adapter.
+- **Decision:** The selected next slice is typed message-journey emission from the accepted PDP-11-to-ITS TELNET harness. The completed passive display remains the observer: journey work must emit proven typed boundaries rather than add browser-side inference or simulator control.
 - **Evidence:** The [IMP 6 report](experiments/2026-08-31-ncc-imp6-report-proof.md), [alternate-path fault](experiments/2026-08-31-ncc-alternate-path-fault.md), and [line-loopback](experiments/2026-08-31-ncc-line-loopback.md) records own the canonical runs. [ADR-006](adr/0006-ncc-line-reconciliation.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md), [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md), [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md), and [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md) own the accepted reconciliation, topology, and completed-summary bridge rules.
 - **Guardrails:** The display has no simulator or controller authority, never animates unobserved traffic, and never converts configured topology or absence into observed state. The historical-line evidence slice is complete. A later journey producer must own its manifest, ports, cleanup, transaction window, and application verdict; it must not depend on or modify an exploratory PDP-11 driver. Add KA10 or IMP11-A parsers only after their full extraction formats are proven.
 

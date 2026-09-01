@@ -148,6 +148,18 @@ python3 scripts/ncc-render-summary.py /tmp/ncc-historical-line-summary.json > /t
 
 The same command accepts `ncc-line-loopback-<run-id>` with the same shared topology input. A pass is evidence-closed over the final reciprocal line observations and the supported evaluator outcome. Unmapped alternate bindings remain configured topology only, and any manifest, topology digest, lifecycle, verdict, reducer-state, or supporting-sequence disagreement fails closed.
 
+## View a growing NCC historical-event sidecar
+
+The passive display watches `historical-events.jsonl` in an existing result directory, binds an HTTP server only to `127.0.0.1`, and accepts GET and HEAD only. It re-reads and validates the complete JSONL prefix on each browser request; it does not write to the result, read raw logs, or control a receiver, relay, reflector, controller, or simulator. From the repository checkout, serve a fault or loopback result with the shared three-IMP topology:
+
+```sh
+python3 scripts/ncc-serve-historical.py /absolute/path/to/arpanet-redux-lab/results/ncc-alternate-path-fault-<run-id> --topology config/topologies/ncc-alternate-path-fault.json
+```
+
+Open the printed loopback URL in a local browser. Use `config/topologies/imp5-ncc-host-interface.json` for an original IMP 5/IMP 6 report result; use `config/topologies/ncc-alternate-path-fault.json` for both alternate-path fault and line-loopback results. An active run stays on the progressive display. Once a supported fault or loopback result has a terminal manifest and verdict, exact agreement between the final in-memory line state/support and the derived version-2 summary redirects the page to the completed viewer. Invalid or disagreeing terminal evidence blocks that handoff visibly.
+
+Retained results in the external laboratory are read-only inputs. Do not copy, normalize, complete, or rewrite their sidecars merely to serve them; an interrupted final record is an explicit display condition, and a completed retained fault or loopback result should hand off without changing any artifact digest.
+
 ## Cleanup and failures
 
 The launcher owns exact child PIDs and performs bounded cleanup on success, error, timeout, or interruption. It does not terminate processes merely because they share a name. An interrupted run should finish its manifest with a failed outcome and release its private sockets and port locks.

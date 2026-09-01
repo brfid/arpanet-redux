@@ -67,12 +67,14 @@ Additional hosts, IMPs, links, or routes enter the project as new bounded compos
 | Simulated network | Host-interface device models and H316 firmware | Converts 1822 leaders where required, routes packets, and reports network conditions |
 | Control plane | Source-only launch and controller code | Allocates resources, drives consoles, observes readiness, and cleans up exact children |
 | Evidence plane | Test assertions and run manifests | Correlates claimed behavior with post-start observations and pinned inputs |
-| NCC observation plane | Versioned v1/v2 completed summaries, bounded v1 controller stream, topology-aware historical reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, inferences, and gate evidence; only a completed-result adapter may grant a reducer snapshot gate authority, while live consumers retain direct stale state without simulator authority |
+| NCC observation plane | Versioned v1/v2 completed summaries, bounded v1 controller stream, validated historical-event sidecars, topology-aware reducer, deterministic replay, and passive viewers | Separates configured topology, direct observations, in-memory reconciliation, harness facts, and completed gate evidence; the progressive loopback display receives already-resolved snapshots, and only an exactly matching completed-result adapter may grant a final reducer state gate authority |
 | Artifact plane | External laboratory | Holds third-party sources, media, executables, copied guest workspaces, and raw results |
 
 The repository never uses a guest-media directory as a transfer channel between endpoints. Guest workspaces are distinct, and a payload test is invalid if the controller can satisfy it by copying a host file.
 
 A version-2 completed network-behavior summary is a derived evidence artifact, not a second topology or a live controller channel. Its passed gate must close over a supported completed harness outcome and every direct historical observation supporting the cited final reducer state. The adapter maps report identities only through the supplied shared topology's explicit reciprocal bindings; unmatched configured links remain unobserved.
+
+The passive historical display reuses that same mapping and reducer in Python. It reads only complete validated JSONL records, retains an interrupted final record as input status rather than evidence, and gives the browser a presentation-ready snapshot over loopback GET requests. The browser never pairs endpoints or infers freshness. At terminal completion the server compares the final last-event reduction with the accepted version-2 summary's mapped line state and supporting observation identifiers before exposing the completed viewer; disagreement remains visible and blocks handoff.
 
 ## Resource model
 

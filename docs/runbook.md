@@ -24,7 +24,7 @@ To run the staged-file guard locally, enable the repository hook:
 git config core.hooksPath hooks
 ```
 
-The hook is a convenience, not acceptance evidence. CI runs the complete-history check from a non-shallow checkout.
+The hook is a convenience, not acceptance evidence. On pushes and pull requests, CI runs `make test` with Python 3.11 and 3.14 on Linux and Python 3.14 on macOS; the Linux 3.11 job also runs the complete-history check from a non-shallow checkout.
 
 ## Prepare the laboratory
 

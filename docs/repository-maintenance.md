@@ -47,7 +47,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Completed |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
 | RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Not started |
-| RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Not started |
+| RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | In progress |
 | RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Not started |
 | RM-09 | Architecture debt | Introduce a scenario registry only when another composition needs the duplicated wiring | 3 | 3 | 4 | 12 | Two to four days | Deferred until triggered |
 
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** `Extract neutral passive HTTP transport` centralizes the four servers' common response model, deterministic JSON, method gating, HEAD handling, IPv4-loopback binding, threaded dispatch, security headers, UTF-8 content length, and selectable logging policy. The application adapters retain their concrete response identities, server headers, fixed routes, pages, snapshots, pending states, and errors.
+- **Last completed:** `Characterize NCC line-scenario launchers` locks the fault and loopback Make dry runs, public script paths, result-directory prefixes, duration overrides, shared forward interval, Python selection, positional arguments, usage text, and usage exit status.
 - **Selected:** RM-06, line-scenario lifecycle.
-- **Next action:** Characterize the exact common lifecycle and the fault-versus-loopback seams in `scripts/smoke-ncc-alternate-path.sh` and `scripts/smoke-ncc-line-loopback.sh`, add dry-run assertions for both public commands, then extract only their shared launch, readiness, evidence-capture, and cleanup mechanics into `scripts/lib/`.
+- **Next action:** Extract topology and input verification, port allocation, process launch and readiness, evidence capture, transport checks, and cleanup into `scripts/lib/`; keep the characterized scenario, instrument, evaluator, artifact, process, error, and pass-claim identities explicit in the two thin launchers.
 - **Blockers:** None.
-- **Last verification:** The focused passive-display suite passed 40 tests across the shared transport, all four application adapters, and the failover projection; `make test` passed 285 discovered tests with the expected sandbox socket skips.
+- **Last verification:** `python3 -m unittest tests.test_tools.NccConvenienceTargetTests -v` passed ten tests, including both new launcher-contract checks; both scripts continue to pass the repository-wide POSIX shell syntax test.
 
 ## Update protocol
 

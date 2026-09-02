@@ -76,6 +76,72 @@ class SourceVerifierTests(unittest.TestCase):
 
 
 class NccConvenienceTargetTests(unittest.TestCase):
+    def test_line_scenario_targets_keep_distinct_dry_run_commands(self) -> None:
+        cases = (
+            (
+                "smoke-ncc-alternate-path",
+                "NCC_ALTERNATE_DURATION=131",
+                "131",
+                "smoke-ncc-alternate-path.sh",
+                "ncc-alternate-path-fault-contract",
+            ),
+            (
+                "smoke-ncc-line-loopback",
+                "NCC_LOOPBACK_DURATION=132",
+                "132",
+                "smoke-ncc-line-loopback.sh",
+                "ncc-line-loopback-contract",
+            ),
+        )
+        for target, duration_override, duration, script, result_name in cases:
+            with self.subTest(target=target):
+                planned = run(
+                    "make",
+                    "-n",
+                    "LAB_ROOT=/tmp/line-scenario-lab",
+                    "ARPANET_ROOT=/tmp/line-scenario-arpanet",
+                    "H316_BIN=/tmp/line-scenario-h316",
+                    "RESULTS_ROOT=/tmp/line-scenario-results",
+                    "PYTHON=/tmp/line-scenario-python",
+                    "RUN_ID=contract",
+                    duration_override,
+                    "NCC_DIRECT_FORWARD_SECONDS=46",
+                    target,
+                    cwd=ROOT,
+                )
+
+                self.assertEqual(planned.returncode, 0, planned.stderr)
+                launch = next(
+                    line
+                    for line in planned.stdout.splitlines()
+                    if "BRFID_NCC_RECEIVER_DURATION" in line
+                )
+                self.assertEqual(
+                    launch,
+                    f'BRFID_NCC_RECEIVER_DURATION="{duration}" '
+                    'BRFID_DIRECT_FORWARD_SECONDS="46" '
+                    'PYTHON="/tmp/line-scenario-python" '
+                    f'./scripts/{script} '
+                    '"/tmp/line-scenario-arpanet" '
+                    '"/tmp/line-scenario-h316" '
+                    f'"/tmp/line-scenario-results/{result_name}"',
+                )
+
+    def test_line_scenario_launchers_keep_their_usage_contract(self) -> None:
+        for script_name in (
+            "smoke-ncc-alternate-path.sh",
+            "smoke-ncc-line-loopback.sh",
+        ):
+            script = SCRIPTS / script_name
+            with self.subTest(script=script_name):
+                invoked = run("sh", script, cwd=ROOT)
+
+                self.assertEqual(invoked.returncode, 64)
+                self.assertEqual(
+                    invoked.stderr,
+                    f"usage: {script} ARPANET_ROOT H316_BIN RESULTS_DIR\n",
+                )
+
     def test_view_watch_and_run_targets_delegate_to_supported_commands(self) -> None:
         view = run(
             "make",

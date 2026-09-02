@@ -92,6 +92,21 @@ def recorder(path: Path) -> InteractiveTelnetRecorder:
 
 
 class InteractiveControllerTests(unittest.TestCase):
+    def test_boot_display_is_line_stable_and_shows_elapsed_milestones(self) -> None:
+        ticks = iter((100.0, 101.9, 104.2))
+        output = StringIO()
+        display = CONTROLLER.BootDisplay(output, clock=lambda: next(ticks))
+
+        display.milestone("START", "IMP backbone", "launching two IMPs")
+        display.milestone("READY", "IMP backbone", "transports listening")
+
+        self.assertEqual(
+            output.getvalue(),
+            "  [  1s] START IMP backbone         launching two IMPs\n"
+            "  [  4s] READY IMP backbone         transports listening\n",
+        )
+        self.assertNotRegex(output.getvalue(), r"\x1b|\r")
+
     def test_accepts_prompt_framed_command_and_correlated_imp_traffic(self) -> None:
         self.assertEqual(
             CONTROLLER.interactive_evidence_failures(

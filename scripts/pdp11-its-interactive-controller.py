@@ -12,7 +12,7 @@ import signal
 import sys
 import time
 import traceback
-from typing import TextIO
+from typing import Callable, TextIO
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +46,27 @@ REMOTE_BANNER = re.compile(rb"MIT Dynamic[\s\S]*?Happy hacking!\r\n")
 
 class InteractiveSessionFailure(RuntimeError):
     """Raised after a failed command has been retained in the transcript."""
+
+
+class BootDisplay:
+    """Print stable elapsed boot milestones without terminal control codes."""
+
+    def __init__(
+        self,
+        output: TextIO,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.output = output
+        self.clock = clock
+        self.started = clock()
+
+    def milestone(self, state: str, component: str, detail: str) -> None:
+        elapsed = max(0, int(self.clock() - self.started))
+        self.output.write(
+            f"  [{elapsed:>3}s] {state:<5} {component:<20} {detail}\n"
+        )
+        self.output.flush()
 
 
 def parse_args() -> argparse.Namespace:
@@ -358,6 +379,7 @@ def run(args: argparse.Namespace) -> int:
     interrupted = False
     recorder: InteractiveTelnetRecorder | None = None
     transcript_terminal = False
+    display = BootDisplay(sys.stdout)
 
     def interrupt(_signum: int, _frame: object) -> None:
         nonlocal interrupted
@@ -369,17 +391,25 @@ def run(args: argparse.Namespace) -> int:
     old_term = signal.signal(signal.SIGTERM, interrupt)
     old_int = signal.signal(signal.SIGINT, interrupt)
     try:
-        print("Starting IMPs and historical hosts; this normally takes a few minutes.", flush=True)
+        display.milestone("START", "IMP backbone", "launching IMP 62 and IMP 6")
         imp6.launch()
         imp62.launch()
         SHARED.wait_for_log_marker(imp6, "listening on port", 30)
         SHARED.wait_for_log_marker(imp62, "listening on port", 30)
+        display.milestone("READY", "IMP backbone", "both H316 transports listening")
 
+        display.milestone(
+            "START", "Historical hosts", "launching PDP-11 and KA10 simulators"
+        )
         host106.launch(state="PROMPT")
         pdp11.launch(state="PROMPT")
         host106.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
+        display.milestone(
+            "READY", "Simulator consoles", "PDP-11 and KA10 attached"
+        )
 
+        display.milestone("WAIT", "IMP trunk", "bringing up IMP 62 <-> IMP 6")
         imp6_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
             imp6, modem_device=imp6_mi_device, timeout=60
         )
@@ -387,7 +417,9 @@ def run(args: argparse.Namespace) -> int:
             imp62, modem_device=imp62_mi_device, timeout=60
         )
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + args.route_settle
+        display.milestone("READY", "IMP trunk", "inter-IMP modem path up")
 
+        display.milestone("BOOT", "ITS 106", "starting KA10/ITS and local DDT")
         host106.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
@@ -396,12 +428,22 @@ def run(args: argparse.Namespace) -> int:
         host106.state = "BOOTING"
         host106.mark_running_after_banner()
         host106.enter_ddt_and_prove_local_time()
+        display.milestone("READY", "ITS 106", "DDT and local :TIME responsive")
 
+        display.milestone(
+            "BOOT", "Network UNIX 176", "starting PDP-11 and launching NCP"
+        )
         BASE.boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
         BASE.wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
+        display.milestone(
+            "READY", "Network UNIX 176", "guest booted; NCP daemon launched"
+        )
 
+        display.milestone(
+            "WAIT", "ARPANET route", "bringing up host links and settling routes"
+        )
         SHARED.wait_for_watchdog_devices_ready(
             imp6,
             modem_device=imp6_mi_device,
@@ -433,6 +475,9 @@ def run(args: argparse.Namespace) -> int:
             BASE.ensure_process_alive(host)
             if host.state != "RUNNING":
                 raise RuntimeError(f"{host.name} is not RUNNING before TELNET")
+        display.milestone(
+            "READY", "ARPANET route", "host 176 -> IMP 62 -> IMP 6 -> host 106"
+        )
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         pdp11_offset = pdp11.position()
@@ -445,7 +490,9 @@ def run(args: argparse.Namespace) -> int:
         ):
             SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
 
-        print("Opening the guest TELNET connection from host 176 to ITS host 106...", flush=True)
+        display.milestone(
+            "OPEN", "TELNET", "Network UNIX host 176 -> ITS host 106"
+        )
         pdp11.send("/usr/bin/telnet - -h 106\r")
         event, _ = pdp11.expect_any(
             (rb"Connection open", rb"Host is Unavailable"), timeout=60
@@ -475,10 +522,12 @@ def run(args: argparse.Namespace) -> int:
 
         connection_output = pdp11.output_from(pdp11_offset)
         banner = REMOTE_BANNER.search(connection_output)
-        print(
-            "\nConnected: Network UNIX host 176 -> IMP 62 -> IMP 6 -> ITS host 106"
+        display.milestone(
+            "READY", "TELNET", f"connected to ITS service job {service_user}"
         )
-        print(f"ITS service job: {service_user}")
+        print("\nSESSION READY")
+        print("  Network UNIX 176 -> IMP 62 -> IMP 6 -> ITS 106")
+        print(f"  ITS TELSER service job: {service_user}\n")
         if banner is not None:
             print(render_console_capture(banner.group(0)), end="")
         print("Type /help for local help or /quit to close cleanly.")
@@ -507,6 +556,9 @@ def run(args: argparse.Namespace) -> int:
         finally:
             recorder.close()
 
+        display.milestone(
+            "CHECK", "Evidence", "validating transcript and two-IMP traffic"
+        )
         transcript = read_interactive_telnet_stream(transcript_path)
         if (
             not transcript.is_terminal
@@ -584,7 +636,11 @@ def run(args: argparse.Namespace) -> int:
             evidence, encoding="ascii"
         )
         outcome = "passed"
-        print(f"\nSession retained at {results_dir}", flush=True)
+        display.milestone(
+            "READY",
+            "Evidence",
+            f"{transcript.completed_commands} command(s); traffic correlated both ways",
+        )
         return 0
     finally:
         if recorder is not None and not transcript_terminal:
@@ -596,8 +652,14 @@ def run(args: argparse.Namespace) -> int:
             except (InteractiveTelnetStreamError, OSError):
                 pass
             recorder.close()
+        display.milestone(
+            "STOP", "Simulators", "stopping owned PDP-11, KA10, and H316 processes"
+        )
         BASE.stop_and_record(results_dir, hosts, imps, force=interrupted)
         (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
+        display.milestone("DONE", "Cleanup", "all owned simulator processes stopped")
+        if outcome == "passed":
+            print(f"\nResult retained at {results_dir}", flush=True)
         signal.signal(signal.SIGTERM, old_term)
         signal.signal(signal.SIGINT, old_int)
 

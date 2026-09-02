@@ -34,6 +34,8 @@ TELNET_COMMAND_TIMEOUT ?= 60
 TELNET_MAX_COMMAND_BYTES ?= 256
 TELNET_MAX_COMMANDS ?= 100
 TELNET_MAX_RESPONSE_BYTES ?= 1048576
+TELNET_PREFLIGHT_VERBOSE ?= 0
+TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/null)
 
 .NOTPARALLEL:
 
@@ -141,8 +143,16 @@ smoke-ncc-pdp11-its-failover: verify-ncc-pdp11-its-failover
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_FAILOVER_DURATION)" BRFID_APPLICATION_RELAY_DURATION="$(NCC_APPLICATION_RELAY_DURATION)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its-failover.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_BUILD_ROOT)" "$(RESULTS_ROOT)/ncc-pdp11-its-application-failover-$(RUN_ID)"
 
 telnet:
-	$(MAKE) PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its
-	BRFID_TELNET_COMMAND_TIMEOUT="$(TELNET_COMMAND_TIMEOUT)" BRFID_TELNET_MAX_COMMAND_BYTES="$(TELNET_MAX_COMMAND_BYTES)" BRFID_TELNET_MAX_COMMANDS="$(TELNET_MAX_COMMANDS)" BRFID_TELNET_MAX_RESPONSE_BYTES="$(TELNET_MAX_RESPONSE_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-$(RUN_ID)"
+	@printf '\nARPANET REDUX // INTERACTIVE TELNET\n'
+	@printf '  [PDP-11] Network UNIX 176\n'
+	@printf '       |\n'
+	@printf '  [H316] IMP 62 ========= [H316] IMP 6\n'
+	@printf '                                  |\n'
+	@printf '                             [KA10] ITS 106 / TELSER\n\n'
+	@printf '  [preflight] verifying pinned sources, media, and simulators ...\n'
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT)
+	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
+	@BRFID_TELNET_COMMAND_TIMEOUT="$(TELNET_COMMAND_TIMEOUT)" BRFID_TELNET_MAX_COMMAND_BYTES="$(TELNET_MAX_COMMAND_BYTES)" BRFID_TELNET_MAX_COMMANDS="$(TELNET_MAX_COMMANDS)" BRFID_TELNET_MAX_RESPONSE_BYTES="$(TELNET_MAX_RESPONSE_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-$(RUN_ID)"
 
 run-ncc: smoke-ncc-pdp11-its
 	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"

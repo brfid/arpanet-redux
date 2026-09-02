@@ -132,10 +132,28 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertEqual(operated.returncode, 0, operated.stderr)
         self.assertIn("verify-pdp11-its", operated.stdout)
         self.assertIn('PDP11_BUILD_ROOT="/tmp/pdp11-build"', operated.stdout)
+        self.assertIn("ARPANET REDUX // INTERACTIVE TELNET", operated.stdout)
+        self.assertIn("Network UNIX 176", operated.stdout)
+        self.assertIn("detailed simulator output", operated.stdout)
         self.assertIn("scripts/telnet-pdp11-its.sh", operated.stdout)
         self.assertIn('BRFID_TELNET_COMMAND_TIMEOUT="45"', operated.stdout)
         self.assertIn('BRFID_TELNET_MAX_COMMANDS="12"', operated.stdout)
         self.assertIn("pdp11-its-interactive-interactive-demo", operated.stdout)
+
+        verbose = run(
+            "make",
+            "-n",
+            "RUN_ID=interactive-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "TELNET_PREFLIGHT_VERBOSE=1",
+            "telnet",
+            cwd=ROOT,
+        )
+        self.assertEqual(verbose.returncode, 0, verbose.stderr)
+        verify_line = next(
+            line for line in verbose.stdout.splitlines() if "verify-pdp11-its" in line
+        )
+        self.assertNotIn(">/dev/null", verify_line)
 
     def test_telnet_target_reuses_the_retained_receipt_bound_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:

@@ -73,7 +73,10 @@ def main() -> int:
             )
             continue
         if dirty:
-            failures.append(f"{source['name']}: tracked files are modified")
+            changed = ", ".join(line[3:] for line in dirty.splitlines())
+            failures.append(
+                f"{source['name']}: tracked files are modified: {changed}"
+            )
             continue
         print(f"{source['name']}: OK {actual}")
 

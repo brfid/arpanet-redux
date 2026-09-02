@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import os
 import signal
 import socket
@@ -35,6 +36,42 @@ class ShellSyntaxTests(unittest.TestCase):
             with self.subTest(path=path):
                 result = run("sh", "-n", path)
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class SourceVerifierTests(unittest.TestCase):
+    def test_dirty_source_failure_names_the_changed_paths(self) -> None:
+        module_path = SCRIPTS / "verify-sources.py"
+        spec = importlib.util.spec_from_file_location("verify_sources", module_path)
+        assert spec is not None and spec.loader is not None
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        with tempfile.TemporaryDirectory() as directory_name:
+            checkout = Path(directory_name) / "work" / "arpanet"
+            checkout.mkdir(parents=True)
+            arguments = mock.Mock()
+            arguments.lab_root = Path(directory_name)
+            arguments.name = ["arpanet-in-a-box"]
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(verifier, "parse_args", return_value=arguments),
+                mock.patch.object(
+                    verifier,
+                    "git_output",
+                    side_effect=[
+                        "78123c77b20dadd9b5967b184dbcb4195185eea6",
+                        " M mini/noc/__pycache__/__init__.pyc\n M mini/noc/__pycache__/config.pyc",
+                    ],
+                ),
+                mock.patch.object(verifier.sys, "stderr", stderr),
+            ):
+                status = verifier.main()
+
+        self.assertEqual(status, 1)
+        self.assertIn(
+            "tracked files are modified: mini/noc/__pycache__/__init__.pyc, "
+            "mini/noc/__pycache__/config.pyc",
+            stderr.getvalue(),
+        )
 
 
 class NccConvenienceTargetTests(unittest.TestCase):
@@ -194,6 +231,62 @@ class NccConvenienceTargetTests(unittest.TestCase):
                 f'"{retained}" "{results}/pdp11-its-terminal-interactive-demo"',
                 operated.stdout,
             )
+
+    def test_ncc_targets_reuse_the_retained_receipt_bound_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            results = Path(directory_name)
+            retained = results / "pdp11-telnet-option-fix-build-20260902T002513Z"
+            retained.mkdir()
+            (retained / "pdp11-build-receipt.json").write_text(
+                "{}\n", encoding="ascii"
+            )
+            for target in ("ncc", "ncc-failover"):
+                with self.subTest(target=target):
+                    operated = run(
+                        "make",
+                        "-n",
+                        f"RESULTS_ROOT={results}",
+                        "RUN_ID=operated-demo",
+                        target,
+                        cwd=ROOT,
+                    )
+
+                    self.assertEqual(operated.returncode, 0, operated.stderr)
+                    self.assertIn(
+                        f'PDP11_BUILD_ROOT="{retained}"', operated.stdout
+                    )
+                    self.assertIn(
+                        f'--pdp11-build-root "{retained}"', operated.stdout
+                    )
+
+    def test_default_lab_root_follows_the_primary_checkout(self) -> None:
+        common_directory = Path(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-C",
+                    os.fspath(ROOT),
+                    "rev-parse",
+                    "--path-format=absolute",
+                    "--git-common-dir",
+                ],
+                text=True,
+            ).strip()
+        )
+        expected_lab = common_directory.parent.parent / "arpanet-redux-lab"
+        operated = run(
+            "make",
+            "-n",
+            "RUN_ID=operated-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "ncc",
+            cwd=ROOT,
+        )
+
+        self.assertEqual(operated.returncode, 0, operated.stderr)
+        self.assertIn(
+            f'--arpanet-root "{expected_lab}/work/arpanet"', operated.stdout
+        )
 
 
 class NativeTemplateTests(unittest.TestCase):

@@ -160,14 +160,14 @@ A new laboratory must first create a verified PDP-11 build as described under [b
 
 ## Run the NCC operator console
 
-To run either formal application/NCC smoke beside the passive console in one terminal-owned session, use:
+With the standard sibling laboratory and its retained verified PDP-11 build, run either formal application/NCC smoke beside the passive console in one terminal-owned session with:
 
 ```sh
-make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" ncc
-make LAB_ROOT="$lab" RUN_ID=failover-watch-demo PDP11_BUILD_ROOT="$build_root" ncc-failover
+make ncc
+make ncc-failover
 ```
 
-Open the printed loopback URL. Both commands use the same mid-1970s-style operator console and show the existing progressive historical projection while the result grows. The IMP REPORTS and directional line banks identify source IMPs in a 64-position annunciator; AUTO selects the highest-priority observed condition. Once terminal validation passes, the explicitly modern RUN PROOF bank shows the supported application, journey, failover, and cleanup conclusions. There is no separate report route. Failover still requires the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup, and it never uses candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. Bank selection and alarm acknowledgement affect only the page; the browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
+Open the printed loopback URL. The convenience targets locate the laboratory beside the primary checkout even when invoked from a dedicated Git worktree, and reuse the retained receipt-bound build selected for the historical terminal. Set `LAB_ROOT`, `RUN_ID`, or `NCC_PDP11_BUILD_ROOT` explicitly for another laboratory, result identity, or verified build. Both commands use the same mid-1970s-style operator console and show the existing progressive historical projection while the result grows. The IMP REPORTS and directional line banks identify source IMPs in a 64-position annunciator; AUTO selects the highest-priority observed condition. Once terminal validation passes, the explicitly modern RUN PROOF bank shows the supported application, journey, failover, and cleanup conclusions. There is no separate report route. Failover still requires the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup, and it never uses candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. Bank selection and alarm acknowledgement affect only the page; the browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
 
 To run and watch in separate terminals, use:
 

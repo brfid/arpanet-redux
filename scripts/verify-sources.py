@@ -14,7 +14,7 @@ def git_output(checkout: Path, *args: str) -> str:
         ["git", "-C", str(checkout), *args],
         stderr=subprocess.STDOUT,
         text=True,
-    ).strip()
+    ).rstrip()
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,12 +55,15 @@ def main() -> int:
             continue
         try:
             actual = git_output(checkout, "rev-parse", "HEAD")
+            # Nested checkouts have their own exact lock rows and can intentionally
+            # differ from a parent repository's historical gitlink. Their own rows
+            # supply the replacement revision and tracked-state evidence.
             dirty = git_output(
                 checkout,
                 "status",
                 "--porcelain",
                 "--untracked-files=no",
-                "--ignore-submodules=dirty",
+                "--ignore-submodules=all",
             )
         except subprocess.CalledProcessError as error:
             details = error.output.strip() or f"git exited {error.returncode}"

@@ -1,15 +1,21 @@
+.DEFAULT_GOAL := help
+
 REPOSITORY_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 GIT_COMMON_DIR := $(shell git -C "$(REPOSITORY_ROOT)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 PRIMARY_CHECKOUT_ROOT := $(if $(GIT_COMMON_DIR),$(abspath $(GIT_COMMON_DIR)/..),$(REPOSITORY_ROOT))
 LAB_ROOT ?= $(abspath $(PRIMARY_CHECKOUT_ROOT)/../arpanet-redux-lab)
-PYTHON ?= python3
+BOOTSTRAP_PYTHON ?= python3
+LAB_PYTHON ?= $(LAB_ROOT)/.venv/bin/python3
+PYTHON ?= $(if $(wildcard $(LAB_PYTHON)),$(LAB_PYTHON),python3)
 ARPANET_ROOT ?= $(LAB_ROOT)/work/arpanet
 LINUX_NCP_ROOT ?= $(ARPANET_ROOT)/src/linux-ncp
 ITS_ROOT ?= $(LAB_ROOT)/work/its-readdress-src
 NETWORK_UNIX_ROOT ?= $(LAB_ROOT)/work/network-unix-v6
 IMP11A_ROOT ?= $(LAB_ROOT)/work/open-simh
-H316_BIN ?= $(LINUX_NCP_ROOT)/test/simh/BIN/h316
-PDP10_KA_BIN ?= $(LAB_ROOT)/work/ka10-simh/BIN/pdp10-ka
+H316_ROOT ?= $(LINUX_NCP_ROOT)/test/simh
+KA10_ROOT ?= $(LAB_ROOT)/work/ka10-simh
+H316_BIN ?= $(H316_ROOT)/BIN/h316
+PDP10_KA_BIN ?= $(KA10_ROOT)/BIN/pdp10-ka
 PDP11_BIN ?= $(IMP11A_ROOT)/BIN/pdp11
 RESULTS_ROOT ?= $(LAB_ROOT)/results
 NCP_BUILD_RECEIPT ?= $(LINUX_NCP_ROOT)/.brfid-build-receipt.json
@@ -21,9 +27,13 @@ PDP11_BASE_ROOT ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_root.rl01
 PDP11_BASE_SWAP ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_swap.rl01
 PDP11_BUILD_ROOT ?= $(RESULTS_ROOT)/pdp11-telnet-build-$(RUN_ID)
 PDP11_BUILD_RECEIPT ?= $(PDP11_BUILD_ROOT)/pdp11-build-receipt.json
-PDP11_RETAINED_BUILD_ROOT ?= $(if $(filter file,$(origin PDP11_BUILD_ROOT)),$(if $(wildcard $(RESULTS_ROOT)/pdp11-telnet-option-fix-build-20260902T002513Z/pdp11-build-receipt.json),$(RESULTS_ROOT)/pdp11-telnet-option-fix-build-20260902T002513Z,$(PDP11_BUILD_ROOT)),$(PDP11_BUILD_ROOT))
+PDP11_SELECTED_BUILD_ROOT := $(shell "$(PYTHON)" "$(REPOSITORY_ROOT)/scripts/lab-state.py" resolve "$(LAB_ROOT)" pdp11-build --results-root "$(RESULTS_ROOT)" 2>/dev/null)
+PDP11_RETAINED_BUILD_ROOT ?= $(if $(filter file,$(origin PDP11_BUILD_ROOT)),$(if $(PDP11_SELECTED_BUILD_ROOT),$(PDP11_SELECTED_BUILD_ROOT),$(PDP11_BUILD_ROOT)),$(PDP11_BUILD_ROOT))
+PDP11_DOCTOR_BUILD_ARGUMENT = $(if $(filter file,$(origin PDP11_BUILD_ROOT)),,--pdp11-build-root "$(PDP11_BUILD_ROOT)")
 PDP11_INTERACTIVE_BUILD_ROOT ?= $(PDP11_RETAINED_BUILD_ROOT)
 NCC_PDP11_BUILD_ROOT ?= $(PDP11_RETAINED_BUILD_ROOT)
+PDP11_BASE_SOURCE_ROOT ?=
+PDP11_BASE_SOURCE_SWAP ?=
 NCC_ALTERNATE_DURATION ?= 130
 NCC_LOOPBACK_DURATION ?= 130
 NCC_PDP11_ITS_DURATION ?= 150
@@ -47,7 +57,38 @@ TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/
 
 .NOTPARALLEL:
 
-.PHONY: check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+.PHONY: help lab-setup lab-setup-plan doctor install-pdp11-base select-pdp11-build check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+
+help:
+	@printf 'ARPANET Redux\n\n'
+	@printf 'First clone / diagnose:\n'
+	@printf '  make test              source-only checks (no external downloads)\n'
+	@printf '  make lab-setup         fetch pinned runtime sources and build host tools\n'
+	@printf '  make doctor            report readiness and exact next actions\n\n'
+	@printf 'Prepare user-supplied historical media:\n'
+	@printf '  make install-pdp11-base PDP11_BASE_SOURCE_ROOT=/path/root.rl01 PDP11_BASE_SOURCE_SWAP=/path/swap.rl01\n'
+	@printf '  make build-pdp11-telnet build and select receipt-bound guest media\n\n'
+	@printf 'Start:\n'
+	@printf '  make telnet            foreground historical Network UNIX terminal\n'
+	@printf '  make ncc               live passive NCC operator console\n'
+	@printf '  make ncc-failover      live console with application-link failover\n\n'
+	@printf 'See docs/getting-started.md; override LAB_ROOT=/absolute/path when needed.\n'
+
+lab-setup:
+	$(BOOTSTRAP_PYTHON) ./scripts/lab-setup.py "$(LAB_ROOT)"
+
+lab-setup-plan:
+	$(BOOTSTRAP_PYTHON) ./scripts/lab-setup.py "$(LAB_ROOT)" --plan
+
+doctor:
+	$(PYTHON) ./scripts/lab-doctor.py "$(LAB_ROOT)" --python "$(PYTHON)" --arpanet-root "$(ARPANET_ROOT)" --linux-ncp-root "$(LINUX_NCP_ROOT)" --h316-root "$(H316_ROOT)" --ka10-root "$(KA10_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --base-root "$(PDP11_BASE_ROOT)" --base-swap "$(PDP11_BASE_SWAP)" --results-root "$(RESULTS_ROOT)" $(PDP11_DOCTOR_BUILD_ARGUMENT)
+
+install-pdp11-base:
+	@test -n "$(PDP11_BASE_SOURCE_ROOT)" -a -n "$(PDP11_BASE_SOURCE_SWAP)" || { printf '%s\n' 'Set PDP11_BASE_SOURCE_ROOT and PDP11_BASE_SOURCE_SWAP to your user-supplied images.' >&2; exit 64; }
+	$(BOOTSTRAP_PYTHON) ./scripts/install-pdp11-base.py "$(LAB_ROOT)" "$(PDP11_BASE_SOURCE_ROOT)" "$(PDP11_BASE_SOURCE_SWAP)"
+
+select-pdp11-build:
+	$(PYTHON) ./scripts/lab-state.py select "$(LAB_ROOT)" pdp11-build "$(PDP11_BUILD_ROOT)"
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -87,6 +128,7 @@ verify-pdp11-source:
 
 build-pdp11-telnet: verify-pdp11-source
 	PYTHON="$(PYTHON)" ./scripts/build-pdp11-telnet.sh "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(PDP11_BIN)" "$(PDP11_BASE_ROOT)" "$(PDP11_BASE_SWAP)" "$(PDP11_BUILD_ROOT)"
+	$(PYTHON) ./scripts/lab-state.py select "$(LAB_ROOT)" pdp11-build "$(PDP11_BUILD_ROOT)"
 
 verify: build-ncp
 	./scripts/verify-sources.py "$(LAB_ROOT)"
@@ -158,7 +200,7 @@ telnet:
 	@printf '                                  |\n'
 	@printf '                             [KA10] ITS 106 / TELSER\n\n'
 	@printf '  [preflight] verifying pinned sources, media, and simulators ...\n'
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT)
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory doctor || true; exit $$status; }
 	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
 	@BRFID_TELNET_MODE=terminal BRFID_TELNET_MAX_INPUT_BYTES="$(TELNET_MAX_INPUT_BYTES)" BRFID_TELNET_MAX_OUTPUT_BYTES="$(TELNET_MAX_OUTPUT_BYTES)" BRFID_TELNET_MAX_CHUNK_BYTES="$(TELNET_MAX_CHUNK_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-terminal-$(RUN_ID)"
 
@@ -170,7 +212,7 @@ telnet-check:
 	@printf '                                  |\n'
 	@printf '                             [KA10] ITS 106 / TELSER\n\n'
 	@printf '  [preflight] verifying pinned sources, media, and simulators ...\n'
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT)
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory doctor || true; exit $$status; }
 	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
 	@BRFID_TELNET_MODE=line BRFID_TELNET_COMMAND_TIMEOUT="$(TELNET_COMMAND_TIMEOUT)" BRFID_TELNET_MAX_COMMAND_BYTES="$(TELNET_MAX_COMMAND_BYTES)" BRFID_TELNET_MAX_COMMANDS="$(TELNET_MAX_COMMANDS)" BRFID_TELNET_MAX_RESPONSE_BYTES="$(TELNET_MAX_RESPONSE_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-$(RUN_ID)"
 

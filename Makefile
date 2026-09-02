@@ -41,8 +41,10 @@ NCC_PDP11_ITS_FAILOVER_DURATION ?= 300
 NCC_APPLICATION_RELAY_DURATION ?= 420
 NCC_DIRECT_FORWARD_SECONDS ?= 45
 NCC_LAB_ROOT ?= $(LAB_ROOT)
-NCC_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-coexistence-canonical-20260901T153758Z
-NCC_FAILOVER_RESULT ?= $(NCC_LAB_ROOT)/results/ncc-pdp11-its-application-failover-canonical-20260901T204637Z
+NCC_SELECTED_RESULT := $(shell "$(PYTHON)" "$(REPOSITORY_ROOT)/scripts/lab-state.py" resolve "$(NCC_LAB_ROOT)" ncc-coexistence --results-root "$(RESULTS_ROOT)" 2>/dev/null)
+NCC_SELECTED_FAILOVER_RESULT := $(shell "$(PYTHON)" "$(REPOSITORY_ROOT)/scripts/lab-state.py" resolve "$(NCC_LAB_ROOT)" ncc-failover --results-root "$(RESULTS_ROOT)" 2>/dev/null)
+NCC_RESULT ?= $(NCC_SELECTED_RESULT)
+NCC_FAILOVER_RESULT ?= $(NCC_SELECTED_FAILOVER_RESULT)
 NCC_VIEW_PORT ?= 8767
 NCC_WATCH_PORT ?= 8765
 TELNET_COMMAND_TIMEOUT ?= 60
@@ -57,7 +59,7 @@ TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/
 
 .NOTPARALLEL:
 
-.PHONY: help lab-setup lab-setup-plan doctor install-pdp11-base select-pdp11-build check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+.PHONY: help lab-setup lab-setup-plan doctor install-pdp11-base select-pdp11-build select-ncc-result select-ncc-failover-result check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
 
 help:
 	@printf 'ARPANET Redux\n\n'
@@ -72,6 +74,9 @@ help:
 	@printf '  make telnet            foreground historical Network UNIX terminal\n'
 	@printf '  make ncc               live passive NCC operator console\n'
 	@printf '  make ncc-failover      live console with application-link failover\n\n'
+	@printf 'Replay:\n'
+	@printf '  make view-ncc          newest selected passing coexistence result\n'
+	@printf '  make view-ncc-failover newest selected passing failover result\n\n'
 	@printf 'See docs/getting-started.md; override LAB_ROOT=/absolute/path when needed.\n'
 
 lab-setup:
@@ -89,6 +94,12 @@ install-pdp11-base:
 
 select-pdp11-build:
 	$(PYTHON) ./scripts/lab-state.py select "$(LAB_ROOT)" pdp11-build "$(PDP11_BUILD_ROOT)"
+
+select-ncc-result:
+	$(PYTHON) ./scripts/lab-state.py select "$(NCC_LAB_ROOT)" ncc-coexistence "$(NCC_RESULT)"
+
+select-ncc-failover-result:
+	$(PYTHON) ./scripts/lab-state.py select "$(NCC_LAB_ROOT)" ncc-failover "$(NCC_FAILOVER_RESULT)"
 
 check-source-only:
 	./scripts/check-source-only.py
@@ -200,7 +211,7 @@ telnet:
 	@printf '                                  |\n'
 	@printf '                             [KA10] ITS 106 / TELSER\n\n'
 	@printf '  [preflight] verifying pinned sources, media, and simulators ...\n'
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory doctor || true; exit $$status; }
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" doctor || true; exit $$status; }
 	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
 	@BRFID_TELNET_MODE=terminal BRFID_TELNET_MAX_INPUT_BYTES="$(TELNET_MAX_INPUT_BYTES)" BRFID_TELNET_MAX_OUTPUT_BYTES="$(TELNET_MAX_OUTPUT_BYTES)" BRFID_TELNET_MAX_CHUNK_BYTES="$(TELNET_MAX_CHUNK_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-terminal-$(RUN_ID)"
 
@@ -212,26 +223,32 @@ telnet-check:
 	@printf '                                  |\n'
 	@printf '                             [KA10] ITS 106 / TELSER\n\n'
 	@printf '  [preflight] verifying pinned sources, media, and simulators ...\n'
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory doctor || true; exit $$status; }
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" doctor || true; exit $$status; }
 	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
 	@BRFID_TELNET_MODE=line BRFID_TELNET_COMMAND_TIMEOUT="$(TELNET_COMMAND_TIMEOUT)" BRFID_TELNET_MAX_COMMAND_BYTES="$(TELNET_MAX_COMMAND_BYTES)" BRFID_TELNET_MAX_COMMANDS="$(TELNET_MAX_COMMANDS)" BRFID_TELNET_MAX_RESPONSE_BYTES="$(TELNET_MAX_RESPONSE_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-$(RUN_ID)"
 
 run-ncc: smoke-ncc-pdp11-its
+	@$(PYTHON) ./scripts/lab-state.py select "$(NCC_LAB_ROOT)" ncc-coexistence "$(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
 	@echo "Completed NCC result: $(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
 
 ncc:
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" verify-ncc-pdp11-its
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" verify-ncc-pdp11-its || { status=$$?; printf '\nNCC preflight is not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" doctor || true; exit $$status; }
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_DURATION)" $(PYTHON) ./scripts/ncc-operate-pdp11-its.py --arpanet-root "$(ARPANET_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --pdp11-build-root "$(NCC_PDP11_BUILD_ROOT)" --results-root "$(RESULTS_ROOT)" --run-id "$(RUN_ID)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
+	@$(PYTHON) ./scripts/lab-state.py select "$(NCC_LAB_ROOT)" ncc-coexistence "$(RESULTS_ROOT)/ncc-pdp11-its-coexistence-$(RUN_ID)"
 
 ncc-failover:
-	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" verify-ncc-pdp11-its-failover
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" verify-ncc-pdp11-its-failover || { status=$$?; printf '\nNCC preflight is not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(NCC_PDP11_BUILD_ROOT)" doctor || true; exit $$status; }
 	BRFID_NCC_RECEIVER_DURATION="$(NCC_PDP11_ITS_FAILOVER_DURATION)" BRFID_APPLICATION_RELAY_DURATION="$(NCC_APPLICATION_RELAY_DURATION)" $(PYTHON) ./scripts/ncc-operate-pdp11-its.py --scenario failover --arpanet-root "$(ARPANET_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --pdp11-build-root "$(NCC_PDP11_BUILD_ROOT)" --results-root "$(RESULTS_ROOT)" --run-id "$(RUN_ID)" --topology config/topologies/ncc-pdp11-its-application-failover.json --port "$(NCC_WATCH_PORT)"
+	@$(PYTHON) ./scripts/lab-state.py select "$(NCC_LAB_ROOT)" ncc-failover "$(RESULTS_ROOT)/ncc-pdp11-its-application-failover-$(RUN_ID)"
 
 watch-ncc:
+	@test -n "$(NCC_RESULT)" || { printf '%s\n' 'No NCC result was selected. Set NCC_RESULT to the named growing result.' >&2; exit 66; }
 	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_WATCH_PORT)"
 
 view-ncc:
-	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)"
+	@test -n "$(NCC_RESULT)" || { printf '%s\n' 'No passing coexistence result is available. Run `make ncc` first or set NCC_RESULT.' >&2; exit 66; }
+	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_RESULT)" --topology config/topologies/ncc-pdp11-its-coexistence.json --port "$(NCC_VIEW_PORT)" --require-existing
 
 view-ncc-failover:
-	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_FAILOVER_RESULT)" --topology config/topologies/ncc-pdp11-its-application-failover.json --port "$(NCC_VIEW_PORT)"
+	@test -n "$(NCC_FAILOVER_RESULT)" || { printf '%s\n' 'No passing failover result is available. Run `make ncc-failover` first or set NCC_FAILOVER_RESULT.' >&2; exit 66; }
+	$(PYTHON) ./scripts/ncc-serve-board.py "$(NCC_FAILOVER_RESULT)" --topology config/topologies/ncc-pdp11-its-application-failover.json --port "$(NCC_VIEW_PORT)" --require-existing

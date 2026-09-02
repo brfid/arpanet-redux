@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -465,6 +466,25 @@ class CoexistenceDisplayTests(unittest.TestCase):
                 "message-journey digest does not match",
             ):
                 CoexistenceDisplay(fixture.result, TOPOLOGY)
+
+    def test_exact_topology_identity_survives_checkout_relocation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            root = Path(directory_name)
+            fixture = CoexistenceFixture(root)
+            relocated = root / "other-checkout" / "config" / "topologies" / TOPOLOGY.name
+            relocated.parent.mkdir(parents=True)
+            shutil.copyfile(TOPOLOGY, relocated)
+
+            snapshot = CoexistenceDisplay(fixture.result, relocated).snapshot().to_dict()
+
+            self.assertEqual(snapshot["application"]["state"], "passed")
+            wrong_name = relocated.with_name("other-topology.json")
+            shutil.copyfile(TOPOLOGY, wrong_name)
+            with self.assertRaisesRegex(
+                CoexistenceDisplayError,
+                "topology filename",
+            ):
+                CoexistenceDisplay(fixture.result, wrong_name)
 
     def test_loopback_application_accepts_only_get_and_head(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:

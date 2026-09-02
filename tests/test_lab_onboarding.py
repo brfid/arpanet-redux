@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -72,6 +73,57 @@ class LabStateTests(unittest.TestCase):
                 state.write_selection(lab, "pdp11-build", invalid)
 
             self.assertFalse((lab / "state" / "pdp11-build").exists())
+
+    def test_ncc_discovery_selects_only_a_completed_passing_result(self) -> None:
+        state = load_script("lab-state.py")
+        with tempfile.TemporaryDirectory() as directory_name:
+            lab = Path(directory_name)
+            valid = lab / "results" / "ncc-pdp11-its-coexistence-valid"
+            partial = lab / "results" / "ncc-pdp11-its-coexistence-partial"
+            for result in (valid, partial):
+                result.mkdir(parents=True)
+                (result / "verdict.json").write_text(
+                    json.dumps(
+                        {
+                            "kind": "ncc-pdp11-its-coexistence-verdict",
+                            "passed": True,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            (valid / "outcome.txt").write_text("passed\n", encoding="ascii")
+            os.utime(valid, ns=(1, 1))
+            os.utime(partial, ns=(2, 2))
+
+            discovered = state.discover_artifact(
+                lab / "results", "ncc-coexistence"
+            )
+
+            self.assertEqual(discovered, valid)
+            self.assertEqual(
+                state.write_selection(lab, "ncc-coexistence", valid),
+                valid.resolve(),
+            )
+
+    def test_ncc_selection_rejects_the_other_scenario_kind(self) -> None:
+        state = load_script("lab-state.py")
+        with tempfile.TemporaryDirectory() as directory_name:
+            lab = Path(directory_name)
+            result = lab / "results" / "ncc-pdp11-its-coexistence-wrong"
+            result.mkdir(parents=True)
+            (result / "verdict.json").write_text(
+                json.dumps(
+                    {
+                        "kind": "ncc-pdp11-its-application-failover-verdict",
+                        "passed": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (result / "outcome.txt").write_text("passed\n", encoding="ascii")
+
+            with self.assertRaisesRegex(ValueError, "completed passing result"):
+                state.write_selection(lab, "ncc-coexistence", result)
 
 
 class BaseMediaInstallerTests(unittest.TestCase):

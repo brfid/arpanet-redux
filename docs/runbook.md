@@ -2,7 +2,7 @@
 
 ## Scope
 
-Use this runbook to check the source tree, run supported compositions in an existing external laboratory, and inspect retained results. Make targets are the supported operator surface; the standalone scripts documented under [read-only diagnostics](#use-read-only-diagnostics) are the supported inspection surface. This runbook does not acquire historical assets or bootstrap the laboratory. Several inputs have unresolved redistribution terms, so obtain and build them under their own instructions and terms.
+Use this runbook to check the source tree, prepare or verify an external laboratory, run supported compositions, and inspect retained results. Make targets are the supported operator surface; the standalone scripts documented under [read-only diagnostics](#use-read-only-diagnostics) are the supported inspection surface. The [fresh-clone guide](getting-started.md) is the shortest path to TELNET or NCC. Several inputs have unresolved redistribution terms, so the setup helper fetches source only from its recorded upstream URLs and requires the operator to supply the exact PDP-11 base media separately.
 
 ## Run source checks
 
@@ -26,7 +26,7 @@ git config core.hooksPath hooks
 
 The hook is a convenience, not acceptance evidence. CI runs the complete-history check from a non-shallow checkout.
 
-## Prepare an existing laboratory
+## Prepare the laboratory
 
 Keep historical and generated material outside the repository. The default layout is:
 
@@ -40,6 +40,15 @@ parent/
 
 Pass `LAB_ROOT=/absolute/path` to use another location. The laboratory must contain the sources and submodules named in [`pins/sources.lock.toml`](../pins/sources.lock.toml) at the recorded revisions and the assets identified by [`pins/arpanet-assets.sha256`](../pins/arpanet-assets.sha256).
 
+For a fresh lab, fetch the runtime source subset, create the pinned Python environment, and build all three required simulators with:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab lab-setup
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab doctor
+```
+
+`make lab-setup-plan` describes those writes without performing them. Setup is idempotent for exact clean checkouts and refuses dirty or unrelated directories. It does not acquire the prepared Network UNIX base images; follow the [base-media step](getting-started.md#supply-the-pdp-11-base-media), then rerun the doctor.
+
 Supported smokes require the appropriate subset of these external inputs:
 
 - a native H316 simulator built from the pinned source;
@@ -48,7 +57,7 @@ Supported smokes require the appropriate subset of these external inputs:
 - a native PDP-11 simulator built from the pinned IMP11-A fork;
 - recovered IMP firmware, the generic IMP configuration, and prepared guest media.
 
-Source-only tests and formal controllers use the Python standard library. Rebuilding the PDP-11 guest media invokes retained research builders that require `pexpect`; pass an isolated interpreter as `PYTHON=/absolute/path/to/venv/bin/python3` for that build.
+Source-only tests and formal controllers use the Python standard library. Rebuilding the PDP-11 guest media invokes retained research builders that require the versions of `pexpect` and `ptyprocess` pinned in [`requirements-lab.txt`](../requirements-lab.txt). `make lab-setup` installs them in `$LAB_ROOT/.venv`, and Make selects that interpreter automatically; an explicit `PYTHON=/absolute/path/to/venv/bin/python3` remains supported.
 
 ## Verify inputs
 
@@ -70,14 +79,20 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-its
 
 The target performs the pinned build and a no-op rebuild under one lease, verifies clean source and recursive submodules, and hashes the five promoted runtime files. The smoke verifies the receipt and boots independent media copies.
 
-For PDP-11 compositions, use one new external build directory for both the build and later smokes:
+For PDP-11 compositions, the convenient path creates one new external build directory, verifies its receipt, and selects it for later TELNET and NCC invocations:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-pdp11-telnet
+```
+
+To control the result name explicitly, use one new directory for both the build and later smokes:
 
 ```sh
 build_root=/absolute/path/to/arpanet-redux-lab/results/pdp11-telnet-build-UNIQUE-ID
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab PYTHON=/absolute/path/to/venv/bin/python3 PDP11_BUILD_ROOT="$build_root" build-pdp11-telnet
 ```
 
-The build directory is never overwritten. Its receipt binds the base media, staged TELNET and daemon sources, intermediate and final media, build logs, builder hashes, source revisions, and PDP-11 executable identity. Override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` if the laboratory does not use the default images under `work/unix-v6-install/images/`.
+The build directory is never overwritten. Its receipt binds the base media, staged TELNET and daemon sources, intermediate and final media, build logs, builder hashes, source revisions, and PDP-11 executable identity. Override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` if the laboratory does not use the default images under `work/unix-v6-install/images/`. A successful build records its stable external selection under `$LAB_ROOT/state`; select another retained receipt with `make LAB_ROOT="$lab" PDP11_BUILD_ROOT="$build_root" select-pdp11-build`.
 
 ## Run integration smokes
 
@@ -146,7 +161,7 @@ The controller owns standard input and every simulator PTY but does not parse or
 
 Each run retains and reads back a strict `terminal-session.jsonl` with exact directional bytes, local safety decisions, cumulative digests, finite limits, and terminal reason. A run that exits before connecting remains a valid terminal lifecycle but records `connection_open=0` and makes no application claim. When a connection opens, the controller requires the no-argument historical client interface, ordered ITS greeting, TELSER job, correlated traffic through both IMPs, stable selected links, and cleanup. `TELNET_MAX_INPUT_BYTES`, `TELNET_MAX_OUTPUT_BYTES`, and `TELNET_MAX_CHUNK_BYTES` are diagnostic limit overrides.
 
-The standard laboratory default selects receipt-bound build `pdp11-telnet-option-fix-build-20260902T002513Z`. Its staged guest source repairs the preserved client's missing `break` after a valid `DONT` negotiation, so the ITS greeting is no longer interrupted by the false `Possible protocol error! command = 376, option = 3.` diagnostic. Explicit older builds remain valid historical evidence and may still print that nonfatal message.
+Make uses the explicitly selected receipt-bound build, or discovers the newest directory containing a receipt when no selection exists. The current builder's staged guest source repairs the preserved client's missing `break` after a valid `DONT` negotiation, so the ITS greeting is no longer interrupted by the false `Possible protocol error! command = 376, option = 3.` diagnostic. Explicit older builds remain valid historical evidence and may still print that nonfatal message.
 
 The deterministic line-oriented proof remains separately available:
 
@@ -156,7 +171,7 @@ make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_r
 
 `make telnet-check` automatically invokes `/usr/bin/telnet - -h 106`, presents the synthetic local `its>` line prompt after connection, and retains the strict ADR-014 `interactive-telnet.jsonl` command/result stream. Enter a prompt-returning command such as `:TIME`; use `/help` for local instructions and `/quit` after at least one command completes. `TELNET_COMMAND_TIMEOUT`, `TELNET_MAX_COMMAND_BYTES`, `TELNET_MAX_COMMANDS`, and `TELNET_MAX_RESPONSE_BYTES` apply only to this deterministic mode.
 
-A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media), then pass that directory as `PDP11_INTERACTIVE_BUILD_ROOT`. Human mode supports character-at-a-time seven-bit teletype interaction and asynchronous output, but it does not yet claim a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
+A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media); the successful build is selected automatically. Pass another directory as `PDP11_INTERACTIVE_BUILD_ROOT` for a one-off run. Human mode supports character-at-a-time seven-bit teletype interaction and asynchronous output, but it does not yet claim a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
 
 ## Run the NCC operator console
 
@@ -169,6 +184,8 @@ make ncc-failover
 
 Open the printed loopback URL. The convenience targets locate the laboratory beside the primary checkout even when invoked from a dedicated Git worktree, and reuse the retained receipt-bound build selected for the historical terminal. Set `LAB_ROOT`, `RUN_ID`, or `NCC_PDP11_BUILD_ROOT` explicitly for another laboratory, result identity, or verified build. Both commands use the same mid-1970s-style operator console and show the existing progressive historical projection while the result grows. The IMP REPORTS and directional line banks identify source IMPs in a 64-position annunciator; AUTO selects the highest-priority observed condition. Once terminal validation passes, the explicitly modern RUN PROOF bank shows the supported application, journey, failover, and cleanup conclusions. There is no separate report route. Failover still requires the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup, and it never uses candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. Bank selection and alarm acknowledgement affect only the page; the browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
 
+When a scenario completes and the operator closes its console, Make validates and selects that immutable result for replay. An interrupted or failed scenario is never selected.
+
 To run and watch in separate terminals, use:
 
 ```sh
@@ -176,7 +193,7 @@ make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" run-ncc
 make NCC_RESULT="$lab/results/ncc-pdp11-its-coexistence-watch-demo" watch-ncc
 ```
 
-To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Both open the same console with different validated result adapters. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed. Interactive TELNET remains a separate foreground terminal surface; the console does not send input or own that controller.
+To inspect a retained result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Each target uses the stable external selection, or discovers the newest completed passing result when no selection exists, and fails immediately when a fresh lab has nothing to replay. Both open the same console with different validated result adapters. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed; persist an explicit result with `make NCC_RESULT=/absolute/result select-ncc-result` or `make NCC_FAILOVER_RESULT=/absolute/result select-ncc-failover-result`. Interactive TELNET remains a separate foreground terminal surface; the console does not send input or own that controller.
 
 ## Read a result
 

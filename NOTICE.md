@@ -1,6 +1,8 @@
 # Asset, provenance, and licensing notice
 
-This repository intentionally excludes third-party source checkouts, disk images, recovered IMP firmware, simulator binaries, generated media, and raw run logs. Source locations and exact revisions are recorded in [`pins/sources.lock.toml`](pins/sources.lock.toml), while known external asset identities are recorded in [`pins/arpanet-assets.sha256`](pins/arpanet-assets.sha256).
+This repository intentionally excludes third-party source checkouts, disk images, recovered IMP firmware, simulator binaries, generated media, and raw run logs. Source locations and exact revisions are recorded in [`pins/sources.lock.toml`](pins/sources.lock.toml), while known external asset identities are recorded in [`pins/arpanet-assets.sha256`](pins/arpanet-assets.sha256) and [`pins/pdp11-base-assets.sha256`](pins/pdp11-base-assets.sha256).
+
+`make lab-setup` is an opt-in acquisition helper, not a redistribution mechanism. It clones the runtime source subset directly from the public upstream URLs in the lock file into the operator's external laboratory, selects exact commits, and builds local simulator executables. `make install-pdp11-base` accepts only an operator-supplied exact image pair and writes it outside the repository. Neither command grants permission to share what it obtains or produces.
 
 The tested ARPANET in a Box revision has no bundle-wide root license, and its prepared assets do not share one clearly stated redistribution grant. The tested `linux-ncp` revision has no root license file. PDP-10/ITS uses mixed, file-scoped terms. SRI/NOSC Network UNIX V6 and its NOSC overlay also lack a root license that can safely be assumed to cover every included file. These are conservative engineering release boundaries, not legal conclusions.
 

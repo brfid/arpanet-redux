@@ -6,9 +6,9 @@ This repository contains source-only orchestration, project-authored simulator c
 
 The project promotes bounded, reproducible compositions. It does not claim to reconstruct the complete ARPANET or identify configured IMPs as historical sites.
 
-## Run source checks
+## Quick start
 
-Install Git, Make, Python 3.11 or newer, and standard POSIX shell tools. Then run:
+Install Git, Make, Python 3.11 or newer, a C compiler, and standard POSIX shell tools. Then run:
 
 ```sh
 git clone https://github.com/brfid/arpanet-redux.git
@@ -17,6 +17,15 @@ make test
 ```
 
 This command downloads no historical software and starts no simulator. To use an existing external laboratory, follow the [runbook](docs/runbook.md).
+
+For either supported foreground experience, let the repository prepare the external source checkouts and host tools, then ask the read-only doctor for the remaining exact media/build step:
+
+```sh
+make lab-setup
+make doctor
+```
+
+The project cannot redistribute or silently acquire the prepared PDP-11 base images, but it now verifies and installs a user-supplied pair, builds and remembers the receipt-bound guest media, and prints every next command in order. Once `make doctor` reports ready, start either surface with `make telnet` or `make ncc`; use `make ncc-failover` for the longer alternate-route proof. See the [fresh-clone guide](docs/getting-started.md) for the complete path and `make help` for the command summary.
 
 ## Verified compositions
 
@@ -34,7 +43,7 @@ The following results pass at the revisions in [`pins/`](pins/). The linked test
 | Network UNIX/ITS route plus the IMP 5/6/7 NCC triangle | One lifecycle preserves the accepted application transaction and typed journey while receiving both report forms from IMPs 5, 6, 7, and 62 ([coexistence gate](docs/test-plan.md#ncc-observed-heterogeneous-coexistence-gate)) |
 | The same composition with the IMP 62/IMP 6 application cable cut and an alternate route through IMP 7 | The same TELNET session returns structured `:TIME` output before and after the cut, the post-cut H316 journey covers IMPs 62, 7, and 6, and all four IMPs remain observable ([failover gate](docs/test-plan.md#ncc-observed-application-link-failover-gate)) |
 
-The passive NCC surface is one mid-1970s-style operator console: a banked 64-position annunciator, automatic attention selection, local alarm acknowledgement, Teletype-style network log, and quick summary. Direct report and explicitly mapped line state use source IMP positions; a clearly modern RUN PROOF bank shows validated application, journey, failover, and cleanup facts without promoting candidate report-line numbers. `make ncc` or `make ncc-failover` runs an existing formal scenario beside the console; `make view-ncc` or `make view-ncc-failover` replays a retained canonical result through the same interface without launching a simulator. `make telnet` boots to the real Network UNIX shell for character-oriented use of its preserved TELNET client; `make telnet-check` retains the separate deterministic prompt-framed proof. The browser remains read-only.
+The passive NCC surface is one mid-1970s-style operator console: a banked 64-position annunciator, automatic attention selection, local alarm acknowledgement, Teletype-style network log, and quick summary. Direct report and explicitly mapped line state use source IMP positions; a clearly modern RUN PROOF bank shows validated application, journey, failover, and cleanup facts without promoting candidate report-line numbers. `make ncc` or `make ncc-failover` runs an existing formal scenario beside the console and selects its completed result; `make view-ncc` or `make view-ncc-failover` replays the selected, or newest passing, retained result through the same interface without launching a simulator. `make telnet` boots to the real Network UNIX shell for character-oriented use of its preserved TELNET client; `make telnet-check` retains the separate deterministic prompt-framed proof. The browser remains read-only.
 
 `linux-ncp` is a diagnostic oracle, not a historical application endpoint. A vintage-to-vintage application pass must originate and consume application data inside the historical guests.
 
@@ -51,6 +60,7 @@ The passive NCC surface is one mid-1970s-style operator console: a banked 64-pos
 
 | Need | Owner |
 |---|---|
+| Prepare a fresh clone for TELNET or NCC | [Getting started](docs/getting-started.md) |
 | Run checks, smokes, or passive viewers | [Runbook](docs/runbook.md) |
 | Understand stable system boundaries | [Architecture](docs/architecture.md) |
 | Evaluate a result | [Test plan](docs/test-plan.md) |
@@ -61,7 +71,7 @@ The passive NCC surface is one mid-1970s-style operator console: a banked 64-pos
 | Review decisions or dated evidence | [ADRs](docs/adr/), [experiments](docs/experiments/), and [research](docs/research/) |
 | Check source identities or redistribution boundaries | [`pins/`](pins/), [NOTICE](NOTICE.md), and [credits](CREDITS.md) |
 
-Active source revisions and asset hashes live only in [`pins/`](pins/). Dated reports record observations at those pins; they are not lock files or current status pages.
+Active source revisions and external asset hashes live only in [`pins/`](pins/). Dated reports record observations at those pins; they are not lock files or current status pages.
 
 ## License
 

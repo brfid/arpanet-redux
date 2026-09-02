@@ -34,12 +34,19 @@ def parse_args() -> argparse.Namespace:
         default=8765,
         help="127.0.0.1 TCP port (default: 8765; use 0 to allocate one)",
     )
+    parser.add_argument(
+        "--require-existing",
+        action="store_true",
+        help="fail instead of waiting when the named result directory is absent",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     try:
+        if args.require_existing and not args.results_dir.is_dir():
+            raise ValueError(f"result directory does not exist: {args.results_dir}")
         display = NccBoardDisplay(args.results_dir, args.topology)
         server = create_ncc_board_server(display, port=args.port)
     except (NccBoardError, OSError, ValueError) as error:

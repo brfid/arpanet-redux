@@ -4,14 +4,30 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import sys
 import tempfile
 
 
-KEYS = ("pdp11-build",)
-MARKERS = {"pdp11-build": "pdp11-build-receipt.json"}
+ARTIFACTS = {
+    "pdp11-build": {
+        "marker": "pdp11-build-receipt.json",
+        "pattern": "*/pdp11-build-receipt.json",
+    },
+    "ncc-coexistence": {
+        "marker": "verdict.json",
+        "pattern": "ncc-pdp11-its-coexistence-*/verdict.json",
+        "kind": "ncc-pdp11-its-coexistence-verdict",
+    },
+    "ncc-failover": {
+        "marker": "verdict.json",
+        "pattern": "ncc-pdp11-its-application-failover-*/verdict.json",
+        "kind": "ncc-pdp11-its-application-failover-verdict",
+    },
+}
+KEYS = tuple(ARTIFACTS)
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,9 +58,20 @@ def validate_artifact(key: str, path: Path) -> Path:
     resolved = path.expanduser().resolve()
     if not resolved.is_dir():
         raise ValueError(f"{key} directory is missing: {resolved}")
-    marker = resolved / MARKERS[key]
+    specification = ARTIFACTS[key]
+    marker = resolved / specification["marker"]
     if not marker.is_file():
         raise ValueError(f"{key} marker is missing: {marker}")
+    expected_kind = specification.get("kind")
+    if expected_kind is not None:
+        verdict = json.loads(marker.read_text(encoding="utf-8"))
+        if not isinstance(verdict, dict):
+            raise ValueError(f"{key} verdict is not an object: {marker}")
+        if verdict.get("kind") != expected_kind or verdict.get("passed") is not True:
+            raise ValueError(f"{key} verdict is not a completed passing result: {marker}")
+        outcome = resolved / "outcome.txt"
+        if not outcome.is_file() or outcome.read_text(encoding="ascii") != "passed\n":
+            raise ValueError(f"{key} outcome is not exactly passed: {outcome}")
     return resolved
 
 
@@ -60,12 +87,15 @@ def read_selection(lab_root: Path, key: str) -> Path | None:
 
 
 def discover_artifact(results_root: Path, key: str) -> Path | None:
-    marker_name = MARKERS[key]
-    candidates = [
-        marker.parent
-        for marker in results_root.expanduser().glob(f"*/{marker_name}")
-        if marker.is_file()
-    ]
+    candidates = []
+    for marker in results_root.expanduser().glob(ARTIFACTS[key]["pattern"]):
+        if not marker.is_file():
+            continue
+        try:
+            validate_artifact(key, marker.parent)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        candidates.append(marker.parent)
     if not candidates:
         return None
     return max(candidates, key=lambda path: (path.stat().st_mtime_ns, path.name))

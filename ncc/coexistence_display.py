@@ -617,15 +617,19 @@ def _validate_manifest(
                 raise CoexistenceDisplayError(f"run manifest has an invalid {key}")
 
     bindings = (
-        ("shared-topology", topology_path),
-        ("message-journey", journey_path),
-        ("verdict", verdict_path),
+        ("message-journey", journey_path, True),
+        ("verdict", verdict_path, True),
+        ("shared-topology", topology_path, False),
     )
-    for name, path in bindings:
+    for name, path, exact_path in bindings:
         recorded_path = Path(manifest[f"path.{name}"])
-        if recorded_path.resolve() != path.resolve():
+        if exact_path and recorded_path.resolve() != path.resolve():
             raise CoexistenceDisplayError(
                 f"run manifest {name} path does not identify the supplied artifact"
+            )
+        if not exact_path and recorded_path.name != path.name:
+            raise CoexistenceDisplayError(
+                f"run manifest {name} path does not identify the topology filename"
             )
         recorded_digest = manifest[f"sha256.{name}"]
         if not _SHA256.fullmatch(recorded_digest):

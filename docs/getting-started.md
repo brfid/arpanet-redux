@@ -81,7 +81,7 @@ For the longer application-link cut and alternate-route proof, run:
 make ncc-failover
 ```
 
-The ordinary coexistence run lasts roughly two and a half minutes and the failover run roughly five minutes under their accepted timing. `make view-ncc` and `make view-ncc-failover` reopen the newest selected completed result without launching simulators; the [NCC page](ncc.md) owns the console's data and authority contract.
+The ordinary coexistence run lasts roughly two and a half minutes and the failover run roughly five minutes under their accepted timing. A successful run selects its own immutable result. `make view-ncc` and `make view-ncc-failover` reopen that selection, or discover the newest completed passing result when no selection exists, without launching simulators. Set `NCC_RESULT=/absolute/path` or `NCC_FAILOVER_RESULT=/absolute/path` to inspect a particular retained result; the [NCC page](ncc.md) owns the console's data and authority contract.
 
 ## Diagnose a failed start
 

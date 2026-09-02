@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import signal
 import socket
@@ -88,6 +89,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("scripts/ncc-serve-board.py", view.stdout)
         self.assertIn("/tmp/ncc-result", view.stdout)
         self.assertIn("--port \"9877\"", view.stdout)
+        self.assertIn("--require-existing", view.stdout)
 
         watch = run(
             "make",
@@ -101,6 +103,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("scripts/ncc-serve-board.py", watch.stdout)
         self.assertIn("/tmp/ncc-result", watch.stdout)
         self.assertIn("--port \"9875\"", watch.stdout)
+        self.assertNotIn("--require-existing", watch.stdout)
 
         run_target = run(
             "make",
@@ -127,6 +130,8 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("scripts/ncc-operate-pdp11-its.py", operated.stdout)
         self.assertIn('--run-id "operated-demo"', operated.stdout)
         self.assertIn('--port "9875"', operated.stdout)
+        self.assertIn("lab-state.py select", operated.stdout)
+        self.assertIn("ncc-coexistence", operated.stdout)
 
         failover_view = run(
             "make",
@@ -140,6 +145,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("scripts/ncc-serve-board.py", failover_view.stdout)
         self.assertIn("/tmp/ncc-failover-result", failover_view.stdout)
         self.assertIn("ncc-pdp11-its-application-failover.json", failover_view.stdout)
+        self.assertIn("--require-existing", failover_view.stdout)
 
         operated_failover = run(
             "make",
@@ -154,6 +160,8 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("scripts/ncc-operate-pdp11-its.py", operated_failover.stdout)
         self.assertIn("--scenario failover", operated_failover.stdout)
         self.assertIn("ncc-pdp11-its-application-failover.json", operated_failover.stdout)
+        self.assertIn("lab-state.py select", operated_failover.stdout)
+        self.assertIn("ncc-failover", operated_failover.stdout)
 
     def test_telnet_targets_separate_human_terminal_from_prompt_framed_check(self) -> None:
         operated = run(
@@ -287,6 +295,62 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn(
             f'--arpanet-root "{expected_lab}/work/arpanet"', operated.stdout
         )
+
+    def test_view_target_fails_fast_when_a_fresh_lab_has_no_result(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            lab = Path(directory_name) / "lab"
+            viewed = run("make", f"LAB_ROOT={lab}", "view-ncc", cwd=ROOT)
+
+            self.assertNotEqual(viewed.returncode, 0)
+            self.assertIn(
+                "No passing coexistence result is available", viewed.stderr
+            )
+
+    def test_view_target_discovers_a_completed_passing_result(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            lab = Path(directory_name) / "lab"
+            results = Path(directory_name) / "custom-results"
+            result = results / "ncc-pdp11-its-coexistence-ready"
+            result.mkdir(parents=True)
+            (result / "verdict.json").write_text(
+                json.dumps(
+                    {
+                        "kind": "ncc-pdp11-its-coexistence-verdict",
+                        "passed": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (result / "outcome.txt").write_text("passed\n", encoding="ascii")
+
+            viewed = run(
+                "make",
+                "-n",
+                f"LAB_ROOT={lab}",
+                f"RESULTS_ROOT={results}",
+                "view-ncc",
+                cwd=ROOT,
+            )
+
+            self.assertEqual(viewed.returncode, 0, viewed.stderr)
+            self.assertIn(os.fspath(result), viewed.stdout)
+            self.assertIn("--require-existing", viewed.stdout)
+
+    def test_replay_server_can_require_an_existing_result(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            missing = Path(directory_name) / "missing-result"
+            served = run(
+                sys.executable,
+                SCRIPTS / "ncc-serve-board.py",
+                missing,
+                "--topology",
+                ROOT / "config" / "topologies" / "ncc-pdp11-its-coexistence.json",
+                "--require-existing",
+                cwd=ROOT,
+            )
+
+            self.assertEqual(served.returncode, 1)
+            self.assertIn("result directory does not exist", served.stderr)
 
 
 class NativeTemplateTests(unittest.TestCase):

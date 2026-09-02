@@ -27,6 +27,11 @@ values:
   aliasing to the existing uppercase values rather than restating
   them, and installs that staged copy at /h/net/telnet.h in the
   guest image.
+- usrtelnetin.c selects the correct WONT response for a received DONT
+  command but omits the switch break, so every valid DONT falls into
+  its generic protocol-error diagnostic. This script adds only that
+  missing break to its staged copy and fails closed if the pinned
+  source no longer has the exact known fallthrough shape.
 
 usrtelnetin.c (the companion process netopen() forks to read the
 network and write the terminal) is built too, since a real two-way
@@ -58,8 +63,6 @@ import shutil
 import sys
 import time
 from pathlib import Path
-
-import pexpect
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from v6fs import V6FS  # noqa: E402
@@ -96,6 +99,27 @@ LOWERCASE_ALIAS_BLOCK = """
 """
 
 
+def repair_usrtelnetin_dont_fallthrough(source: str) -> str:
+    """Add the one missing break in the pinned DONT negotiation branch."""
+
+    fallthrough = (
+        "\tcase tel_dont:\tresponse = tel_wont;\n"
+        "\n"
+        "\tdefault:"
+    )
+    repaired = (
+        "\tcase tel_dont:\tresponse = tel_wont;\n"
+        "\t\t\tbreak;\n"
+        "\n"
+        "\tdefault:"
+    )
+    if source.count(fallthrough) != 1:
+        raise ValueError(
+            "pinned usrtelnetin.c lacks the unique expected DONT fallthrough"
+        )
+    return source.replace(fallthrough, repaired, 1)
+
+
 def stage_sources(network_unix_v6_root: Path, stage_dir: Path) -> None:
     stage_dir.mkdir(parents=True, exist_ok=True)
     ncpp = network_unix_v6_root / "nosc-files" / "ncpp"
@@ -112,6 +136,7 @@ def stage_sources(network_unix_v6_root: Path, stage_dir: Path) -> None:
     usrtelnetin = usrtelnetin.replace(
         '#include "../h/telnet.h"', '#include "/h/net/telnet.h"'
     )
+    usrtelnetin = repair_usrtelnetin_dont_fallthrough(usrtelnetin)
     (stage_dir / "usrtelnetin.c").write_text(usrtelnetin)
 
 
@@ -137,6 +162,8 @@ def inject(image: Path, stage_dir: Path, anyhost_major: int, anyhost_minor: int)
 
 
 def build_in_guest(pdp11: Path, workdir: Path, console_log: Path, settle: float) -> None:
+    import pexpect
+
     console = open(console_log, "w")
     child = pexpect.spawn(str(pdp11), cwd=str(workdir), timeout=30, encoding="utf-8")
     child.logfile = console

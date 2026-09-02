@@ -17,6 +17,43 @@ SPEC.loader.exec_module(RECEIPT)
 
 
 class Pdp11BuildReceiptTests(unittest.TestCase):
+    def test_build_log_requires_the_repaired_companion_size(self) -> None:
+        telnet_log = (
+            "git commit id: 2722eef4\n"
+            "cc -O -n -x telnet.c\n"
+            "cc -O -n -x usrtelnetin.c\n"
+            "1 root     7212 telnet\n"
+            "1 root     2390 usrtelnetin\n"
+            "/usr/bin/telnet\n"
+            "/usr/bin/usrtelnetin\n"
+            "Goodbye\n"
+        )
+        ncpd_log = (
+            "git commit id: 2722eef4\n"
+            "cc -O -c 1main.c kr_dcode.c\n"
+            "cc -O -x 1main.o kr_dcode.o\n"
+            "/usr/net/etc/Largedaemon not found\n"
+            "-r-xr--r--  1 daemon  21422\n"
+            "Goodbye\n"
+        )
+        with tempfile.TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            telnet = directory / "telnet.log"
+            ncpd = directory / "ncpd.log"
+            telnet.write_text(telnet_log, encoding="ascii")
+            ncpd.write_text(ncpd_log, encoding="ascii")
+            with mock.patch.object(
+                RECEIPT,
+                "pinned_revisions",
+                return_value={"imp11a-simh": "2722eef4" + "0" * 32},
+            ):
+                RECEIPT.validate_build_logs(telnet, ncpd)
+                telnet.write_text(
+                    telnet_log.replace("2390", "2454"), encoding="ascii"
+                )
+                with self.assertRaisesRegex(ValueError, "2390"):
+                    RECEIPT.validate_build_logs(telnet, ncpd)
+
     def test_simulator_version_detaches_interactive_stdin(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             executable = Path(directory_name) / "pdp11"

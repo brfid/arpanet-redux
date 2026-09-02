@@ -160,7 +160,7 @@ def validate_build_logs(telnet_log: Path, ncpd_log: Path) -> None:
         "cc -O -n -x telnet.c",
         "cc -O -n -x usrtelnetin.c",
         "1 root     7212",
-        "1 root     2454",
+        "1 root     2390",
         "/usr/bin/telnet",
         "/usr/bin/usrtelnetin",
         "Goodbye",

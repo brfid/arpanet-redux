@@ -95,7 +95,7 @@ Capture both IMP debug-log offsets and both host console offsets immediately bef
 8. The controller validates the shared topology, fixes both H316 transaction-window end offsets, writes and reads back a hashed `message-journey.jsonl`, and records exactly ten observations. The diagnosis must be `missing-boundary` at `boundary:request:6`; neither topology nor application success may fill the two unobserved guest-ingress boundaries.
 9. Every common precondition passes.
 
-The legacy client diagnostic `Possible protocol error! command = 376, option = 3.` is evidence but not a failure by itself. `SKTRACE` and `PBTRACE` may corroborate the path but cannot replace the application and correlated IMP evidence. The deliberately incomplete journey diagnosis does not fail the separate application gate.
+Older accepted builds print the legacy client diagnostic `Possible protocol error! command = 376, option = 3.`; it remains evidence rather than a retroactive failure of those successful sessions. The current staged builder repairs the exact missing-break fallthrough that produced it, while retaining the old result semantics for replay. `SKTRACE` and `PBTRACE` may corroborate the path but cannot replace the application and correlated IMP evidence. The deliberately incomplete journey diagnosis does not fail the separate application gate.
 
 ## Gate 4I: Interactive Network UNIX-to-ITS TELNET
 

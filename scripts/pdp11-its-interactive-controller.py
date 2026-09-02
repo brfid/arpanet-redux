@@ -218,7 +218,10 @@ def run_operator_session(
             return "operator-quit"
         if command == "/help":
             output_stream.write(
-                "Enter one printable ITS DDT line. Local commands: /help, /quit.\n"
+                "Send one printable, prompt-returning ITS DDT line; try :TIME. "
+                "Local commands: /help, /quit. This session is line-oriented; "
+                "paged, full-screen, and character-at-a-time programs are not "
+                "supported yet.\n"
             )
             output_stream.flush()
             continue

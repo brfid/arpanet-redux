@@ -163,6 +163,8 @@ class InteractiveControllerTests(unittest.TestCase):
                 b":TIME\r\nThe time is 08:00:01 EDT.\r\n:KILL \r\n*",
             )
             self.assertIn("Local commands", output.getvalue())
+            self.assertIn("try :TIME", output.getvalue())
+            self.assertIn("line-oriented", output.getvalue())
             self.assertIn("The time is", output.getvalue())
 
     def test_timeout_is_retained_and_aborts_the_session(self) -> None:

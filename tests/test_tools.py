@@ -158,7 +158,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
     def test_telnet_target_reuses_the_retained_receipt_bound_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             results = Path(directory_name)
-            retained = results / "pdp11-telnet-formal-build-20260831T200328Z"
+            retained = results / "pdp11-telnet-option-fix-build-20260902T002513Z"
             retained.mkdir()
             (retained / "pdp11-build-receipt.json").write_text(
                 "{}\n", encoding="ascii"

@@ -253,6 +253,15 @@ class InteractiveControllerTests(unittest.TestCase):
         )
         self.assertEqual(projection.flush_pending(), b"* ")
 
+        delayed = CONTROLLER.HistoricalConsoleProjection()
+        self.assertEqual(delayed.project(b"* "), b"")
+        self.assertEqual(delayed.flush_pending(), b"* ")
+        self.assertEqual(delayed.project(b"PB"), b"")
+        self.assertEqual(delayed.flush_pending(), b"")
+        self.assertEqual(
+            delayed.project(b"TRACE delayed\r\nordinary\r\n"), b"ordinary\r\n"
+        )
+
     def test_network_unix_prompt_offset_retains_the_real_prompt(self) -> None:
         data = b"boot\r\n# first\r\n# "
 

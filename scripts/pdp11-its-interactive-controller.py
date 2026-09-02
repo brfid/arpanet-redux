@@ -129,46 +129,70 @@ class HistoricalConsoleProjection:
         self._line_start = True
         self._dropping = False
         self._pending = bytearray()
+        self._visible_prompt = b""
+
+    def _candidates(self) -> tuple[bytes, ...]:
+        if self._visible_prompt == b"*":
+            return (b" SKTRACE ", b" PBTRACE ")
+        if self._visible_prompt == b"* ":
+            return self._NOISE_PREFIXES
+        return self._NOISE_PREFIXES + self._PROMPT_NOISE_PREFIXES
 
     def project(self, data: bytes) -> bytes:
         projected = bytearray()
-        candidates = self._NOISE_PREFIXES + self._PROMPT_NOISE_PREFIXES
         for byte in data:
             if self._dropping:
                 if byte == 0x0A:
                     self._dropping = False
                     self._line_start = True
+                    self._visible_prompt = b""
                 continue
             if self._line_start:
                 self._pending.append(byte)
                 pending = bytes(self._pending)
-                if pending in self._NOISE_PREFIXES:
+                candidates = self._candidates()
+                if pending in candidates:
+                    if (
+                        not self._visible_prompt
+                        and pending in self._PROMPT_NOISE_PREFIXES
+                    ):
+                        projected.extend(b"* ")
                     self._pending.clear()
                     self._dropping = True
-                    continue
-                if pending in self._PROMPT_NOISE_PREFIXES:
-                    projected.extend(b"* ")
-                    self._pending.clear()
-                    self._dropping = True
+                    self._visible_prompt = b""
                     continue
                 if any(candidate.startswith(pending) for candidate in candidates):
                     continue
                 projected.extend(self._pending)
                 self._line_start = byte == 0x0A
                 self._pending.clear()
+                self._visible_prompt = b""
                 continue
             projected.append(byte)
             if byte == 0x0A:
                 self._line_start = True
         return bytes(projected)
 
-    def flush_pending(self) -> bytes:
+    def flush_pending(self, *, force: bool = False) -> bytes:
         """Make a prompt visible when no following byte disambiguates it."""
 
         pending = bytes(self._pending)
+        if not pending:
+            return b""
+        if not force:
+            if not self._visible_prompt and pending in {b"*", b"* "}:
+                self._pending.clear()
+                self._visible_prompt = pending
+                return pending
+            if self._visible_prompt == b"*" and pending == b" ":
+                self._pending.clear()
+                self._visible_prompt = b"* "
+                return pending
+            if any(candidate.startswith(pending) for candidate in self._candidates()):
+                return b""
         self._pending.clear()
-        if pending:
-            self._line_start = pending.endswith(b"\n")
+        self._line_start = pending.endswith(b"\n")
+        self._visible_prompt = b""
         return pending
 
 
@@ -264,8 +288,8 @@ def run_character_terminal(
     renderer = SafeTeletypeRenderer()
     projection = HistoricalConsoleProjection()
 
-    def flush_projection() -> None:
-        pending = projection.flush_pending()
+    def flush_projection(*, force: bool = False) -> None:
+        pending = projection.flush_pending(force=force)
         if pending:
             _write_all(output_fd, renderer.render(pending))
 
@@ -290,7 +314,7 @@ def run_character_terminal(
             return limit_reason
         process = pdp11.process
         if process is None or process.poll() is not None:
-            flush_projection()
+            flush_projection(force=True)
             return "process-exit"
         readable, _, _ = select.select((input_fd,), (), (), poll_seconds)
         if not readable:
@@ -298,7 +322,7 @@ def run_character_terminal(
             continue
         incoming = os.read(input_fd, DEFAULT_MAX_CHUNK_BYTES)
         if not incoming:
-            flush_projection()
+            flush_projection(force=True)
             return "input-eof"
         prepared = prepare_terminal_input(incoming)
         observed_at = SHARED.utc_now()
@@ -332,7 +356,7 @@ def run_character_terminal(
         if prepared.exit_requested:
             time.sleep(0.05)
             limit_reason = relay_output()
-            flush_projection()
+            flush_projection(force=True)
             return limit_reason or "operator-exit"
 
 

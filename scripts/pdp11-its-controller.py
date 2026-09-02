@@ -163,14 +163,12 @@ def wait_for_prompt(process: PtyProcess, timeout: float = 30) -> None:
     process.expect(rb"\r\n# ?", timeout=timeout)
 
 
-def create_host106_observation_config(
-    source: Path, destination: Path, trace_path: Path
-) -> None:
+def create_host106_observation_config(source: Path, destination: Path) -> None:
     """Create the normal attach-only config with observation-only IMP tracing."""
 
     SHARED.create_host106_attach_config(source, destination)
     with destination.open("a", encoding="ascii") as stream:
-        stream.write(f"set debug {trace_path.resolve()}\nset imp debug=ASSEMBLY\n")
+        stream.write("set -f debug stdout\nset imp debug=ASSEMBLY\n")
 
 
 def boot_pdp11(process: PtyProcess) -> None:
@@ -219,13 +217,9 @@ def run(args: argparse.Namespace) -> int:
     shared_topology = shared_topology_from_mapping(topology_document)
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
-    host106_trace_path = results_dir / "host106.imp-debug.log"
-    create_host106_observation_config(
-        args.host106_config.resolve(), attach_config, host106_trace_path
-    )
+    create_host106_observation_config(args.host106_config.resolve(), attach_config)
     SHARED.append_manifest(manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config))
     SHARED.append_manifest(manifest, "path.host106-attach-config", attach_config)
-    SHARED.append_manifest(manifest, "path.host106-imp-debug", host106_trace_path)
 
     imp6 = ImpProcess(
         "imp6",
@@ -341,11 +335,9 @@ def run(args: argparse.Namespace) -> int:
                 raise RuntimeError(f"{host.name} is not RUNNING before TELNET")
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
-        if not host106_trace_path.is_file():
-            raise RuntimeError("KA10 IMP observation trace was not created")
-        host106_trace_offset = host106_trace_path.stat().st_size
         pdp11_offset = pdp11.position()
         host106_offset = host106.position()
+        host106_trace_offset = host106_offset
         for name, offset in (
             ("imp6", imp_offsets["imp6"]),
             ("imp62", imp_offsets["imp62"]),
@@ -375,16 +367,14 @@ def run(args: argparse.Namespace) -> int:
         pdp11_output = pdp11.output_from(pdp11_offset)
         its_output = host106.output_from(host106_offset)
         imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
-        host106_trace_end_offset = host106_trace_path.stat().st_size
+        host106_trace_end_offset = host106_trace_offset + len(its_output)
         imp6_output = imp6.debug_path.read_bytes()[
             imp_offsets["imp6"] : imp_end_offsets["imp6"]
         ]
         imp62_output = imp62.debug_path.read_bytes()[
             imp_offsets["imp62"] : imp_end_offsets["imp62"]
         ]
-        host106_trace = host106_trace_path.read_bytes()[
-            host106_trace_offset:host106_trace_end_offset
-        ]
+        host106_trace = its_output
         failures = application_evidence_failures(
             pdp11_output,
             its_output,
@@ -424,7 +414,7 @@ def run(args: argparse.Namespace) -> int:
             ),
             transaction_window_source(
                 source_id="source:host106-imp",
-                artifact=host106_trace_path.name,
+                artifact=host106.console_log_path.name,
                 start_offset=host106_trace_offset,
                 end_offset=host106_trace_end_offset,
                 content=host106_trace,

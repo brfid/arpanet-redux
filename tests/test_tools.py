@@ -142,6 +142,93 @@ class NccConvenienceTargetTests(unittest.TestCase):
                     f"usage: {script} ARPANET_ROOT H316_BIN RESULTS_DIR\n",
                 )
 
+    def test_line_scenario_profiles_keep_distinct_authorities(self) -> None:
+        lifecycle = SCRIPTS / "lib" / "ncc-line-scenario.sh"
+        cases = (
+            (
+                "fault",
+                "smoke-ncc-alternate-path.sh",
+                (
+                    "ncc-alternate-path-fault",
+                    str(SCRIPTS / "smoke-ncc-alternate-path.sh"),
+                    str(SCRIPTS / "ncc-direct-line-relay.py"),
+                    "direct-line-relay",
+                    "direct_relay",
+                    "direct-relay",
+                    str(SCRIPTS / "ncc-evaluate-alternate-path.py"),
+                    "--relay",
+                    "direct-line relay failed",
+                    "alternate-path fault verdict failed",
+                    "PASS: both IMPs reported the direct line up, then down through the live alternate path.",
+                ),
+            ),
+            (
+                "loopback",
+                "smoke-ncc-line-loopback.sh",
+                (
+                    "ncc-line-loopback",
+                    str(SCRIPTS / "smoke-ncc-line-loopback.sh"),
+                    str(SCRIPTS / "ncc-direct-line-reflector.py"),
+                    "direct-line-reflector",
+                    "direct_reflector",
+                    "direct-reflector",
+                    str(SCRIPTS / "ncc-evaluate-line-loopback.py"),
+                    "--reflector",
+                    "direct-line reflector failed",
+                    "line-loopback verdict failed",
+                    "PASS: both IMPs reported the direct line up, then looped through the live alternate path.",
+                ),
+            ),
+        )
+        profile_command = """. "$1"
+brfid_configure_ncc_line_scenario "$2" "$3"
+printf '%s\n' \\
+  "$BRFID_NCC_LINE_SCENARIO" \\
+  "$BRFID_NCC_LINE_SMOKE_RUNNER" \\
+  "$BRFID_NCC_LINE_INSTRUMENT" \\
+  "$BRFID_NCC_LINE_INSTRUMENT_MANIFEST" \\
+  "$BRFID_NCC_LINE_PROCESS" \\
+  "$BRFID_NCC_LINE_RESULT_STEM" \\
+  "$BRFID_NCC_LINE_EVALUATOR" \\
+  "$BRFID_NCC_LINE_EVALUATOR_OPTION" \\
+  "$BRFID_NCC_LINE_INSTRUMENT_FAILURE" \\
+  "$BRFID_NCC_LINE_VERDICT_FAILURE" \\
+  "$BRFID_NCC_LINE_PASS_CLAIM"
+"""
+        for mode, script_name, expected in cases:
+            with self.subTest(mode=mode):
+                configured = run(
+                    "sh",
+                    "-c",
+                    profile_command,
+                    "line-profile",
+                    lifecycle,
+                    mode,
+                    ROOT,
+                )
+
+                self.assertEqual(configured.returncode, 0, configured.stderr)
+                self.assertEqual(tuple(configured.stdout.splitlines()), expected)
+                launcher = (SCRIPTS / script_name).read_text()
+                self.assertIn(
+                    f'brfid_run_ncc_line_scenario {mode} "$repo_root" "$@"',
+                    launcher,
+                )
+
+        rejected = run(
+            "sh",
+            "-c",
+            '. "$1"; brfid_configure_ncc_line_scenario invalid "$2"',
+            "line-profile",
+            lifecycle,
+            ROOT,
+        )
+        self.assertEqual(rejected.returncode, 64)
+        self.assertEqual(
+            rejected.stderr,
+            "unknown NCC line-scenario mode: invalid\n",
+        )
+
     def test_view_watch_and_run_targets_delegate_to_supported_commands(self) -> None:
         view = run(
             "make",

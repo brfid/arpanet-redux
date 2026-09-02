@@ -24,6 +24,8 @@ Cleanup is idempotent. It sends `TERM`, waits for a bounded interval, sends `KIL
 
 Fault instruments accept packets only from the two leased simulator endpoints. A cut relay forwards both directions until its acknowledged fault boundary, then keeps both ports bound while counting and dropping traffic. A loopback reflector instead returns each valid datagram unchanged to its sender. Each instrument writes its phase boundary, per-direction counters, and unexpected sources before cleanup releases its PID.
 
+The public fault and loopback launchers select explicit scenario profiles over one shared line-scenario lifecycle. That lifecycle owns input verification, the ten-port topology allocation, process order and readiness, evidence capture, transport checks, and cleanup; each profile retains its own scenario identity, instrument, evaluator option, artifact and process names, failure text, and final claim. Each result manifest hashes both its public launcher and the shared lifecycle so the complete orchestration identity remains attributable.
+
 The application-failover controller alone writes its run-local cut request. The relay acknowledges that request atomically and records the same fault timestamp in its state and terminal result. Browser processes have no path to this control channel.
 
 ## Input identity

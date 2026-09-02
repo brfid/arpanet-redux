@@ -50,6 +50,27 @@ def failures(
 
 
 class Pdp11ItsEvidenceTests(unittest.TestCase):
+    def test_host106_observation_config_enables_only_assembly_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            destination = directory / "host106-attach-only.simh"
+            trace = directory / "host106.imp-debug.log"
+
+            CONTROLLER.create_host106_observation_config(
+                ROOT / "config" / "hosts" / "its106-pair.simh",
+                destination,
+                trace,
+            )
+
+            text = destination.read_text(encoding="ascii")
+            self.assertNotIn("boot ptr", text)
+            self.assertNotIn('expect -p "DSKDMP"', text)
+            self.assertTrue(
+                text.endswith(
+                    f"set debug {trace.resolve()}\nset imp debug=ASSEMBLY\n"
+                )
+            )
+
     def test_complete_evidence_accepts_nonfatal_legacy_diagnostic(self) -> None:
         self.assertEqual(failures(), [])
 

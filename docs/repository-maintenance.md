@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** `Characterize harness process ownership` locks manifest key validation and value retention, PTY console buffering and ordered matching, sent-byte attribution, graceful simulator-control shutdown, interruption-style forced shutdown, IMP log separation, liveness checks, PID attribution, and bounded process cleanup.
-- **Selected:** RM-07, first importable-harness process and PTY slice.
-- **Next action:** Move the characterized PTY and IMP process owners plus their minimal manifest dependency into an ordinary importable module under `ncc/`; migrate only `scripts/two-its-controller.py`, preserve its public script and flow, and run the formal two-ITS smoke before touching another controller.
+- **Last completed:** `Extract importable harness process owners` moves the characterized PTY and IMP child ownership into `ncc.harness_process` and its validated append dependency into `ncc.harness_manifest`. The two-ITS controller now imports those owners normally while preserving compatibility aliases for unmigrated dependent controllers, its public command, arguments, flow, logs, PID fields, state transitions, timeouts, and cleanup behavior.
+- **Selected:** RM-07, manifest and readiness primitives.
+- **Next action:** Characterize the remaining manifest hashing and generic log-readiness contracts in `scripts/two-its-controller.py`, move them into focused ordinary harness modules, then remove `scripts/pdp11-its-controller.py`'s dynamic sibling load in a separately verified migration.
 - **Blockers:** None.
-- **Last verification:** `python3 -m unittest tests.test_harness_process -v` passed four process-contract tests; `make test` passed 292 discovered tests with the expected sandbox socket skips.
+- **Last verification:** The focused process and dependent-controller suites passed 42 tests; `make test` passed 293 discovered tests with the expected sandbox socket skips; formal run `two-its-telnet-maintenance-rm07-process-20260902` passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup.
 
 ## Update protocol
 

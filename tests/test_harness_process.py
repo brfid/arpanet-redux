@@ -8,6 +8,9 @@ import tempfile
 import time
 import unittest
 
+from ncc.harness_manifest import append_manifest
+from ncc.harness_process import ImpProcess, PtyProcess
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTROLLER_PATH = ROOT / "scripts" / "two-its-controller.py"
@@ -67,18 +70,23 @@ def wait_for_files(*paths: Path, timeout: float = 3) -> None:
 
 
 class HarnessProcessContractTests(unittest.TestCase):
+    def test_two_its_controller_uses_the_importable_process_owners(self) -> None:
+        self.assertIs(CONTROLLER.append_manifest, append_manifest)
+        self.assertIs(CONTROLLER.PtyProcess, PtyProcess)
+        self.assertIs(CONTROLLER.ImpProcess, ImpProcess)
+
     def test_manifest_append_validates_keys_and_preserves_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             manifest = Path(directory_name) / "run.env"
             manifest.write_text("", encoding="ascii")
 
-            CONTROLLER.append_manifest(manifest, "process.host-106.pid", 1234)
-            CONTROLLER.append_manifest(manifest, "path.console", "/tmp/a b")
+            append_manifest(manifest, "process.host-106.pid", 1234)
+            append_manifest(manifest, "path.console", "/tmp/a b")
 
             expected = "process.host-106.pid=1234\npath.console=/tmp/a b\n"
             self.assertEqual(manifest.read_text(encoding="utf-8"), expected)
             with self.assertRaisesRegex(ValueError, "invalid manifest key"):
-                CONTROLLER.append_manifest(manifest, "bad key", "unchanged")
+                append_manifest(manifest, "bad key", "unchanged")
             self.assertEqual(manifest.read_text(encoding="utf-8"), expected)
 
     def test_pty_process_attributes_io_and_stops_from_running_state(self) -> None:
@@ -89,7 +97,7 @@ class HarnessProcessContractTests(unittest.TestCase):
             manifest.write_text("", encoding="ascii")
             console_log = directory / "console.log"
             sent_log = directory / "sent.log"
-            process = CONTROLLER.PtyProcess(
+            process = PtyProcess(
                 "host-test",
                 Path(sys.executable),
                 program,
@@ -142,7 +150,7 @@ class HarnessProcessContractTests(unittest.TestCase):
             manifest = directory / "run.env"
             manifest.write_text("", encoding="ascii")
             sent_log = directory / "sent.log"
-            process = CONTROLLER.PtyProcess(
+            process = PtyProcess(
                 "forced-host",
                 Path(sys.executable),
                 program,
@@ -167,7 +175,7 @@ class HarnessProcessContractTests(unittest.TestCase):
             program = write_program(directory, "imp_program.py", IMP_PROGRAM)
             manifest = directory / "run.env"
             manifest.write_text("", encoding="ascii")
-            process = CONTROLLER.ImpProcess(
+            process = ImpProcess(
                 "imp-test",
                 Path(sys.executable),
                 program,

@@ -20,6 +20,8 @@ The pinned `linux-ncp` client creates `/tmp/client.PID` for its short-lived repl
 
 Every daemon, simulator, relay, and bounded client is a direct child registered by exact PID. Process names and global kill patterns are not ownership evidence.
 
+Python controller-side ownership is implemented in the ordinary `ncc.harness_process` module. `PtyProcess` owns the combined simulator console, ordered matching, attributed writes, explicit simulator state, and graceful or forced shutdown; `ImpProcess` owns separate console and debug streams, liveness, and bounded termination. Both record their exact child PID through the validated append primitive in `ncc.harness_manifest`. The two-ITS controller imports these owners directly; dependent controllers temporarily retain their existing aliases through that controller until their own migrations are separately verified.
+
 Cleanup is idempotent. It sends `TERM`, waits for a bounded interval, sends `KILL` only to a surviving owned child, removes known sockets and media copies, releases port and build leases, and finalizes the manifest. Startup, probes, controller operations, and cleanup all have deadlines.
 
 Fault instruments accept packets only from the two leased simulator endpoints. A cut relay forwards both directions until its acknowledged fault boundary, then keeps both ports bound while counting and dropping traffic. A loopback reflector instead returns each valid datagram unchanged to its sender. Each instrument writes its phase boundary, per-direction counters, and unexpected sources before cleanup releases its PID.

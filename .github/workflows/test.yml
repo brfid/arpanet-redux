@@ -28,10 +28,10 @@ jobs:
             fetch-depth: 1
             history: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: ${{ matrix.fetch-depth }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - if: matrix.history

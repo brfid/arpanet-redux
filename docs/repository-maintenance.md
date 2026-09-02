@@ -162,4 +162,5 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 - **2026-09-02:** Preserve complete topology documents and scenario-specific evidence validators even where their shapes overlap.
 - **2026-09-02:** Treat owning `ncc` submodules as the Python package boundary; repository use and history provide no evidence for retaining an aggregate root facade.
 - **2026-09-02:** Exercise both the documented Python 3.11 lower bound and current stable 3.14 series on Linux, add a 3.14 macOS edge, and keep complete-history guarding in one non-shallow job.
+- **2026-09-02:** Use the Node 24-based version 6 majors of the official checkout and Python setup actions after the first expanded matrix run exposed Node 20 deprecation warnings from the older majors.
 - **2026-09-02:** Keep editor workspace configuration local and ignored, list only attached checkouts in `docs/workstreams.md`, and retain settled branch refs when removing their clean, main-merged worktrees.

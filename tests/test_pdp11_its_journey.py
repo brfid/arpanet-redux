@@ -550,6 +550,83 @@ class MessageJourneyStreamTests(unittest.TestCase):
 
 
 class Pdp11ItsJourneyCommandTests(unittest.TestCase):
+    def test_read_only_result_adapter_replays_the_ka10_window(self) -> None:
+        imp6, imp62 = synthetic_traces()
+        ka10 = synthetic_ka10_trace()
+        prefix = b"ignored prefix\r\n"
+        with tempfile.TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            result = directory / "pdp11-its-telnet-ka10-test"
+            runtime = result / "runtime"
+            runtime.mkdir(parents=True)
+            (result / "imp6.debug.log").write_bytes(imp6)
+            (result / "imp62.debug.log").write_bytes(imp62)
+            (result / "host106.console.log").write_bytes(prefix + ka10 + b"ignored tail")
+            (runtime / "run.env").write_text(
+                "format=1\n"
+                "topology=pdp11-its-telnet\n"
+                "started_utc=2026-09-02T20:00:00Z\n"
+                f"repository.revision={'a' * 40}\n"
+                f"source.h316-simh.revision={'b' * 40}\n"
+                f"source.ka10-simh.revision={'c' * 40}\n"
+                "application.offset.imp6=0\n"
+                "application.offset.imp62=0\n"
+                f"application.offset.host106-imp={len(prefix)}\n"
+                f"application.offset.end.imp6={len(imp6)}\n"
+                f"application.offset.end.imp62={len(imp62)}\n"
+                f"application.offset.end.host106-imp={len(prefix) + len(ka10)}\n"
+                "application.service_user=53TLNT\n"
+                "application.remote_time=structured\n"
+                "cleanup.outer-runtime=passed\n"
+                "outcome=passed\n"
+                "exit_status=0\n",
+                encoding="ascii",
+            )
+            (result / "application-evidence.txt").write_text(
+                "connection_open=1\n"
+                "its_service_user=53TLNT\n"
+                "its_greeting=1\n"
+                "remote_time=structured\n"
+                "imp6_post_probe_traffic=1\n"
+                "imp62_post_probe_traffic=1\n"
+                "correlated_inter_imp_traffic=both-directions\n",
+                encoding="ascii",
+            )
+            (result / "cleanup-evidence.txt").write_text(
+                "surviving_owned_processes=0\n",
+                encoding="ascii",
+            )
+            (result / "outcome.txt").write_text("passed\n", encoding="ascii")
+            output = directory / "message-journey.jsonl"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "ncc-extract-pdp11-its-journey.py"),
+                    str(result),
+                    str(TOPOLOGY_PATH),
+                    str(output),
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            stream = read_message_journey_stream(output)
+            self.assertEqual(len(stream.observations), 11)
+            self.assertEqual(stream.diagnosis.first_boundary_id, "boundary:reply:6")
+            self.assertEqual(
+                [item.artifact for item in stream.transaction_window],
+                ["imp6.debug.log", "imp62.debug.log", "host106.console.log"],
+            )
+            self.assertEqual(stream.transaction_window[-1].start_offset, len(prefix))
+            self.assertEqual(
+                stream.transaction_window[-1].end_offset,
+                len(prefix) + len(ka10),
+            )
+
     def test_read_only_result_adapter_writes_only_the_requested_sidecar(self) -> None:
         imp6, imp62 = synthetic_traces()
         with tempfile.TemporaryDirectory() as directory_name:

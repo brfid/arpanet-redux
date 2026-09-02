@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-01
 - **Decider:** Brad
+- **Superseded in part by:** [ADR-016](0016-ka10-request-ingress-evidence.md) for direct Gate 4H host-106 request ingress; the original ten-observation results remain immutable
 
 ## Context
 

@@ -251,7 +251,7 @@ python3 scripts/ncc-serve-historical.py "$lab/results/ncc-alternate-path-fault-R
 python3 scripts/ncc-serve-coexistence.py "$lab/results/ncc-pdp11-its-coexistence-RUN-ID" --topology config/topologies/ncc-pdp11-its-coexistence.json
 ```
 
-The accepted direct-route journey contains ten observations and stops at missing `boundary:request:6`. The accepted failover journey contains fourteen and stops at missing `boundary:request:8`. These explicit gaps do not weaken the separate application verdict.
+The accepted direct-route journey contains eleven observations. Its versioned KA10 trace proves host-106 request ingress, and it stops at missing `boundary:reply:6`, host-176 reply ingress. The separately accepted failover journey contains fourteen observations and stops at missing `boundary:request:8`; it has no KA10 input window and remains unchanged. These explicit gaps do not weaken the separate application verdict.
 
 ## Handle failures and cleanup
 

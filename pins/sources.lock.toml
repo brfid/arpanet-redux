@@ -30,9 +30,9 @@ name = "ka10-simh"
 url = "https://github.com/brfid/ka10-simh.git"
 revision = "4b59f21d00355a7a917fa7cd54ef8a1123b515b2"
 checkout = "work/ka10-simh"
-purpose = "KA10 simulator with NCP-mode IMP device and the complete KAIMP state fix"
+purpose = "KA10 simulator with NCP-mode IMP device, the complete KAIMP state fix, and versioned observation-only input tracing"
 redistribution = "review-file-scoped-notices"
-notes = "Two focused commits ahead of upstream b45fedc048c4a064aae6f771156349e78b3c21e8 reproduce both required kx10_imp.c hunks from upstream commit ee55f7de16c27c233d76fd1b58a21d239afe4625 without its unrelated surrounding branch history. ADR-003 records the instruction-trace evidence and promotion. This revision adds versioned, observation-only NCP input assembly and DATAI-consumption records for the bounded host-ingress experiment; it does not change guest or protocol decisions."
+notes = "The first two focused commits ahead of upstream b45fedc048c4a064aae6f771156349e78b3c21e8 reproduce both required kx10_imp.c hunks from upstream commit ee55f7de16c27c233d76fd1b58a21d239afe4625 without its unrelated surrounding branch history. ADR-003 records the instruction-trace evidence and promotion. ADR-016 accepts this revision's third commit, which adds versioned, observation-only NCP input assembly and DATAI-consumption records for direct Gate 4H host-106 request ingress; they do not change guest or protocol decisions."
 
 [[source]]
 name = "imp11a-simh"

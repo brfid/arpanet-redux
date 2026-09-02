@@ -65,6 +65,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument(
+        "--ka10-ingress-trace",
+        action="store_true",
+        help="retain and adapt the versioned KA10 request-ingress trace",
+    )
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
     return parser.parse_args()
@@ -217,7 +222,10 @@ def run(args: argparse.Namespace) -> int:
     shared_topology = shared_topology_from_mapping(topology_document)
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
-    create_host106_observation_config(args.host106_config.resolve(), attach_config)
+    if args.ka10_ingress_trace:
+        create_host106_observation_config(args.host106_config.resolve(), attach_config)
+    else:
+        SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
     SHARED.append_manifest(manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config))
     SHARED.append_manifest(manifest, "path.host106-attach-config", attach_config)
 
@@ -337,15 +345,18 @@ def run(args: argparse.Namespace) -> int:
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         pdp11_offset = pdp11.position()
         host106_offset = host106.position()
-        host106_trace_offset = host106_offset
         for name, offset in (
             ("imp6", imp_offsets["imp6"]),
             ("imp62", imp_offsets["imp62"]),
-            ("host106-imp", host106_trace_offset),
             ("pdp11-console", pdp11_offset),
             ("host106-console", host106_offset),
         ):
             SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
+        host106_trace_offset = host106_offset if args.ka10_ingress_trace else None
+        if host106_trace_offset is not None:
+            SHARED.append_manifest(
+                manifest, "application.offset.host106-imp", host106_trace_offset
+            )
 
         pdp11.send("/usr/bin/telnet - -h 106\r")
         event, _ = pdp11.expect_any(
@@ -367,14 +378,18 @@ def run(args: argparse.Namespace) -> int:
         pdp11_output = pdp11.output_from(pdp11_offset)
         its_output = host106.output_from(host106_offset)
         imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
-        host106_trace_end_offset = host106_trace_offset + len(its_output)
+        host106_trace_end_offset = (
+            host106_trace_offset + len(its_output)
+            if host106_trace_offset is not None
+            else None
+        )
         imp6_output = imp6.debug_path.read_bytes()[
             imp_offsets["imp6"] : imp_end_offsets["imp6"]
         ]
         imp62_output = imp62.debug_path.read_bytes()[
             imp_offsets["imp62"] : imp_end_offsets["imp62"]
         ]
-        host106_trace = its_output
+        host106_trace = its_output if args.ka10_ingress_trace else None
         failures = application_evidence_failures(
             pdp11_output,
             its_output,
@@ -397,7 +412,7 @@ def run(args: argparse.Namespace) -> int:
 
         manifest_values = read_manifest(manifest)
         journey_path = results_dir / "message-journey.jsonl"
-        window = (
+        window = [
             transaction_window_source(
                 source_id="source:imp6",
                 artifact=imp6.debug_path.name,
@@ -412,35 +427,57 @@ def run(args: argparse.Namespace) -> int:
                 end_offset=imp_end_offsets["imp62"],
                 content=imp62_output,
             ),
-            transaction_window_source(
-                source_id="source:host106-imp",
-                artifact=host106.console_log_path.name,
-                start_offset=host106_trace_offset,
-                end_offset=host106_trace_end_offset,
-                content=host106_trace,
+        ]
+        if (
+            host106_trace is not None
+            and host106_trace_offset is not None
+            and host106_trace_end_offset is not None
+        ):
+            window.append(
+                transaction_window_source(
+                    source_id="source:host106-imp",
+                    artifact=host106.console_log_path.name,
+                    start_offset=host106_trace_offset,
+                    end_offset=host106_trace_end_offset,
+                    content=host106_trace,
+                )
+            )
+        provenance = [
+            ObservationProvenance(
+                "source:controller",
+                "formal-pdp11-its-controller",
+                manifest_values["repository.revision"],
             ),
-        )
+            ObservationProvenance(
+                "source:h316",
+                "h316-simh",
+                manifest_values["source.h316-simh.revision"],
+            ),
+        ]
+        if host106_trace is not None:
+            provenance.append(
+                ObservationProvenance(
+                    "source:host106-imp",
+                    "ka10-imp-trace",
+                    manifest_values["source.ka10-simh.revision"],
+                )
+            )
         journey = write_pdp11_its_journey_stream(
             journey_path,
             run_id=results_dir.name,
             started_at=manifest_values["started_utc"],
-            provenance=(
-                ObservationProvenance(
-                    "source:controller",
-                    "formal-pdp11-its-controller",
-                    manifest_values["repository.revision"],
-                ),
-                ObservationProvenance(
-                    "source:h316",
-                    "h316-simh",
-                    manifest_values["source.h316-simh.revision"],
-                ),
-            ),
+            provenance=provenance,
             topology_document=topology_document,
             transaction_window=window,
             imp6_trace=imp6_output,
             imp62_trace=imp62_output,
+            ka10_trace=host106_trace,
             h316_revision=manifest_values["source.h316-simh.revision"],
+            ka10_revision=(
+                manifest_values["source.ka10-simh.revision"]
+                if host106_trace is not None
+                else None
+            ),
         )
         for name in ("imp6", "imp62"):
             SHARED.append_manifest(
@@ -448,11 +485,12 @@ def run(args: argparse.Namespace) -> int:
                 f"application.offset.end.{name}",
                 imp_end_offsets[name],
             )
-        SHARED.append_manifest(
-            manifest,
-            "application.offset.end.host106-imp",
-            host106_trace_end_offset,
-        )
+        if host106_trace_end_offset is not None:
+            SHARED.append_manifest(
+                manifest,
+                "application.offset.end.host106-imp",
+                host106_trace_end_offset,
+            )
         SHARED.append_manifest(manifest, "path.message-journey", journey_path)
         SHARED.append_manifest(
             manifest, "sha256.message-journey", SHARED.sha256(journey_path)

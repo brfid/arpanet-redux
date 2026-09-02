@@ -118,10 +118,12 @@ def read_trace_window(
     result_dir: Path,
     manifest: dict[str, str],
     source: str,
+    *,
+    artifact: str | None = None,
 ) -> tuple[Path, int, int, bytes]:
     """Read one exact retained byte range, using a recorded end when present."""
 
-    path = result_dir / f"{source}.debug.log"
+    path = result_dir / (artifact or f"{source}.debug.log")
     try:
         start = int(manifest[f"application.offset.{source}"])
         end = int(
@@ -161,7 +163,14 @@ def main() -> int:
         source: read_trace_window(result_dir, manifest, source)
         for source in ("imp6", "imp62")
     }
-    provenance = (
+    if "application.offset.host106-imp" in manifest:
+        traces["host106-imp"] = read_trace_window(
+            result_dir,
+            manifest,
+            "host106-imp",
+            artifact="host106.console.log",
+        )
+    provenance = [
         ObservationProvenance(
             "source:controller",
             "formal-pdp11-its-controller",
@@ -172,7 +181,15 @@ def main() -> int:
             "h316-simh",
             manifest["source.h316-simh.revision"],
         ),
-    )
+    ]
+    if "host106-imp" in traces:
+        provenance.append(
+            ObservationProvenance(
+                "source:host106-imp",
+                "ka10-imp-trace",
+                manifest["source.ka10-simh.revision"],
+            )
+        )
     window = tuple(
         transaction_window_source(
             source_id=f"source:{source}",
@@ -192,7 +209,15 @@ def main() -> int:
         transaction_window=window,
         imp6_trace=traces["imp6"][3],
         imp62_trace=traces["imp62"][3],
+        ka10_trace=(
+            traces["host106-imp"][3] if "host106-imp" in traces else None
+        ),
         h316_revision=manifest["source.h316-simh.revision"],
+        ka10_revision=(
+            manifest["source.ka10-simh.revision"]
+            if "host106-imp" in traces
+            else None
+        ),
     )
     expected_digest = manifest.get("sha256.message-journey")
     actual_digest = hashlib.sha256(output.read_bytes()).hexdigest()

@@ -111,6 +111,7 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
   --host106-config "$repo_root/config/hosts/its106-pair.simh" \
   --pdp11-config "$repo_root/config/hosts/pdp11-176.simh" \
   --topology "$repo_root/config/topologies/pdp11-its-telnet.json" \
+  --ka10-ingress-trace \
   --results-dir "$results_dir" \
   --manifest "$runtime_dir/run.env" >/dev/null
 controller_pid=$BRFID_LAST_PID
@@ -129,9 +130,9 @@ grep -Fxq "passed" "$results_dir/outcome.txt"
 grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
 grep -Fq "remote_time=structured" "$results_dir/application-evidence.txt"
 grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
-grep -Fq "message_journey_observations=10" "$results_dir/application-evidence.txt"
+grep -Fq "message_journey_observations=11" "$results_dir/application-evidence.txt"
 grep -Fq "message_journey_state=missing-boundary" "$results_dir/application-evidence.txt"
-grep -Fq "message_journey_first_boundary=boundary:request:6" "$results_dir/application-evidence.txt"
+grep -Fq "message_journey_first_boundary=boundary:reply:6" "$results_dir/application-evidence.txt"
 journey_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/message-journey.jsonl" | awk '{print $1}')
 grep -Fxq "sha256.message-journey=$journey_sha" "$runtime_dir/run.env"
 grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"

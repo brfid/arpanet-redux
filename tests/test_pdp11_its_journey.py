@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import struct
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,7 @@ from ncc.pdp11_its_journey import (
     Pdp11ItsJourneyError,
     extract_pdp11_its_journey,
     transaction_window_source,
+    write_pdp11_its_journey_stream,
 )
 from ncc.shared_topology import load_shared_topology
 
@@ -132,6 +134,58 @@ def synthetic_traces() -> tuple[bytes, bytes]:
     )
 
 
+def synthetic_ka10_trace(*, sequence: int = 7, start_tick: int = 2_000) -> bytes:
+    data = REQUEST_AT_IMP6[2:]
+    long_words = (
+        0x0F00,
+        0,
+        0x0701,
+        0x003E,
+        0,
+        len(data) * 16,
+        0,
+        0,
+        0,
+        0,
+        0,
+        *data,
+    )
+    content = struct.pack(f">{len(long_words)}H", *long_words)
+    bit_text = "".join(f"{byte:08b}" for byte in content)
+    bit_count = len(bit_text)
+    tick = start_tick
+    lines = [
+        f"DBG({tick})> IMP ASSEMBLY: IMP INPUT-MESSAGE version=1 "
+        f"message={sequence} bits={bit_count}"
+    ]
+    start = 0
+    word_index = 0
+    while True:
+        width = 36 if start < 216 else 32
+        valid = min(width, max(bit_count - start, 0))
+        last = int(start + width >= bit_count)
+        chunk = bit_text[start : start + valid]
+        value = (int(chunk, 2) if chunk else 0) << (36 - valid)
+        tick += 100
+        lines.append(
+            f"DBG({tick})> IMP ASSEMBLY: IMP INPUT-ASSEMBLY version=1 "
+            f"message={sequence} word={word_index} message_bits={bit_count} "
+            f"start={start} width={width} valid={valid} last={last} "
+            f"value={value:012o}"
+        )
+        tick += 100
+        lines.append(
+            f"DBG({tick})> IMP ASSEMBLY: IMP INPUT-CONSUME version=1 "
+            f"message={sequence} word={word_index} width={width} valid={valid} "
+            f"last={last} value={value:012o} PC=53301"
+        )
+        if last:
+            break
+        start += width
+        word_index += 1
+    return ("\r\n".join(lines) + "\r\n").encode("ascii")
+
+
 class Pdp11ItsJourneyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.topology = load_shared_topology(TOPOLOGY_PATH)
@@ -165,6 +219,53 @@ class Pdp11ItsJourneyTests(unittest.TestCase):
                 if identifier not in {"boundary:request:6", "boundary:reply:6"}
             )
         )
+
+    def test_ka10_consumption_closes_only_request_ingress(self) -> None:
+        extraction = extract_pdp11_its_journey(
+            self.topology,
+            imp6_trace=self.imp6,
+            imp62_trace=self.imp62,
+            ka10_trace=synthetic_ka10_trace(),
+            ka10_revision="c" * 40,
+        )
+
+        self.assertEqual(len(extraction.observations), 11)
+        self.assertEqual(extraction.diagnosis.state, JourneyState.MISSING_BOUNDARY)
+        self.assertEqual(extraction.diagnosis.first_boundary_id, "boundary:reply:6")
+        observation = extraction.observations[5]
+        self.assertEqual(observation.id, "observation:request:6")
+        self.assertEqual(observation.provenance.kind, "ka10-imp-trace")
+        self.assertEqual(observation.provenance.revision, "c" * 40)
+        self.assertEqual(observation.decoded.leader_format, "ka10-long-1822-ncp")
+        self.assertEqual(
+            observation.correlation_fingerprint,
+            extraction.expected.request.correlation_fingerprint,
+        )
+
+    def test_ka10_trace_requires_one_exact_consumed_request(self) -> None:
+        with self.assertRaisesRegex(Pdp11ItsJourneyError, "exactly one"):
+            extract_pdp11_its_journey(
+                self.topology,
+                imp6_trace=self.imp6,
+                imp62_trace=self.imp62,
+                ka10_trace=synthetic_ka10_trace()
+                + synthetic_ka10_trace(sequence=8, start_tick=5_000),
+            )
+
+        changed = synthetic_ka10_trace().replace(
+            b"INPUT-CONSUME version=1 message=7 word=0 width=36 valid=36 "
+            b"last=0 value=036000000000",
+            b"INPUT-CONSUME version=1 message=7 word=0 width=36 valid=36 "
+            b"last=0 value=036000000001",
+            1,
+        )
+        with self.assertRaisesRegex(Pdp11ItsJourneyError, "invalid KA10"):
+            extract_pdp11_its_journey(
+                self.topology,
+                imp6_trace=self.imp6,
+                imp62_trace=self.imp62,
+                ka10_trace=changed,
+            )
 
     def test_preserves_direct_and_connected_peer_authority_and_transport_ids(self) -> None:
         observations = self.extraction().observations
@@ -314,6 +415,56 @@ class MessageJourneyStreamTests(unittest.TestCase):
             recorder.complete()
         finally:
             recorder.close()
+
+    def test_round_trip_includes_the_bounded_ka10_source_and_observation(self) -> None:
+        ka10 = synthetic_ka10_trace()
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "message-journey.jsonl"
+            stream = write_pdp11_its_journey_stream(
+                path,
+                run_id="pdp11-its-telnet-ka10-test",
+                started_at="2026-09-02T20:00:00Z",
+                provenance=(
+                    ObservationProvenance(
+                        "source:controller", "formal-pdp11-its-controller", "b" * 40
+                    ),
+                    ObservationProvenance(
+                        "source:host106-imp", "ka10-imp-trace", "c" * 40
+                    ),
+                ),
+                topology_document=self.topology_document,
+                transaction_window=(
+                    transaction_window_source(
+                        source_id="source:imp6",
+                        artifact="imp6.debug.log",
+                        start_offset=0,
+                        end_offset=len(self.imp6),
+                        content=self.imp6,
+                    ),
+                    transaction_window_source(
+                        source_id="source:imp62",
+                        artifact="imp62.debug.log",
+                        start_offset=0,
+                        end_offset=len(self.imp62),
+                        content=self.imp62,
+                    ),
+                    transaction_window_source(
+                        source_id="source:host106-imp",
+                        artifact="host106.console.log",
+                        start_offset=0,
+                        end_offset=len(ka10),
+                        content=ka10,
+                    ),
+                ),
+                imp6_trace=self.imp6,
+                imp62_trace=self.imp62,
+                ka10_trace=ka10,
+                ka10_revision="c" * 40,
+            )
+
+            self.assertEqual(len(stream.observations), 11)
+            self.assertEqual(stream.diagnosis.first_boundary_id, "boundary:reply:6")
+            self.assertEqual(len(stream.transaction_window), 3)
 
     def test_round_trip_recomputes_the_terminal_diagnosis(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:

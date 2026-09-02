@@ -13,6 +13,12 @@ from .h316_journey import (
     observation_from_h316_transfer,
     parse_h316_trace,
 )
+from .ka10_imp_journey import (
+    Ka10ImpInputMessage,
+    Ka10ImpTraceError,
+    ka10_message_as_nosc_words,
+    parse_ka10_imp_trace,
+)
 from .message_journey import (
     BoundaryAssessmentState,
     BoundaryDirection,
@@ -31,6 +37,7 @@ from .message_journey import (
     correlation_fingerprint_words,
     decode_nosc_short_leader,
     diagnose_message_journey,
+    observation_from_ka10_imp_trace,
 )
 from .message_journey_stream import (
     MessageJourneyStream,
@@ -80,7 +87,9 @@ def write_pdp11_its_journey_stream(
     transaction_window: Sequence[TransactionWindowSource],
     imp6_trace: bytes,
     imp62_trace: bytes,
+    ka10_trace: bytes | None = None,
     h316_revision: str | None = None,
+    ka10_revision: str | None = None,
 ) -> MessageJourneyStream:
     """Extract, record, and read back one formal typed journey sidecar."""
 
@@ -89,7 +98,9 @@ def write_pdp11_its_journey_stream(
         topology,
         imp6_trace=imp6_trace,
         imp62_trace=imp62_trace,
+        ka10_trace=ka10_trace,
         h316_revision=h316_revision,
+        ka10_revision=ka10_revision,
     )
     recorder = MessageJourneyStreamRecorder(
         path,
@@ -149,13 +160,16 @@ def extract_pdp11_its_journey(
     *,
     imp6_trace: bytes,
     imp62_trace: bytes,
+    ka10_trace: bytes | None = None,
     h316_revision: str | None = None,
+    ka10_revision: str | None = None,
 ) -> Pdp11ItsJourneyExtraction:
     """Extract the first exact TELNET-open request and correlated reply path.
 
-    Every cross-process association uses literal packet equality. Within one
-    H316 process, source-local sequence establishes the adjacent HI-to-MI or
-    MI-to-HI transition. The adapter never compares simulator ticks.
+    H316 cross-process associations use literal packet equality. When supplied,
+    the KA10 trace must reconstruct one fully consumed canonical long-leader
+    message whose reversible short form exactly equals the IMP 6 transfer. The
+    adapter never compares independent simulator ticks.
     """
 
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(topology)
@@ -178,6 +192,25 @@ def extract_pdp11_its_journey(
         origin_mi_device=imp6_mi_device,
         destination_mi_device=imp62_mi_device,
     )
+    ka10_message = None
+    if ka10_trace is not None:
+        try:
+            ka10_messages = parse_ka10_imp_trace(ka10_trace)
+        except Ka10ImpTraceError as error:
+            raise Pdp11ItsJourneyError(f"invalid KA10 IMP trace window: {error}") from error
+        candidates = []
+        for message in ka10_messages:
+            try:
+                normalized = ka10_message_as_nosc_words(message)
+            except Ka10ImpTraceError:
+                continue
+            if normalized == request.destination_hi.words:
+                candidates.append(message)
+        if len(candidates) != 1:
+            raise Pdp11ItsJourneyError(
+                "formal KA10 trace window does not contain exactly one consumed TELNET RFC"
+            )
+        ka10_message = candidates[0]
     expected = build_expected_journey(
         topology,
         journey_id=PDP11_ITS_JOURNEY_ID,
@@ -189,7 +222,9 @@ def extract_pdp11_its_journey(
         expected,
         request,
         reply,
+        ka10_message=ka10_message,
         h316_revision=h316_revision,
+        ka10_revision=ka10_revision,
     )
     diagnosis = diagnose_message_journey(topology, expected, observations)
     first = next(
@@ -197,14 +232,16 @@ def extract_pdp11_its_journey(
         for boundary in expected.boundaries
         if boundary.id == diagnosis.first_boundary_id
     )
+    expected_leg = JourneyLeg.REPLY if ka10_message is not None else JourneyLeg.REQUEST
+    expected_component = "host:176" if ka10_message is not None else "host:106"
     if (
         diagnosis.state != JourneyState.MISSING_BOUNDARY
-        or first.leg != JourneyLeg.REQUEST
-        or first.component_id != "host:106"
+        or first.leg != expected_leg
+        or first.component_id != expected_component
         or first.direction != BoundaryDirection.INGRESS
     ):
         raise Pdp11ItsJourneyError(
-            "formal journey did not stop at the expected unproved host-106 ingress boundary"
+            "formal journey did not stop at the expected unproved guest-ingress boundary"
         )
     return Pdp11ItsJourneyExtraction(expected, observations, diagnosis)
 
@@ -326,11 +363,13 @@ def _observations(
     request: _LegPath,
     reply: _LegPath,
     *,
+    ka10_message: Ka10ImpInputMessage | None,
     h316_revision: str | None,
+    ka10_revision: str | None,
 ) -> tuple[MessageJourneyObservation, ...]:
     request_boundaries = _boundaries(expected, JourneyLeg.REQUEST)
     reply_boundaries = _boundaries(expected, JourneyLeg.REPLY)
-    observations = (
+    request_observations = (
         _connected_peer_egress(
             request.origin_hi,
             request_boundaries[0],
@@ -371,6 +410,17 @@ def _observations(
             source="imp6",
             revision=h316_revision,
         ),
+    )
+    if ka10_message is not None:
+        request_observations += (
+            _ka10_request_ingress(
+                ka10_message,
+                request_boundaries[5],
+                request.expectation,
+                revision=ka10_revision,
+            ),
+        )
+    reply_observations = (
         _connected_peer_egress(
             reply.origin_hi,
             reply_boundaries[0],
@@ -412,7 +462,58 @@ def _observations(
             revision=h316_revision,
         ),
     )
-    return observations
+    return request_observations + reply_observations
+
+
+def _ka10_request_ingress(
+    message: Ka10ImpInputMessage,
+    boundary: ExpectedBoundary,
+    expectation: MessageExpectation,
+    *,
+    revision: str | None,
+) -> MessageJourneyObservation:
+    normalized = ka10_message_as_nosc_words(message)
+    decoded = replace(
+        decode_nosc_short_leader(normalized),
+        leader_format="ka10-long-1822-ncp",
+    )
+    observation = observation_from_ka10_imp_trace(
+        observation_id=f"observation:{boundary.leg.value}:{boundary.position}",
+        journey_id=PDP11_ITS_JOURNEY_ID,
+        leg=boundary.leg,
+        component_id=boundary.component_id,
+        interface_id=boundary.interface_id,
+        direction=boundary.direction,
+        source_local_sequence=message.source_local_sequence,
+        decoded=decoded,
+        fingerprint=correlation_fingerprint_words(normalized[2:]),
+        provenance_id="source:host106-imp",
+        simulator_tick=message.words[-1].consume_tick,
+        external_evidence=(
+            ExternalEvidenceReference(
+                id=f"evidence:host106-imp:{message.source_local_sequence}",
+                kind="ka10-input-assembly-consumption",
+                locator=(
+                    "host106.console.log#"
+                    f"message={message.source_local_sequence};"
+                    f"receive_tick={message.receive_tick};"
+                    f"consume_tick={message.words[-1].consume_tick}"
+                ),
+            ),
+        ),
+    )
+    if observation.correlation_fingerprint != expectation.correlation_fingerprint:
+        raise Pdp11ItsJourneyError("KA10 consumed message fingerprint changed after decoding")
+    if revision is None:
+        return observation
+    return replace(
+        observation,
+        provenance=ObservationProvenance(
+            id=observation.provenance.id,
+            kind=observation.provenance.kind,
+            revision=revision,
+        ),
+    )
 
 
 def _direct(

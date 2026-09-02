@@ -507,7 +507,7 @@ def observation_from_ka10_imp_trace(
     simulator_tick: int | None = None,
     external_evidence: Sequence[ExternalEvidenceReference] = (),
 ) -> MessageJourneyObservation:
-    """Create a typed KA10 seam after a caller correlates DATAIO evidence."""
+    """Create a typed KA10 seam after a caller validates DATAIO evidence."""
 
     return _observation_from_unparsed_external_trace(
         source_kind="ka10-imp-trace",

@@ -453,7 +453,7 @@ class MessageJourneyTests(unittest.TestCase):
                 provenance_id="source:imp62",
             )
 
-    def test_ka10_and_imp11a_remain_typed_seams_without_speculative_parsers(self) -> None:
+    def test_ka10_and_imp11a_expose_typed_observation_seams(self) -> None:
         request = request_expectation()
         ka10 = observation_from_ka10_imp_trace(
             observation_id="observation:ka10",

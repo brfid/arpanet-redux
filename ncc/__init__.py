@@ -139,6 +139,13 @@ from .h316_journey import (
     observation_from_h316_transfer,
     parse_h316_trace,
 )
+from .ka10_imp_journey import (
+    Ka10ImpInputMessage,
+    Ka10ImpInputWord,
+    Ka10ImpTraceError,
+    ka10_message_as_nosc_words,
+    parse_ka10_imp_trace,
+)
 from .message_journey_stream import (
     MESSAGE_JOURNEY_STREAM_SCHEMA_VERSION,
     MessageJourneyStream,
@@ -260,6 +267,9 @@ __all__ = [
     "JourneyLeg",
     "JourneyState",
     "JourneyValidationError",
+    "Ka10ImpInputMessage",
+    "Ka10ImpInputWord",
+    "Ka10ImpTraceError",
     "LineReport",
     "LineState",
     "LineThroughput",
@@ -329,10 +339,12 @@ __all__ = [
     "observation_from_pdp11_imp11a_trace",
     "historical_display_response",
     "journey_display_response",
+    "ka10_message_as_nosc_words",
     "historical_line_topology_from_shared",
     "nominal_topology_from_shared",
     "observation_is_stale",
     "parse_h316_trace",
+    "parse_ka10_imp_trace",
     "pdp11_its_failover_modem_devices",
     "run_summary_from_mapping",
     "read_live_observation_stream",

@@ -81,6 +81,8 @@ application + lifecycle artifacts ───────────────�
 
 The historical-event stream records direct reports. The message-journey stream records route-boundary observations with source-local order and provenance. Completed summaries and composition verdicts derive conclusions from those inputs. No stream becomes a second topology, independent simulator clocks never become a global clock, and missing evidence remains unknown rather than down.
 
+Python consumers import NCC contracts from their owning `ncc.<module>` directly. The `ncc` package root deliberately has no aggregate facade, so importing one contract does not initialize unrelated displays, servers, controllers, or viewers.
+
 Browser code receives resolved presentation data. It does not parse raw traces, pair report endpoints, reduce evidence, control a simulator, send guest input, switch a link, or mutate a result. The terminal runner may own one complete supported scenario through its existing lifecycle; that authority is not exposed through HTTP.
 
 See [NCC observability](ncc.md) for the supported contracts and [the test plan](test-plan.md) for their pass/fail rules.

@@ -42,8 +42,8 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | ID | Category | Work item | Impact | Risk | Effort | Priority | Estimate | Status |
 |---|---|---|---:|---:|---:|---:|---|---|
 | RM-01 | Test debt | Move reusable historical-line result construction out of a `unittest.TestCase` and eliminate duplicate discovery | 3 | 3 | 1 | 30 | Less than half a day | Completed |
-| RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Selected |
-| RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Not started |
+| RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Completed |
+| RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Selected |
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Not started |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Not started |
 | RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Not started |
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** RM-01 moved reusable historical-line result construction into `tests/support/` and removed the cross-test-module `TestCase` import that caused duplicate discovery.
-- **Selected:** RM-02, package facade.
-- **Next action:** Inventory intentional top-level `ncc` imports and compatibility expectations, minimize `ncc/__init__.py`, and add focused tests for import side effects and retained compatibility.
+- **Last completed:** RM-02 replaced the aggregate `ncc` package facade with an explicit owning-submodule boundary and added tests for both the focused import closure and repository import style.
+- **Selected:** RM-03, CI support contract.
+- **Next action:** Add pull-request coverage and source-only jobs for Python 3.11 and 3.14 on Linux plus Python 3.14 on macOS, retaining one full-history source guard.
 - **Blockers:** None.
-- **Last verification:** `make test` completed successfully with 278 distinct tests, one unittest socket skip, and one runtime socket skip; a discovery identity check reported 278 identities and no duplicates.
+- **Last verification:** `make test` completed successfully with 280 distinct tests, one unittest socket skip, and one runtime socket skip; importing `ncc.events` in a fresh interpreter loaded only its five-module NCC dependency closure.
 
 ## Update protocol
 
@@ -160,3 +160,4 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 - **2026-09-02:** Use this detailed plan as the execution ledger and keep `docs/workstreams.md` as its concise router.
 - **2026-09-02:** Prefer incremental extractions with stable entry points over a wholesale directory move.
 - **2026-09-02:** Preserve complete topology documents and scenario-specific evidence validators even where their shapes overlap.
+- **2026-09-02:** Treat owning `ncc` submodules as the Python package boundary; repository use and history provide no evidence for retaining an aggregate root facade.

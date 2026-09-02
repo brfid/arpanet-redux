@@ -85,6 +85,8 @@ Python consumers import NCC contracts from their owning `ncc.<module>` directly.
 
 Browser code receives resolved presentation data. It does not parse raw traces, pair report endpoints, reduce evidence, control a simulator, send guest input, switch a link, or mutate a result. The terminal runner may own one complete supported scenario through its existing lifecycle; that authority is not exposed through HTTP.
 
+The neutral passive-HTTP transport owns IPv4-loopback binding, threaded request handling, GET/HEAD dispatch, method rejection, deterministic JSON encoding, security headers, UTF-8 content length, and each adapter's selected logging policy. Board, historical, journey, and coexistence adapters retain their own response types, server identities, fixed routes, rendered pages, snapshot production, pending states, and display errors. The transport has no evidence, reduction, or lifecycle authority.
+
 See [NCC observability](ncc.md) for the supported contracts and [the test plan](test-plan.md) for their pass/fail rules.
 
 ## Resource model

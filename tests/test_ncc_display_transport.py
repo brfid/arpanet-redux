@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import unittest
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler
 from io import BytesIO
 from socketserver import ThreadingMixIn
 from types import ModuleType, SimpleNamespace
-import unittest
 from unittest.mock import patch
 
 import ncc.board_server as board_server
 import ncc.coexistence_server as coexistence_server
 import ncc.historical_server as historical_server
 import ncc.journey_server as journey_server
+from ncc.passive_http import PassiveHTTPRequestHandler, PassiveHTTPServer
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,31 @@ class PassiveDisplayTransportTests(unittest.TestCase):
             with self.subTest(server_type=server_type.__name__):
                 self.assertTrue(issubclass(server_type, ThreadingMixIn))
                 self.assertTrue(server_type.daemon_threads)
+
+    def test_every_application_adapts_the_shared_transport(self) -> None:
+        shared_handler_methods = (
+            "do_GET",
+            "do_HEAD",
+            "do_POST",
+            "do_PUT",
+            "do_PATCH",
+            "do_DELETE",
+            "log_message",
+            "_dispatch",
+            "_security_headers",
+        )
+        for case in CASES:
+            server_type = getattr(case.module, case.server_name)
+            handler_type = getattr(case.module, case.handler_name)
+            with self.subTest(server_type=case.server_name):
+                self.assertTrue(issubclass(server_type, PassiveHTTPServer))
+                self.assertIn("resolve_response", server_type.__dict__)
+                self.assertTrue(issubclass(handler_type, PassiveHTTPRequestHandler))
+                for method_name in shared_handler_methods:
+                    self.assertIs(
+                        getattr(handler_type, method_name),
+                        getattr(PassiveHTTPRequestHandler, method_name),
+                    )
 
     def test_factories_bind_ipv4_loopback_and_preserve_server_identity(self) -> None:
         for case in CASES:

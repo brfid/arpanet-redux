@@ -80,7 +80,7 @@ class NccBoardDisplay:
         if manifest is not None:
             topology = manifest.get("topology")
             if topology == self._COEXISTENCE_TOPOLOGY:
-                return self.completed_display().snapshot()
+                return self._coexistence_display().snapshot()
             if topology == self._FAILOVER_TOPOLOGY:
                 return self.failover_display().snapshot()
             if topology in self._HISTORICAL_LINE_TOPOLOGIES:
@@ -109,15 +109,15 @@ class NccBoardDisplay:
         except HistoricalDisplayError as error:
             raise NccBoardError(str(error)) from error
 
-    def completed_display(self) -> CoexistenceDisplay:
-        """Return the detailed coexistence report adapter when applicable."""
+    def _coexistence_display(self) -> CoexistenceDisplay:
+        """Return the validated coexistence projection when applicable."""
 
         manifest = self._terminal_manifest()
         if manifest is None:
             raise NccBoardPending("validated completed run artifacts are not available")
         if manifest.get("topology") != self._COEXISTENCE_TOPOLOGY:
             raise NccBoardError(
-                "the detailed application report is available only for a validated "
+                "the coexistence projection is available only for a validated "
                 "NCC/PDP-11/ITS coexistence result"
             )
         if self._completed is None:
@@ -138,7 +138,7 @@ class NccBoardDisplay:
             raise NccBoardPending("validated completed run artifacts are not available")
         if manifest.get("topology") != self._FAILOVER_TOPOLOGY:
             raise NccBoardError(
-                "the failover board projection is available only for a validated "
+                "the failover console projection is available only for a validated "
                 "NCC/PDP-11/ITS application failover result"
             )
         if self._failover is None:

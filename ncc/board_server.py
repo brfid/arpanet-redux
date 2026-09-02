@@ -1,4 +1,4 @@
-"""Loopback-only HTTP serving for the passive NCC network board."""
+"""Loopback-only HTTP serving for the passive NCC operator console."""
 
 from __future__ import annotations
 
@@ -11,21 +11,19 @@ from urllib.parse import urlsplit
 
 from .board_display import NccBoardDisplay, NccBoardError, NccBoardPending
 from .board_viewer import render_ncc_board_html
-from .coexistence_viewer import render_coexistence_display_html
 from .historical_server import CONTENT_SECURITY_POLICY
 
 
 class NccBoardHTTPServer(ThreadingHTTPServer):
-    """A GET/HEAD-only loopback server over one passive board adapter."""
+    """A GET/HEAD-only loopback server over one passive console adapter."""
 
     display: NccBoardDisplay
     page: str
-    report_page: str
 
 
 @dataclass(frozen=True)
 class NccBoardResponse:
-    """One transport-neutral response from the passive board application."""
+    """One transport-neutral response from the passive console application."""
 
     status: int
     content_type: str
@@ -47,14 +45,12 @@ def create_ncc_board_server(
     server = NccBoardHTTPServer(("127.0.0.1", port), _BoardHandler)
     server.display = display
     server.page = render_ncc_board_html(display.shared_topology)
-    server.report_page = render_coexistence_display_html()
     return server
 
 
 def ncc_board_response(
     display: NccBoardDisplay,
     page: str,
-    report_page: str,
     method: str,
     target: str,
 ) -> NccBoardResponse:
@@ -65,7 +61,7 @@ def ncc_board_response(
             status=405,
             content_type="application/json; charset=utf-8",
             body=json.dumps(
-                {"error": "passive board accepts GET and HEAD only"},
+                {"error": "passive console accepts GET and HEAD only"},
                 separators=(",", ":"),
                 sort_keys=True,
             )
@@ -91,18 +87,6 @@ def ncc_board_response(
                     "message": str(error),
                 },
             )
-        except NccBoardError as error:
-            response = _json_response(409, {"error": str(error)})
-    elif path == "/report":
-        try:
-            display.completed_display()
-            response = NccBoardResponse(
-                200,
-                "text/html; charset=utf-8",
-                report_page,
-            )
-        except NccBoardPending as error:
-            response = _json_response(409, {"error": str(error)})
         except NccBoardError as error:
             response = _json_response(409, {"error": str(error)})
     elif path == "/favicon.ico":
@@ -159,7 +143,6 @@ class _BoardHandler(BaseHTTPRequestHandler):
         response = ncc_board_response(
             self.server.display,
             self.server.page,
-            self.server.report_page,
             method,
             self.path,
         )

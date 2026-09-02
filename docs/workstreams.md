@@ -12,7 +12,7 @@ This page owns active local checkouts, selected work, and decision points. The [
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only |
 | `/Users/brf/src/arpanet-redux-worktrees/docs` | `codex/docs-concision` | Documentation maintenance |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-failover-board` | Passive failover projection and terminal runner |
+| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-failover-board` | Single passive NCC operator console and terminal runner |
 | `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Accepted Gate 4H, typed journey, and interactive TELNET |
 | `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Accepted line-state proof and coordinated expansion |
 
@@ -32,7 +32,7 @@ Do not delete, rebase, merge into, or develop on a recovery ref. Prefer revertin
 | Workstream | State | Decision | Read first |
 |---|---|---|---|
 | Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
-| NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, its fail-closed board projection, terminal-owned runners, and separate prompt-framed and character-oriented terminal streams are integrated | No required follow-up. Optional passive session-status presentation must remain read-only; browser input and simulator controls require a separate authority decision. Keep discovered application-link report identities candidate-only | [NCC observability](ncc.md), [historical terminal result](experiments/2026-09-01-historical-network-unix-telnet-terminal.md) |
+| NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, and terminal-owned runners feed one fail-closed mid-1970s-style operator console with a banked annunciator, log, and quick summary | No required follow-up. Keep the console read-only and discovered application-link report identities candidate-only; browser input and simulator controls require a separate authority decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
 | PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, ten-observation typed journey, deterministic repeated commands, clean option negotiation, and a safe character-oriented Network UNIX terminal using the preserved client's command, mode, and protocol controls are integrated | No required follow-up. A cursor-addressed terminal profile or remaining bounded NCP anomalies would require separate evidence; neither may fill the unproved guest-ingress boundaries by inference | [IMP11-A record](research/imp11a-device.md), [historical terminal result](experiments/2026-09-01-historical-network-unix-telnet-terminal.md), [option negotiation](experiments/2026-09-01-network-unix-telnet-option-negotiation.md) |
 | Network expansion | The three-IMP fault, loopback, coexistence, board, and failover compositions are integrated | No expansion is selected. A new host, IMP, mapping, or claim requires a separate bounded decision and evidence | [Configuration boundary](../config/README.md), [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md) |
 

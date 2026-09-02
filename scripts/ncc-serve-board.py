@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve one growing or completed NCC result as a passive network board."""
+"""Serve one growing or completed NCC result in the passive operator console."""
 
 from __future__ import annotations
 
@@ -43,13 +43,13 @@ def main() -> int:
         display = NccBoardDisplay(args.results_dir, args.topology)
         server = create_ncc_board_server(display, port=args.port)
     except (NccBoardError, OSError, ValueError) as error:
-        print(f"cannot serve NCC network board: {error}", file=sys.stderr)
+        print(f"cannot serve NCC operator console: {error}", file=sys.stderr)
         return 1
 
     host, port = server.server_address
-    print(f"NCC network board: http://{host}:{port}/", flush=True)
+    print(f"NCC operator console: http://{host}:{port}/", flush=True)
     print(f"Watching read-only result: {display.results_dir}", flush=True)
-    print("Press Control-C to stop the local board server.", flush=True)
+    print("Press Control-C to stop the local console server.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

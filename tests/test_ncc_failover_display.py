@@ -384,7 +384,7 @@ class FailoverDisplayTests(unittest.TestCase):
             ):
                 FailoverDisplay(fixture.result, TOPOLOGY)
 
-    def test_board_selects_failover_projection_without_detailed_report(self) -> None:
+    def test_board_selects_failover_projection_on_the_single_console(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             fixture = FailoverFixture(Path(directory_name))
             display = NccBoardDisplay(fixture.result, TOPOLOGY)
@@ -394,14 +394,12 @@ class FailoverDisplayTests(unittest.TestCase):
             report = ncc_board_response(
                 display,
                 page,
-                "coexistence report",
                 "GET",
                 "/report",
             )
 
             self.assertEqual(snapshot["profile"], "application-failover")
-            self.assertEqual(report.status, 409)
-            self.assertIn("coexistence result", report.body)
+            self.assertEqual(report.status, 404)
 
     def test_board_withholds_failover_conclusions_until_terminal_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
@@ -424,16 +422,16 @@ class FailoverDisplayTests(unittest.TestCase):
             self.assertEqual(completed["profile"], "application-failover")
             self.assertEqual(completed["failover"]["direct_link"]["state"], "cut")
 
-    def test_board_browser_renders_the_validated_failover_sequence(self) -> None:
+    def test_board_browser_projects_failover_into_explicit_run_proof(self) -> None:
         shared = load_shared_topology(TOPOLOGY)
         page = render_ncc_board_html(shared)
 
-        self.assertIn('id="route-phase"', page)
-        self.assertIn("Direct</span>", page)
-        self.assertIn("Via IMP 7", page)
-        self.assertIn("function renderFailover", page)
+        self.assertIn('data-bank="proof"', page)
+        self.assertIn("modern validated facts", page)
+        self.assertIn("function modelFromFailover", page)
         self.assertIn("payload.failover", page)
-        self.assertIn("state-cut", page)
+        self.assertIn("Direct application link", page)
+        self.assertNotIn("topology-map", page)
         self.assertNotIn("<form", page)
         self.assertNotIn("WebSocket", page)
 

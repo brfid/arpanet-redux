@@ -158,16 +158,16 @@ make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_r
 
 A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media), then pass that directory as `PDP11_INTERACTIVE_BUILD_ROOT`. Human mode supports character-at-a-time seven-bit teletype interaction and asynchronous output, but it does not yet claim a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
 
-## Run the NCC board
+## Run the NCC operator console
 
-To run either formal application/NCC smoke beside the passive board in one terminal-owned session, use:
+To run either formal application/NCC smoke beside the passive console in one terminal-owned session, use:
 
 ```sh
 make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" ncc
 make LAB_ROOT="$lab" RUN_ID=failover-watch-demo PDP11_BUILD_ROOT="$build_root" ncc-failover
 ```
 
-Open the printed loopback URL. Both commands show the existing progressive historical projection while the result grows. Coexistence exposes its completed projection and optional `/report` only after terminal validation. Failover waits for the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup; it then shows `DIRECT → CUT → VIA IMP 7` without using candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. The browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
+Open the printed loopback URL. Both commands use the same mid-1970s-style operator console and show the existing progressive historical projection while the result grows. The IMP REPORTS and directional line banks identify source IMPs in a 64-position annunciator; AUTO selects the highest-priority observed condition. Once terminal validation passes, the explicitly modern RUN PROOF bank shows the supported application, journey, failover, and cleanup conclusions. There is no separate report route. Failover still requires the manifest, application facts, verdict digest, relay lifecycle and cut acknowledgement, typed alternate journey, complete historical stream, report sources, and cleanup, and it never uses candidate report-line numbers. Control-C stops the exact harness session through its existing cleanup path. Bank selection and alarm acknowledgement affect only the page; the browser does not own the harness and cannot send guest input, switch a relay, signal a process, restart a component, or mutate a result.
 
 To run and watch in separate terminals, use:
 
@@ -176,7 +176,7 @@ make LAB_ROOT="$lab" RUN_ID=watch-demo PDP11_BUILD_ROOT="$build_root" run-ncc
 make NCC_RESULT="$lab/results/ncc-pdp11-its-coexistence-watch-demo" watch-ncc
 ```
 
-To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed. Interactive TELNET remains a separate foreground terminal surface; the board does not send input or own that controller.
+To inspect a retained canonical result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Both open the same console with different validated result adapters. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed. Interactive TELNET remains a separate foreground terminal surface; the console does not send input or own that controller.
 
 ## Read a result
 

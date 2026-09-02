@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a formal PDP-11/ITS NCC scenario beside its passive network board."""
+"""Run a formal PDP-11/ITS NCC scenario beside its passive operator console."""
 
 from __future__ import annotations
 
@@ -24,12 +24,10 @@ SCENARIOS = {
     "coexistence": {
         "result_prefix": "ncc-pdp11-its-coexistence",
         "script": "smoke-ncc-pdp11-its.sh",
-        "has_report": True,
     },
     "failover": {
         "result_prefix": "ncc-pdp11-its-application-failover",
         "script": "smoke-ncc-pdp11-its-failover.sh",
-        "has_report": False,
     },
 }
 
@@ -140,30 +138,23 @@ def main() -> int:
         if status == 0:
             address = f"http://{server.server_address[0]}:{server.server_address[1]}/"
             print(
-                f"\nNCC scenario completed. The board remains open at {address}",
+                f"\nNCC scenario completed. The console remains open at {address}",
                 flush=True,
             )
-            if SCENARIOS[args.scenario]["has_report"]:
-                print(
-                    "Open /report for the retained detailed run report. "
-                    "Press Control-C to close the board.",
-                    flush=True,
-                )
-            else:
-                print(
-                    "The completed board now shows the validated cut and alternate "
-                    "route. Press Control-C to close it.",
-                    flush=True,
-                )
+            print(
+                "The same console now shows the terminal validated projection. "
+                "Press Control-C to close it.",
+                flush=True,
+            )
         else:
             print(f"\nNCC scenario exited with status {status}; inspect the terminal and partial result at {result}.", file=sys.stderr, flush=True)
 
     monitor_thread = threading.Thread(target=monitor, name="ncc-scenario-monitor", daemon=True)
     monitor_thread.start()
     host, port = server.server_address
-    print(f"NCC network board: http://{host}:{port}/", flush=True)
+    print(f"NCC operator console: http://{host}:{port}/", flush=True)
     print(f"Owned scenario result: {result}", flush=True)
-    print("Press Control-C to stop the exact scenario and its board.", flush=True)
+    print("Press Control-C to stop the exact scenario and its console.", flush=True)
     interrupted_running_scenario = False
     try:
         server.serve_forever()

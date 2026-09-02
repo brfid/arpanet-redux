@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import ANY, patch
 
-from ncc.board_display import NccBoardDisplay, NccBoardError, NccBoardPending
+from ncc.board_display import NccBoardDisplay, NccBoardPending
 from ncc.board_server import (
     create_ncc_board_server,
     ncc_board_response,
@@ -20,7 +22,7 @@ from tests.test_ncc_historical_summary import (
 
 
 class NccBoardTests(unittest.TestCase):
-    def test_waits_with_configured_map_before_result_exists(self) -> None:
+    def test_waits_with_configured_console_before_result_exists(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             result = Path(directory_name) / "ncc-pdp11-its-coexistence-future"
             display = NccBoardDisplay(result, TOPOLOGY)
@@ -28,13 +30,14 @@ class NccBoardTests(unittest.TestCase):
 
             with self.assertRaisesRegex(NccBoardPending, "historical event stream"):
                 display.snapshot()
-            response = ncc_board_response(display, page, "report", "GET", "/api/snapshot")
+            response = ncc_board_response(display, page, "GET", "/api/snapshot")
 
             self.assertEqual(response.status, 202)
             self.assertEqual(json.loads(response.body)["run_id"], result.name)
-            self.assertIn("NCC network board", page)
-            self.assertIn('data-component-id="imp:5"', page)
-            self.assertIn('data-link-id="link:imp5-imp6-direct"', page)
+            self.assertIn("NCC operator console", page)
+            self.assertIn("Operational model: mid-1970s NCC", page)
+            self.assertEqual(page.count('class="lamp is-dark"'), 64)
+            self.assertIn('data-bank="reports"', page)
 
     def test_switches_from_existing_live_snapshot_to_completed_projection(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
@@ -78,51 +81,40 @@ class NccBoardTests(unittest.TestCase):
                         snapshot["completion"]["summary_lines"][0]["state"],
                         expected_state,
                     )
-                    with self.assertRaisesRegex(
-                        NccBoardError, "detailed application report"
-                    ):
-                        display.completed_display()
 
-    def test_board_transport_keeps_report_read_only_and_separate(self) -> None:
+    def test_board_transport_exposes_one_read_only_console_surface(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             fixture = CoexistenceFixture(Path(directory_name))
             display = NccBoardDisplay(fixture.result, TOPOLOGY)
             page = render_ncc_board_html(display.shared_topology)
-            report_page = "completed report"
-
-            root = ncc_board_response(display, page, report_page, "GET", "/")
+            root = ncc_board_response(display, page, "GET", "/")
             api = ncc_board_response(
                 display,
                 page,
-                report_page,
                 "GET",
                 "/api/snapshot",
             )
             report = ncc_board_response(
                 display,
                 page,
-                report_page,
                 "GET",
                 "/report",
             )
             head = ncc_board_response(
                 display,
                 page,
-                report_page,
                 "HEAD",
                 "/api/snapshot",
             )
             mutation = ncc_board_response(
                 display,
                 page,
-                report_page,
                 "POST",
                 "/api/snapshot",
             )
             arbitrary = ncc_board_response(
                 display,
                 page,
-                report_page,
                 "GET",
                 "/etc/passwd",
             )
@@ -130,8 +122,7 @@ class NccBoardTests(unittest.TestCase):
             self.assertEqual(root.status, 200)
             self.assertEqual(api.status, 200)
             self.assertEqual(json.loads(api.body)["mode"], "completed")
-            self.assertEqual(report.status, 200)
-            self.assertEqual(report.body, report_page)
+            self.assertEqual(report.status, 404)
             self.assertEqual(head.status, 200)
             self.assertEqual(head.body, "")
             self.assertEqual(mutation.status, 405)
@@ -147,18 +138,33 @@ class NccBoardTests(unittest.TestCase):
         display = NccBoardDisplay(Path("/tmp/nonexistent-ncc-board-result"), TOPOLOGY)
         page = render_ncc_board_html(display.shared_topology)
 
-        self.assertIn("validated observations only", page)
+        self.assertIn("64-position NCC annunciator", page)
+        self.assertIn("ARPA Network Log", page)
+        self.assertIn("Quick Summary", page)
         self.assertIn("prefers-reduced-motion", page)
         self.assertIn('fetch("/api/snapshot"', page)
         self.assertIn("focus-visible", page)
-        self.assertIn('href="/report"', page)
-        self.assertIn('snapshot.mode === "completed"', page)
+        self.assertIn("function modelFromHistorical", page)
+        self.assertNotIn('href="/report"', page)
+        self.assertNotIn("topology-map", page)
         self.assertNotIn("repeating-linear-gradient", page)
         self.assertNotIn("data:image", page)
         self.assertNotIn("https://", page)
         self.assertNotIn("innerHTML", page)
         self.assertNotIn("<form", page)
         self.assertNotIn("WebSocket", page)
+
+    def test_console_fails_closed_when_an_imp_exceeds_the_64_positions(self) -> None:
+        display = NccBoardDisplay(Path("/tmp/nonexistent-ncc-board-result"), TOPOLOGY)
+        topology = deepcopy(display.shared_topology.topology)
+        next(
+            component for component in topology["components"] if component["kind"] == "imp"
+        )["id"] = "imp:65"
+
+        with self.assertRaisesRegex(ValueError, "outside positions 1\\.\\.64"):
+            render_ncc_board_html(
+                replace(display.shared_topology, topology=topology)
+            )
 
 
 if __name__ == "__main__":

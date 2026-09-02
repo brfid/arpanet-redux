@@ -10,7 +10,7 @@ The accepted line-oriented session in [ADR-014](0014-interactive-telnet-session-
 
 The pinned Network UNIX source contains a complete user TELNET program and its network-input companion. When invoked without arguments, the client presents its own command processor. Its preserved commands include connection lifecycle, message and character modes, local echo, a configurable literal flag character, and TELNET controls including Are You There, break, abort output, go ahead, interrupt process, and synch. Its input companion parses and answers option negotiation. Reimplementing those behaviors in the modern controller would reduce fidelity and create competing protocol authority.
 
-A direct simulator-PTY handoff is not acceptable. The tracked PDP-11 configuration reserves octal `034`, Control-\, as the SIMH WRU character. If forwarded, that byte stops guest execution and exposes the simulator command prompt. Raw guest output can also contain controls that should not be interpreted by a modern terminal without an explicit terminal profile.
+A direct simulator-PTY handoff is not acceptable. The tracked PDP-11 configuration reserves octal `034`, `Control-\`, as the SIMH WRU character. If forwarded, that byte stops guest execution and exposes the simulator command prompt. Raw guest output can also contain controls that should not be interpreted by a modern terminal without an explicit terminal profile.
 
 ## Decision
 
@@ -18,7 +18,7 @@ Keep two foreground interfaces with different evidence purposes. `make telnet-ch
 
 The same foreground controller continues to own standard input and every simulator PTY. During the human session it relays characters between the operator terminal and the PDP-11 console. It never parses or generates TELNET protocol: the Network UNIX client and its companion remain authoritative.
 
-The controller applies a declared `seven-bit-safe-teletype` adapter. It maps local line feed to carriage return and modern Delete to the guest's backspace character, rejects high-bit input, blocks Control-\ so SIMH WRU cannot reach the simulator, and reserves Control-] for clean controller exit. Control-C and other nonreserved seven-bit controls reach the historical guest. Guest carriage return and line feed render as a stable newline; bell, backspace, and tab remain active; other controls render as visible hexadecimal text so guest output cannot inject modern terminal escape sequences.
+The controller applies a declared `seven-bit-safe-teletype` adapter. It maps local line feed to carriage return and modern Delete to the guest's backspace character, rejects high-bit input, blocks `Control-\` so SIMH WRU cannot reach the simulator, and reserves Control-] for clean controller exit. Control-C and other nonreserved seven-bit controls reach the historical guest. Guest carriage return and line feed render as a stable newline; bell, backspace, and tab remain active; other controls render as visible hexadecimal text so guest output cannot inject modern terminal escape sequences.
 
 Known project-added `SKTRACE` and `PBTRACE` instrumentation lines are omitted only from the human display. Their exact bytes remain in the raw PDP-11 console log and the retained terminal stream. The projection does not suppress unknown lines or reinterpret application state.
 

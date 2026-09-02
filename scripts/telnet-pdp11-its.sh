@@ -29,6 +29,18 @@ command_timeout=${BRFID_TELNET_COMMAND_TIMEOUT:-60}
 max_command_bytes=${BRFID_TELNET_MAX_COMMAND_BYTES:-256}
 max_commands=${BRFID_TELNET_MAX_COMMANDS:-100}
 max_response_bytes=${BRFID_TELNET_MAX_RESPONSE_BYTES:-1048576}
+terminal_mode=${BRFID_TELNET_MODE:-line}
+max_terminal_input_bytes=${BRFID_TELNET_MAX_INPUT_BYTES:-1048576}
+max_terminal_output_bytes=${BRFID_TELNET_MAX_OUTPUT_BYTES:-8388608}
+max_terminal_chunk_bytes=${BRFID_TELNET_MAX_CHUNK_BYTES:-4096}
+
+case $terminal_mode in
+  line|terminal) ;;
+  *)
+    echo "unsupported interactive TELNET mode: $terminal_mode" >&2
+    exit 64
+    ;;
+esac
 
 for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01"; do
   if [ ! -f "$required" ]; then
@@ -74,6 +86,10 @@ brfid_manifest_append interactive.command-timeout-seconds "$command_timeout"
 brfid_manifest_append interactive.max-command-bytes "$max_command_bytes"
 brfid_manifest_append interactive.max-commands "$max_commands"
 brfid_manifest_append interactive.max-response-bytes "$max_response_bytes"
+brfid_manifest_append interactive.mode "$terminal_mode"
+brfid_manifest_append terminal.max-input-bytes "$max_terminal_input_bytes"
+brfid_manifest_append terminal.max-output-bytes "$max_terminal_output_bytes"
+brfid_manifest_append terminal.max-chunk-bytes "$max_terminal_chunk_bytes"
 
 host106_work="$results_dir/host106"
 pdp11_work="$results_dir/pdp11"
@@ -120,10 +136,14 @@ if python3 "$repo_root/scripts/pdp11-its-interactive-controller.py" \
   --topology "$repo_root/config/topologies/pdp11-its-telnet.json" \
   --results-dir "$results_dir" \
   --manifest "$runtime_dir/run.env" \
+  --mode "$terminal_mode" \
   --command-timeout "$command_timeout" \
   --max-command-bytes "$max_command_bytes" \
   --max-commands "$max_commands" \
-  --max-response-bytes "$max_response_bytes"; then
+  --max-response-bytes "$max_response_bytes" \
+  --max-terminal-input-bytes "$max_terminal_input_bytes" \
+  --max-terminal-output-bytes "$max_terminal_output_bytes" \
+  --max-terminal-chunk-bytes "$max_terminal_chunk_bytes"; then
   controller_status=0
 else
   controller_status=$?
@@ -134,13 +154,21 @@ if [ "$controller_status" -ne 0 ]; then
 fi
 
 grep -Fxq "passed" "$results_dir/outcome.txt"
-grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
-grep -Fq "session_mode=interactive-line-oriented" "$results_dir/application-evidence.txt"
-grep -Fq "prompt_framing=its-ddt-star" "$results_dir/application-evidence.txt"
-grep -Eq "interactive_commands_completed=[1-9][0-9]*" "$results_dir/application-evidence.txt"
-grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
-transcript_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/interactive-telnet.jsonl" | awk '{print $1}')
-grep -Fxq "sha256.interactive-telnet=$transcript_sha" "$runtime_dir/run.env"
+if [ "$terminal_mode" = terminal ]; then
+  grep -Fq "session_mode=character-oriented" "$results_dir/application-evidence.txt"
+  grep -Fq "terminal_profile=seven-bit-safe-teletype" "$results_dir/application-evidence.txt"
+  grep -Fq "simulator_wru_forwarded=0" "$results_dir/application-evidence.txt"
+  transcript_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/terminal-session.jsonl" | awk '{print $1}')
+  grep -Fxq "sha256.terminal-session=$transcript_sha" "$runtime_dir/run.env"
+else
+  grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
+  grep -Fq "session_mode=interactive-line-oriented" "$results_dir/application-evidence.txt"
+  grep -Fq "prompt_framing=its-ddt-star" "$results_dir/application-evidence.txt"
+  grep -Eq "interactive_commands_completed=[1-9][0-9]*" "$results_dir/application-evidence.txt"
+  grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
+  transcript_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/interactive-telnet.jsonl" | awk '{print $1}')
+  grep -Fxq "sha256.interactive-telnet=$transcript_sha" "$runtime_dir/run.env"
+fi
 grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"
 brfid_assert_no_transport_errors \
   "$results_dir/imp6.console.log" "$results_dir/imp6.debug.log" \
@@ -149,5 +177,9 @@ brfid_assert_no_transport_errors \
   "$results_dir/pdp11-imp-debug.log"
 brfid_cleanup
 brfid_manifest_append cleanup.outer-runtime passed
-echo "PASS: interactive Network UNIX TELNET commands crossed two recovered IMPs to ITS host 106."
+if [ "$terminal_mode" = terminal ]; then
+  echo "PASS: historical Network UNIX terminal session retained and cleaned up."
+else
+  echo "PASS: interactive Network UNIX TELNET commands crossed two recovered IMPs to ITS host 106."
+fi
 brfid_mark_run_passed

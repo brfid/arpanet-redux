@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
+import select
 import signal
 import sys
+import termios
 import time
 import traceback
-from typing import Callable, TextIO
+from typing import Callable, Iterator, NamedTuple, TextIO
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -37,11 +41,22 @@ from ncc.interactive_telnet import (
 )
 from ncc.pdp11_its_journey import pdp11_its_modem_devices
 from ncc.shared_topology import shared_topology_from_mapping
+from ncc.terminal_session import (
+    DEFAULT_MAX_CHUNK_BYTES,
+    DEFAULT_MAX_INPUT_BYTES,
+    DEFAULT_MAX_OUTPUT_BYTES,
+    TerminalSessionRecorder,
+    TerminalSessionStreamError,
+    read_terminal_session_stream,
+)
 
 
 SHARED = BASE.SHARED
 ITS_DDT_PROMPT = rb"\r\n\*"
 REMOTE_BANNER = re.compile(rb"MIT Dynamic[\s\S]*?Happy hacking!\r\n")
+NETWORK_UNIX_TELNET_BANNER = b"UNIX User Telnet -- Ver I.5"
+LOCAL_EXIT = 0x1D
+SIMULATOR_WRU = 0x1C
 
 
 class InteractiveSessionFailure(RuntimeError):
@@ -69,6 +84,258 @@ class BootDisplay:
         self.output.flush()
 
 
+class PreparedTerminalInput(NamedTuple):
+    """One local input read after applying the declared terminal profile."""
+
+    forwarded: bytes
+    exit_requested: bool
+    blocked_wru: int
+    rejected_non_seven_bit: int
+
+
+class SafeTeletypeRenderer:
+    """Render a 7-bit teletype profile without terminal escape injection."""
+
+    def __init__(self) -> None:
+        self._suppress_line_feed = False
+
+    def render(self, data: bytes) -> bytes:
+        rendered = bytearray()
+        for byte in data:
+            if byte == 0x0D:
+                rendered.extend(b"\n")
+                self._suppress_line_feed = True
+                continue
+            if byte == 0x0A:
+                if not self._suppress_line_feed:
+                    rendered.extend(b"\n")
+                self._suppress_line_feed = False
+                continue
+            self._suppress_line_feed = False
+            if byte in (0x07, 0x08, 0x09) or 0x20 <= byte <= 0x7E:
+                rendered.append(byte)
+            else:
+                rendered.extend(f"\\x{byte:02x}".encode("ascii"))
+        return bytes(rendered)
+
+
+class HistoricalConsoleProjection:
+    """Hide project instrumentation while preserving its retained raw bytes."""
+
+    _NOISE_PREFIXES = (b"SKTRACE ", b"PBTRACE ")
+    _PROMPT_NOISE_PREFIXES = (b"* SKTRACE ", b"* PBTRACE ")
+
+    def __init__(self) -> None:
+        self._line_start = True
+        self._dropping = False
+        self._pending = bytearray()
+
+    def project(self, data: bytes) -> bytes:
+        projected = bytearray()
+        candidates = self._NOISE_PREFIXES + self._PROMPT_NOISE_PREFIXES
+        for byte in data:
+            if self._dropping:
+                if byte == 0x0A:
+                    self._dropping = False
+                    self._line_start = True
+                continue
+            if self._line_start:
+                self._pending.append(byte)
+                pending = bytes(self._pending)
+                if pending in self._NOISE_PREFIXES:
+                    self._pending.clear()
+                    self._dropping = True
+                    continue
+                if pending in self._PROMPT_NOISE_PREFIXES:
+                    projected.extend(b"* ")
+                    self._pending.clear()
+                    self._dropping = True
+                    continue
+                if any(candidate.startswith(pending) for candidate in candidates):
+                    continue
+                projected.extend(self._pending)
+                self._line_start = byte == 0x0A
+                self._pending.clear()
+                continue
+            projected.append(byte)
+            if byte == 0x0A:
+                self._line_start = True
+        return bytes(projected)
+
+    def flush_pending(self) -> bytes:
+        """Make a prompt visible when no following byte disambiguates it."""
+
+        pending = bytes(self._pending)
+        self._pending.clear()
+        if pending:
+            self._line_start = pending.endswith(b"\n")
+        return pending
+
+
+def prepare_terminal_input(data: bytes) -> PreparedTerminalInput:
+    """Map a modern keyboard to the bounded historical teletype profile."""
+
+    forwarded = bytearray()
+    blocked_wru = 0
+    rejected_non_seven_bit = 0
+    exit_requested = False
+    for byte in data:
+        if byte == LOCAL_EXIT:
+            exit_requested = True
+            break
+        if byte == SIMULATOR_WRU:
+            blocked_wru += 1
+            continue
+        if byte > 0x7F:
+            rejected_non_seven_bit += 1
+            continue
+        if byte == 0x0A:
+            forwarded.append(0x0D)
+        elif byte == 0x7F:
+            forwarded.append(0x08)
+        else:
+            forwarded.append(byte)
+    return PreparedTerminalInput(
+        forwarded=bytes(forwarded),
+        exit_requested=exit_requested,
+        blocked_wru=blocked_wru,
+        rejected_non_seven_bit=rejected_non_seven_bit,
+    )
+
+
+@contextmanager
+def operator_terminal_mode(file_descriptor: int) -> Iterator[None]:
+    """Use character input while preserving output processing and restore it."""
+
+    if not os.isatty(file_descriptor):
+        raise RuntimeError("historical terminal mode requires an interactive TTY")
+    original = termios.tcgetattr(file_descriptor)
+    configured = list(original)
+    configured[6] = list(original[6])
+    configured[0] &= ~(
+        termios.BRKINT
+        | termios.ICRNL
+        | termios.INPCK
+        | termios.ISTRIP
+        | termios.IXON
+    )
+    configured[2] = (configured[2] & ~termios.CSIZE) | termios.CS8
+    configured[3] &= ~(termios.ECHO | termios.ICANON | termios.IEXTEN | termios.ISIG)
+    configured[6][termios.VMIN] = 1
+    configured[6][termios.VTIME] = 0
+    termios.tcsetattr(file_descriptor, termios.TCSAFLUSH, configured)
+    try:
+        yield
+    finally:
+        termios.tcsetattr(file_descriptor, termios.TCSAFLUSH, original)
+
+
+def _write_all(file_descriptor: int, data: bytes) -> None:
+    offset = 0
+    while offset < len(data):
+        offset += os.write(file_descriptor, data[offset:])
+
+
+def network_unix_prompt_offset(data: bytes) -> int:
+    """Return the start of the last exact Network UNIX root prompt."""
+
+    matches = tuple(re.finditer(rb"\r\n# ?", data))
+    if not matches:
+        raise RuntimeError("Network UNIX root prompt is unavailable for terminal handoff")
+    return matches[-1].start() + 2
+
+
+def run_character_terminal(
+    pdp11: object,
+    recorder: TerminalSessionRecorder,
+    *,
+    input_fd: int,
+    output_fd: int,
+    start_offset: int,
+    max_input_bytes: int,
+    max_output_bytes: int,
+    poll_seconds: float = 0.05,
+) -> str:
+    """Relay bounded characters while the controller retains sole PTY ownership."""
+
+    position = start_offset
+    input_bytes = 0
+    output_bytes = 0
+    renderer = SafeTeletypeRenderer()
+    projection = HistoricalConsoleProjection()
+
+    def flush_projection() -> None:
+        pending = projection.flush_pending()
+        if pending:
+            _write_all(output_fd, renderer.render(pending))
+
+    def relay_output() -> str | None:
+        nonlocal position, output_bytes
+        available = pdp11.output_from(position)
+        if not available:
+            return None
+        if output_bytes + len(available) > max_output_bytes:
+            return "output-limit"
+        recorder.bytes(
+            "pdp11-to-operator", available, observed_at=SHARED.utc_now()
+        )
+        output_bytes += len(available)
+        position += len(available)
+        _write_all(output_fd, renderer.render(projection.project(available)))
+        return None
+
+    while True:
+        limit_reason = relay_output()
+        if limit_reason is not None:
+            return limit_reason
+        process = pdp11.process
+        if process is None or process.poll() is not None:
+            flush_projection()
+            return "process-exit"
+        readable, _, _ = select.select((input_fd,), (), (), poll_seconds)
+        if not readable:
+            flush_projection()
+            continue
+        incoming = os.read(input_fd, DEFAULT_MAX_CHUNK_BYTES)
+        if not incoming:
+            flush_projection()
+            return "input-eof"
+        prepared = prepare_terminal_input(incoming)
+        observed_at = SHARED.utc_now()
+        if prepared.blocked_wru:
+            recorder.control(
+                "blocked-simulator-wru",
+                observed_at=observed_at,
+                count=prepared.blocked_wru,
+            )
+            _write_all(
+                output_fd,
+                b"\n[local] Control-\\ is reserved for safe simulator cleanup.\n",
+            )
+        if prepared.rejected_non_seven_bit:
+            recorder.control(
+                "rejected-non-seven-bit",
+                observed_at=observed_at,
+                count=prepared.rejected_non_seven_bit,
+            )
+            _write_all(output_fd, b"\n[local] This terminal profile accepts 7-bit input.\n")
+        if prepared.forwarded:
+            if input_bytes + len(prepared.forwarded) > max_input_bytes:
+                return "input-limit"
+            recorder.bytes(
+                "operator-to-pdp11",
+                prepared.forwarded,
+                observed_at=observed_at,
+            )
+            pdp11.send(prepared.forwarded)
+            input_bytes += len(prepared.forwarded)
+        if prepared.exit_requested:
+            time.sleep(0.05)
+            limit_reason = relay_output()
+            flush_projection()
+            return limit_reason or "operator-exit"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--h316", required=True, type=Path)
@@ -84,6 +351,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--mode", choices=("line", "terminal"), default="line")
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
     parser.add_argument(
@@ -101,6 +369,21 @@ def parse_args() -> argparse.Namespace:
         "--max-response-bytes",
         type=int,
         default=DEFAULT_MAX_RESPONSE_BYTES,
+    )
+    parser.add_argument(
+        "--max-terminal-input-bytes",
+        type=int,
+        default=DEFAULT_MAX_INPUT_BYTES,
+    )
+    parser.add_argument(
+        "--max-terminal-output-bytes",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_BYTES,
+    )
+    parser.add_argument(
+        "--max-terminal-chunk-bytes",
+        type=int,
+        default=DEFAULT_MAX_CHUNK_BYTES,
     )
     return parser.parse_args()
 
@@ -171,6 +454,101 @@ def interactive_evidence_failures(
     if not returned:
         failures.append("missing correlated interactive IMP 62 to IMP 6 traffic")
     return failures
+
+
+def terminal_connection_evidence_failures(
+    pdp11_output: bytes,
+    its_output: bytes,
+    imp6_output: bytes,
+    imp62_output: bytes,
+    *,
+    imp6_mi_device: str = "mi1",
+    imp62_mi_device: str = "mi1",
+) -> list[str]:
+    """Close evidence only when the operator actually opened historical TELNET."""
+
+    patterns = (
+        ("Network UNIX TELNET command interface", NETWORK_UNIX_TELNET_BANNER),
+        ("connection attempt", rb"Attempting Connection"),
+        ("Connection open", rb"Connection open"),
+        ("ITS machine greeting", rb"MIT Dynamic[\s\S]*?Modelling PDP-10"),
+        ("ITS monitor greeting", rb"KA ITS\.[0-9]+\. DDT\.[0-9]+\."),
+        ("ITS TTY assignment", rb"TTY [0-9]+"),
+        ("ITS welcome banner", rb"Welcome to ITS!"),
+    )
+    failures: list[str] = []
+    position = 0
+    for label, pattern in patterns:
+        match = re.search(pattern, pdp11_output[position:], re.DOTALL)
+        if match is None:
+            failures.append(f"missing ordered {label} evidence")
+            continue
+        position += match.end()
+    if re.search(BASE.SERVICE_PATTERN, its_output) is None:
+        failures.append("ITS lacks the incoming HST176 TELNET service job")
+
+    for name, output, modem_device in (
+        ("imp6", imp6_output, imp6_mi_device),
+        ("imp62", imp62_output, imp62_mi_device),
+    ):
+        for marker in (b"HI2 MSG: message received", b"HI2 MSG: message sent"):
+            if marker not in output:
+                failures.append(
+                    f"{name} lacks terminal {marker.decode('ascii')} evidence"
+                )
+        if BASE.FATAL_TRANSPORT.search(output):
+            failures.append(f"{name} reported a fatal transport condition")
+        if SHARED.watchdog_reports_modem_dead(output, modem_device):
+            failures.append(f"{name} reported a terminal modem-line-dead transition")
+
+    imp6_mi = SHARED.mi_link_messages_from_bytes(
+        imp6_output, device=imp6_mi_device
+    )
+    imp62_mi = SHARED.mi_link_messages_from_bytes(
+        imp62_output, device=imp62_mi_device
+    )
+    forward = SHARED.significant(imp6_mi[b"sent"]) & SHARED.significant(
+        imp62_mi[b"received"]
+    )
+    returned = SHARED.significant(imp62_mi[b"sent"]) & SHARED.significant(
+        imp6_mi[b"received"]
+    )
+    if not forward:
+        failures.append("missing correlated terminal IMP 6 to IMP 62 traffic")
+    if not returned:
+        failures.append("missing correlated terminal IMP 62 to IMP 6 traffic")
+    return failures
+
+
+def historical_fidelity_facts(
+    input_bytes: bytes, output_bytes: bytes
+) -> dict[str, bool]:
+    """Recognize only the bounded Gate 4J client exercises."""
+
+    facts = {
+        "client_started": NETWORK_UNIX_TELNET_BANNER in output_bytes,
+        "connection_open": b"Connection open" in output_bytes,
+        "remote_time": all(
+            re.search(pattern, output_bytes) is not None
+            for pattern in (
+                BASE.TIME_PATTERN,
+                BASE.DATE_PATTERN,
+                BASE.UPTIME_PATTERN,
+            )
+        ),
+        "ayt_yes": (
+            b"^ayt\r" in input_bytes
+            and re.search(rb"\^ayt\r\nYES", output_bytes) is not None
+        ),
+        "message_mode": (
+            b"^msg\r" in input_bytes and b" Msgmode\r\n" in output_bytes
+        ),
+        "character_mode": (
+            b"^character\r" in input_bytes and b" Charmode\r\n" in output_bytes
+        ),
+    }
+    facts["fidelity_complete"] = all(facts.values())
+    return facts
 
 
 def render_console_capture(captured: bytes) -> str:
@@ -325,6 +703,9 @@ def run(args: argparse.Namespace) -> int:
         (args.max_command_bytes, "maximum command bytes"),
         (args.max_commands, "maximum commands"),
         (args.max_response_bytes, "maximum response bytes"),
+        (args.max_terminal_input_bytes, "maximum terminal input bytes"),
+        (args.max_terminal_output_bytes, "maximum terminal output bytes"),
+        (args.max_terminal_chunk_bytes, "maximum terminal chunk bytes"),
     ):
         if value < 1:
             raise ValueError(f"{name} must be positive")
@@ -380,7 +761,7 @@ def run(args: argparse.Namespace) -> int:
     imps = (imp6, imp62)
     outcome = "failed"
     interrupted = False
-    recorder: InteractiveTelnetRecorder | None = None
+    recorder: InteractiveTelnetRecorder | TerminalSessionRecorder | None = None
     transcript_terminal = False
     display = BootDisplay(sys.stdout)
 
@@ -492,6 +873,221 @@ def run(args: argparse.Namespace) -> int:
             ("host106-console", host106_offset),
         ):
             SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
+
+        if args.mode == "terminal":
+            manifest_values = BASE.read_manifest(manifest)
+            transcript_path = results_dir / "terminal-session.jsonl"
+            recorder = TerminalSessionRecorder(
+                transcript_path,
+                run_id=results_dir.name,
+                started_at=manifest_values["started_utc"],
+                repository_revision=manifest_values["repository.revision"],
+                max_input_bytes=args.max_terminal_input_bytes,
+                max_output_bytes=args.max_terminal_output_bytes,
+                max_chunk_bytes=args.max_terminal_chunk_bytes,
+            )
+            terminal_start_offset = network_unix_prompt_offset(
+                pdp11.output_from(0)
+            )
+            display.milestone(
+                "READY", "Host terminal", "Network UNIX root shell on host 176"
+            )
+            print("\nHISTORICAL TERMINAL READY")
+            print("  You are on Network UNIX host 176.")
+            print("  Start its preserved client:  /usr/bin/telnet")
+            print("  At the client '* ' prompt:   connect - -h 106")
+            print("  While connected, '^' is the client's literal command prefix;")
+            print("  for example: ^ayt, ^character, ^msg, or ^close.")
+            print("  Press Control-] to stop the complete simulation cleanly.\n")
+            sys.stdout.flush()
+            input_fd = sys.stdin.fileno()
+            output_fd = sys.stdout.fileno()
+            if not os.isatty(output_fd):
+                raise RuntimeError(
+                    "historical terminal mode requires output attached to a TTY"
+                )
+            try:
+                with operator_terminal_mode(input_fd):
+                    session_reason = run_character_terminal(
+                        pdp11,
+                        recorder,
+                        input_fd=input_fd,
+                        output_fd=output_fd,
+                        start_offset=terminal_start_offset,
+                        max_input_bytes=args.max_terminal_input_bytes,
+                        max_output_bytes=args.max_terminal_output_bytes,
+                    )
+            except InterruptedError:
+                recorder.complete(observed_at=SHARED.utc_now(), reason="interrupted")
+                transcript_terminal = True
+                raise
+            except (OSError, RuntimeError, TerminalSessionStreamError):
+                recorder.complete(observed_at=SHARED.utc_now(), reason="failed")
+                transcript_terminal = True
+                raise
+            else:
+                recorder.complete(
+                    observed_at=SHARED.utc_now(), reason=session_reason
+                )
+                transcript_terminal = True
+            finally:
+                recorder.close()
+
+            if session_reason not in {"operator-exit", "input-eof"}:
+                raise InteractiveSessionFailure(
+                    f"historical terminal stopped because of {session_reason}"
+                )
+
+            display.milestone(
+                "CHECK", "Evidence", "validating terminal bytes and observed claims"
+            )
+            transcript = read_terminal_session_stream(transcript_path)
+            if not transcript.is_terminal or transcript.end_reason != session_reason:
+                raise RuntimeError("historical terminal transcript is not complete")
+
+            pdp11_output = pdp11.output_from(pdp11_offset)
+            its_output = host106.output_from(host106_offset)
+            imp_end_offsets = {
+                imp.name: imp.debug_path.stat().st_size for imp in imps
+            }
+            imp6_output = imp6.debug_path.read_bytes()[
+                imp_offsets["imp6"] : imp_end_offsets["imp6"]
+            ]
+            imp62_output = imp62.debug_path.read_bytes()[
+                imp_offsets["imp62"] : imp_end_offsets["imp62"]
+            ]
+            fidelity = historical_fidelity_facts(
+                transcript.input_bytes, transcript.output_bytes
+            )
+            client_started = fidelity["client_started"]
+            connection_open = fidelity["connection_open"]
+            remote_time = fidelity["remote_time"]
+            ayt_yes = fidelity["ayt_yes"]
+            message_mode = fidelity["message_mode"]
+            character_mode = fidelity["character_mode"]
+            fidelity_complete = fidelity["fidelity_complete"]
+            service_match = re.search(BASE.SERVICE_PATTERN, its_output)
+            service_user = (
+                service_match.group(1).decode("ascii")
+                if service_match is not None
+                else None
+            )
+            failures: list[str] = []
+            if connection_open:
+                failures.extend(
+                    terminal_connection_evidence_failures(
+                        pdp11_output,
+                        its_output,
+                        imp6_output,
+                        imp62_output,
+                        imp6_mi_device=imp6_mi_device,
+                        imp62_mi_device=imp62_mi_device,
+                    )
+                )
+                for imp, modem_device in (
+                    (imp6, imp6_mi_device),
+                    (imp62, imp62_mi_device),
+                ):
+                    latest = SHARED.latest_watchdog(imp.debug_path)
+                    if not SHARED.watchdog_devices_ready(
+                        latest, modem_device=modem_device, host_device="hi2"
+                    ):
+                        failures.append(f"{imp.name} did not remain host-link ready")
+            elif service_user is not None:
+                failures.append(
+                    "ITS service evidence exists without PDP-11 Connection open evidence"
+                )
+            if failures:
+                raise RuntimeError("; ".join(failures))
+
+            for name in ("imp6", "imp62"):
+                SHARED.append_manifest(
+                    manifest,
+                    f"application.offset.end.{name}",
+                    imp_end_offsets[name],
+                )
+            SHARED.append_manifest(manifest, "path.terminal-session", transcript_path)
+            SHARED.append_manifest(
+                manifest,
+                "sha256.terminal-session",
+                SHARED.sha256(transcript_path),
+            )
+            SHARED.append_manifest(
+                manifest, "terminal.input-bytes", len(transcript.input_bytes)
+            )
+            SHARED.append_manifest(
+                manifest, "terminal.output-bytes", len(transcript.output_bytes)
+            )
+            SHARED.append_manifest(
+                manifest, "terminal.profile", "seven-bit-safe-teletype"
+            )
+            SHARED.append_manifest(manifest, "terminal.simulator-wru-forwarded", 0)
+            SHARED.append_manifest(
+                manifest, "application.client-started", int(client_started)
+            )
+            SHARED.append_manifest(
+                manifest, "application.connection-open", int(connection_open)
+            )
+            SHARED.append_manifest(
+                manifest, "application.remote-time", int(remote_time)
+            )
+            SHARED.append_manifest(manifest, "application.ayt-yes", int(ayt_yes))
+            SHARED.append_manifest(
+                manifest, "application.message-mode", int(message_mode)
+            )
+            SHARED.append_manifest(
+                manifest, "application.character-mode", int(character_mode)
+            )
+            SHARED.append_manifest(
+                manifest,
+                "application.historical-fidelity-complete",
+                int(fidelity_complete),
+            )
+            SHARED.append_manifest(
+                manifest, "application.session-mode", "character-oriented"
+            )
+            if connection_open:
+                assert service_user is not None
+                SHARED.append_manifest(
+                    manifest, "application.client", "network-unix-telnet"
+                )
+                SHARED.append_manifest(manifest, "application.server", "TELSER")
+                SHARED.append_manifest(
+                    manifest, "application.service_user", service_user
+                )
+
+            evidence = (
+                "session_mode=character-oriented\n"
+                "terminal_profile=seven-bit-safe-teletype\n"
+                "simulator_wru_forwarded=0\n"
+                f"guest_telnet_client_started={int(client_started)}\n"
+                f"connection_open={int(connection_open)}\n"
+                f"its_service_user={service_user or 'not-observed'}\n"
+                f"remote_time={int(remote_time)}\n"
+                f"ayt_yes={int(ayt_yes)}\n"
+                f"message_mode={int(message_mode)}\n"
+                f"character_mode={int(character_mode)}\n"
+                f"historical_fidelity_complete={int(fidelity_complete)}\n"
+                "correlated_inter_imp_traffic="
+                f"{'both-directions' if connection_open else 'not-observed'}\n"
+            )
+            (results_dir / "application-evidence.txt").write_text(
+                evidence, encoding="ascii"
+            )
+            outcome = "passed"
+            if connection_open:
+                display.milestone(
+                    "READY",
+                    "Evidence",
+                    f"historical client reached ITS service job {service_user}",
+                )
+            else:
+                display.milestone(
+                    "READY",
+                    "Evidence",
+                    "host terminal retained; no TELNET connection claimed",
+                )
+            return 0
 
         display.milestone(
             "OPEN", "TELNET", "Network UNIX host 176 -> ITS host 106"
@@ -652,7 +1248,11 @@ def run(args: argparse.Namespace) -> int:
                     observed_at=SHARED.utc_now(),
                     reason="interrupted" if interrupted else "failed",
                 )
-            except (InteractiveTelnetStreamError, OSError):
+            except (
+                InteractiveTelnetStreamError,
+                TerminalSessionStreamError,
+                OSError,
+            ):
                 pass
             recorder.close()
         display.milestone(
@@ -677,6 +1277,7 @@ def main() -> int:
     except (
         InteractiveSessionFailure,
         InteractiveTelnetStreamError,
+        TerminalSessionStreamError,
         OSError,
         RuntimeError,
         TimeoutError,

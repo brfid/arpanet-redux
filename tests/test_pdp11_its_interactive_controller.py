@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 from io import StringIO
+import os
 from pathlib import Path
 import re
 import tempfile
+import termios
 import unittest
 
 from ncc.interactive_telnet import (
@@ -30,6 +32,13 @@ VALID_PDP11 = (
     b"KA ITS.1652. DDT.1549.\r\n"
     b"TTY 53\r\nWelcome to ITS!\r\n"
     b":TIME\r\nThe time is 08:00:01 EDT.\r\n*"
+)
+VALID_HISTORICAL_TERMINAL = (
+    b" UNIX User Telnet -- Ver I.5\r\n* connect - -h 106\r\n"
+    b"Attempting Connection \r\nConnection open\r\n"
+    b"MIT Dynamic Modelling PDP-10\r\n"
+    b"KA ITS.1652. DDT.1549.\r\n"
+    b"TTY 53\r\nWelcome to ITS!\r\nHappy hacking!\r\n"
 )
 VALID_ITS = b"LOGIN  53TLNT 0 HST176 08:00:00\r\n"
 VALID_IMP6 = (
@@ -199,6 +208,96 @@ class InteractiveControllerTests(unittest.TestCase):
         self.assertEqual(
             CONTROLLER.render_console_capture(b"hello\r\n\x1bworld\x00"),
             "hello\n\\x1bworld\\x00",
+        )
+
+    def test_terminal_input_reserves_local_controls_and_maps_teletype_keys(self) -> None:
+        prepared = CONTROLLER.prepare_terminal_input(
+            b"a\n\x7f\x1c\x80b\x1dignored"
+        )
+
+        self.assertEqual(prepared.forwarded, b"a\r\x08b")
+        self.assertTrue(prepared.exit_requested)
+        self.assertEqual(prepared.blocked_wru, 1)
+        self.assertEqual(prepared.rejected_non_seven_bit, 1)
+
+    def test_operator_terminal_mode_is_character_oriented_and_restores_attributes(self) -> None:
+        master_fd, slave_fd = os.openpty()
+        try:
+            original = termios.tcgetattr(slave_fd)
+            with CONTROLLER.operator_terminal_mode(slave_fd):
+                configured = termios.tcgetattr(slave_fd)
+                self.assertEqual(configured[3] & termios.ICANON, 0)
+                self.assertEqual(configured[3] & termios.ECHO, 0)
+                self.assertEqual(configured[3] & termios.ISIG, 0)
+                self.assertEqual(configured[1], original[1])
+            self.assertEqual(termios.tcgetattr(slave_fd), original)
+        finally:
+            os.close(master_fd)
+            os.close(slave_fd)
+
+    def test_safe_teletype_renderer_handles_split_crlf_and_escapes_controls(self) -> None:
+        renderer = CONTROLLER.SafeTeletypeRenderer()
+
+        self.assertEqual(renderer.render(b"one\r"), b"one\n")
+        self.assertEqual(renderer.render(b"\ntwo\x08\x1b\xff"), b"two\x08\\x1b\\xff")
+
+    def test_historical_projection_hides_only_known_instrumentation_lines(self) -> None:
+        projection = CONTROLLER.HistoricalConsoleProjection()
+
+        self.assertEqual(projection.project(b"PB"), b"")
+        self.assertEqual(
+            projection.project(
+                b"TRACE hidden\r\nordinary output\r\n* SKTRACE hidden too\r\n* "
+            ),
+            b"ordinary output\r\n* ",
+        )
+        self.assertEqual(projection.flush_pending(), b"* ")
+
+    def test_network_unix_prompt_offset_retains_the_real_prompt(self) -> None:
+        data = b"boot\r\n# first\r\n# "
+
+        offset = CONTROLLER.network_unix_prompt_offset(data)
+
+        self.assertEqual(data[offset:], b"# ")
+
+    def test_historical_client_connection_closes_over_transport_evidence(self) -> None:
+        self.assertEqual(
+            CONTROLLER.terminal_connection_evidence_failures(
+                VALID_HISTORICAL_TERMINAL,
+                VALID_ITS,
+                VALID_IMP6,
+                VALID_IMP62,
+            ),
+            [],
+        )
+
+        failures = CONTROLLER.terminal_connection_evidence_failures(
+            VALID_HISTORICAL_TERMINAL.replace(
+                CONTROLLER.NETWORK_UNIX_TELNET_BANNER, b""
+            ),
+            VALID_ITS,
+            VALID_IMP6,
+            VALID_IMP62,
+        )
+        self.assertTrue(any("command interface" in failure for failure in failures))
+
+    def test_historical_fidelity_facts_require_real_client_controls_and_time(self) -> None:
+        input_bytes = b"/usr/bin/telnet\rconnect - -h 106\r:TIME\r^ayt\r^msg\r^character\r"
+        output_bytes = (
+            VALID_HISTORICAL_TERMINAL
+            + b":TIME\r\nThe time is 22:00:03 EDT.\r\n"
+            + b"Today is Monday, the 1st of September, 2025.\r\n"
+            + b"KA ITS 1652 has run for 1 minute.\r\n"
+            + b"^ayt\r\nYES^msg\r\n Msgmode\r\n^character\r\n Charmode\r\n"
+        )
+
+        facts = CONTROLLER.historical_fidelity_facts(input_bytes, output_bytes)
+
+        self.assertTrue(facts["fidelity_complete"])
+        self.assertFalse(
+            CONTROLLER.historical_fidelity_facts(
+                input_bytes.replace(b"^ayt\r", b""), output_bytes
+            )["fidelity_complete"]
         )
 
 

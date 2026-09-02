@@ -33,7 +33,7 @@ The harness leases loopback UDP ports and exports the `BRFID_*_PORT` variables u
 
 H316 compositions that load nested external command files also receive `BRFID_H316_MINI_ROOT`, the absolute path to the pinned external `mini/` directory. SIMH resolves nested command files relative to the project command file, so an explicit root is required.
 
-KA10 and PDP-11 host files retain octal `034` as the console WRU character for orderly controller shutdown. KA10 disk attachments preserve the prepared DSKDMP-to-RP03 order. IMP files retain interface debugging because formal evidence uses bounded post-probe trace windows.
+KA10 and PDP-11 host files retain octal `034` as the console WRU character for orderly controller shutdown. The historical terminal controller blocks that byte from operator input and never exposes `sim>`; only its cleanup path sends WRU. KA10 disk attachments preserve the prepared DSKDMP-to-RP03 order. IMP files retain interface debugging because formal evidence uses bounded post-probe trace windows.
 
 ## Shared topology rules
 

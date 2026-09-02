@@ -118,27 +118,43 @@ class NccConvenienceTargetTests(unittest.TestCase):
         self.assertIn("--scenario failover", operated_failover.stdout)
         self.assertIn("ncc-pdp11-its-application-failover.json", operated_failover.stdout)
 
-    def test_telnet_target_verifies_then_delegates_to_terminal_owned_session(self) -> None:
+    def test_telnet_targets_separate_human_terminal_from_prompt_framed_check(self) -> None:
         operated = run(
             "make",
             "-n",
             "RUN_ID=interactive-demo",
             "PDP11_BUILD_ROOT=/tmp/pdp11-build",
-            "TELNET_COMMAND_TIMEOUT=45",
-            "TELNET_MAX_COMMANDS=12",
+            "TELNET_MAX_INPUT_BYTES=2048",
             "telnet",
             cwd=ROOT,
         )
         self.assertEqual(operated.returncode, 0, operated.stderr)
         self.assertIn("verify-pdp11-its", operated.stdout)
         self.assertIn('PDP11_BUILD_ROOT="/tmp/pdp11-build"', operated.stdout)
-        self.assertIn("ARPANET REDUX // INTERACTIVE TELNET", operated.stdout)
+        self.assertIn("ARPANET REDUX // HISTORICAL NETWORK TERMINAL", operated.stdout)
         self.assertIn("Network UNIX 176", operated.stdout)
         self.assertIn("detailed simulator output", operated.stdout)
         self.assertIn("scripts/telnet-pdp11-its.sh", operated.stdout)
-        self.assertIn('BRFID_TELNET_COMMAND_TIMEOUT="45"', operated.stdout)
-        self.assertIn('BRFID_TELNET_MAX_COMMANDS="12"', operated.stdout)
-        self.assertIn("pdp11-its-interactive-interactive-demo", operated.stdout)
+        self.assertIn("BRFID_TELNET_MODE=terminal", operated.stdout)
+        self.assertIn('BRFID_TELNET_MAX_INPUT_BYTES="2048"', operated.stdout)
+        self.assertIn("pdp11-its-terminal-interactive-demo", operated.stdout)
+
+        checked = run(
+            "make",
+            "-n",
+            "RUN_ID=interactive-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "TELNET_COMMAND_TIMEOUT=45",
+            "TELNET_MAX_COMMANDS=12",
+            "telnet-check",
+            cwd=ROOT,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("ARPANET REDUX // PROMPT-FRAMED TELNET CHECK", checked.stdout)
+        self.assertIn("BRFID_TELNET_MODE=line", checked.stdout)
+        self.assertIn('BRFID_TELNET_COMMAND_TIMEOUT="45"', checked.stdout)
+        self.assertIn('BRFID_TELNET_MAX_COMMANDS="12"', checked.stdout)
+        self.assertIn("pdp11-its-interactive-interactive-demo", checked.stdout)
 
         verbose = run(
             "make",
@@ -175,7 +191,7 @@ class NccConvenienceTargetTests(unittest.TestCase):
             self.assertEqual(operated.returncode, 0, operated.stderr)
             self.assertIn(f'PDP11_BUILD_ROOT="{retained}"', operated.stdout)
             self.assertIn(
-                f'"{retained}" "{results}/pdp11-its-interactive-interactive-demo"',
+                f'"{retained}" "{results}/pdp11-its-terminal-interactive-demo"',
                 operated.stdout,
             )
 

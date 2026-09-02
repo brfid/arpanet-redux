@@ -44,6 +44,8 @@ Application controllers wait for configured modem and host-interface readiness, 
 
 The heterogeneous controller reuses the established KA10 process, PTY, watchdog, and packet-correlation primitives. It boots ITS and Network UNIX in the required order, starts the preserved NCP, opens a bounded TELNET transaction, and records structured application evidence.
 
+The foreground TELNET controller has two explicit modes. The deterministic mode automatically opens the guest client and frames printable commands at the ITS DDT prompt. The human mode stops at the Network UNIX shell and relays bounded seven-bit characters while the guest client owns TELNET behavior. The human adapter blocks the configured octal-034 simulator WRU, reserves Control-] for cleanup, restores local terminal attributes in a `finally` boundary, safely renders output controls, and retains raw directional bytes separately from its filtered human projection. It never hands a simulator PTY directly to the operator.
+
 After application proof, the controller fixes H316 trace-window ends and invokes the typed journey adapter. Direct trace evidence and harness-derived peer delivery remain separate. The reducer uses source-local order only and leaves unproved guest-ingress boundaries missing. The controller reads the terminal stream back and records its digest and diagnosis; the sidecar does not gain application-gate authority.
 
 ## Evidence boundary

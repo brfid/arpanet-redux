@@ -48,6 +48,7 @@ A composition may reuse a proven component, but it does not inherit a broader cl
 | NCC network behavior | A passive receiver, genuine IMP reports, explicit topology, and reducers support a specific line or reachability claim |
 | Integrated application and NCC | One lifecycle runs an accepted application exchange and passive NCC observation while keeping their evidence and verdicts separate |
 | Application failover | A controller cuts one run-owned cable after a pre-cut transaction; the same guest session, alternate-route observations, post-cut reports, and cleanup must pass independently |
+| Historical terminal | One foreground controller safely bridges operator characters to a historical host console while the guest application retains protocol authority and directional bytes remain separate from network diagnosis |
 
 IMPs 5, 6, and 7 in NCC compositions are configured test components, not asserted historical sites. An IMP number or simulator device name does not establish historical identity or report-line mapping.
 
@@ -62,7 +63,7 @@ IMPs 5, 6, and 7 in NCC compositions are configured test components, not asserte
 | NCC observation plane | Decoders, validated streams, reducers, and read-only projections | Configured facts, direct evidence, harness evidence, inference, and verdicts remain distinct |
 | Artifact plane | External laboratory | Third-party inputs, generated media, executables, and raw results stay outside Git |
 
-The controller cannot satisfy an application test by copying a payload between guest workspaces. A process exit, configured route, absent report, or successful application transaction cannot substitute for evidence owned by another plane.
+The controller cannot satisfy an application test by copying a payload between guest workspaces. A process exit, configured route, absent report, or successful application transaction cannot substitute for evidence owned by another plane. The historical terminal does not expose a simulator PTY: its controller blocks the SIMH WRU character, safely projects controls, and leaves TELNET state and negotiation in the Network UNIX guest.
 
 ## NCC data flow
 

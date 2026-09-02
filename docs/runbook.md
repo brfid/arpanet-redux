@@ -123,13 +123,40 @@ For another laboratory or an explicitly selected verified build, run:
 make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_root" telnet
 ```
 
-Allow roughly two to three minutes for ITS, Network UNIX, and the two IMPs to boot and settle. The default line-stable boot display diagrams the route and reports timed milestones for source preflight, IMP transport, host boot, link readiness, route settling, TELNET connection, evidence validation, and cleanup; it uses no cursor control and keeps detailed simulator output in the retained result. Run `make TELNET_PREFLIGHT_VERBOSE=1 telnet` when every verified source, asset, simulator revision, and receipt should also be printed. When the `its>` prompt appears, enter `:TIME` and press Return; the complete remote response should end at the next `its>` prompt. `/help` describes the local controls and the current interaction boundary, and `/quit` ends the session without sending those words to the guest. At least one command must complete before `/quit` can produce an accepted run.
+Allow roughly two minutes for ITS, Network UNIX, and the two IMPs to boot and settle. The line-stable display diagrams the route and reports timed milestones while detailed simulator output stays in the retained result. Run `make TELNET_PREFLIGHT_VERBOSE=1 telnet` when every verified source, asset, simulator revision, and receipt should also be printed. The handoff stops at the real Network UNIX root shell on host 176; it does not open TELNET for you.
+
+Start and use the preserved client with this sequence:
+
+```text
+# /usr/bin/telnet
+ UNIX User Telnet -- Ver I.5
+* connect - -h 106
+...
+Welcome to ITS!
+...
+:TIME
+...
+^ayt
+YES
+```
+
+The caret in `^ayt` is a literal `^`, the historical client's default command flag, not a Control key chord. Other useful client commands include `^msg`, `^character`, `^close`, and, after closing the connection, `bye`. The client's own `help` command reads its installed help file when available. Press Control-] at any point to stop the complete simulation through bounded controller cleanup.
+
+The controller owns standard input and every simulator PTY but does not parse or generate TELNET protocol. Network UNIX's preserved `telnet` and `usrtelnetin` programs own connection state, character/message modes, local echo, option negotiation, and protocol controls. The adapter forwards seven-bit character input, maps local line feed to carriage return and modern Delete to the guest's backspace, rejects high-bit input, and blocks `Control-\` because octal `034` is the configured SIMH WRU character. Guest escape and other unsafe output controls are rendered visibly instead of being executed by the modern terminal. Project-added `SKTRACE` and `PBTRACE` diagnostics are hidden from the human display but remain exact in the transcript and raw console log.
+
+Each run retains and reads back a strict `terminal-session.jsonl` with exact directional bytes, local safety decisions, cumulative digests, finite limits, and terminal reason. A run that exits before connecting remains a valid terminal lifecycle but records `connection_open=0` and makes no application claim. When a connection opens, the controller requires the no-argument historical client interface, ordered ITS greeting, TELSER job, correlated traffic through both IMPs, stable selected links, and cleanup. `TELNET_MAX_INPUT_BYTES`, `TELNET_MAX_OUTPUT_BYTES`, and `TELNET_MAX_CHUNK_BYTES` are diagnostic limit overrides.
 
 The standard laboratory default selects receipt-bound build `pdp11-telnet-option-fix-build-20260902T002513Z`. Its staged guest source repairs the preserved client's missing `break` after a valid `DONT` negotiation, so the ITS greeting is no longer interrupted by the false `Possible protocol error! command = 376, option = 3.` diagnostic. Explicit older builds remain valid historical evidence and may still print that nonfatal message.
 
-The target owns standard input and every simulator PTY in one foreground controller. Each accepted line is printable ASCII, is sent by the real Network UNIX `/usr/bin/telnet - -h 106` client with a carriage return, and is captured through the next documented ITS DDT CRLF-plus-asterisk prompt. The controller retains and reads back a strict `interactive-telnet.jsonl` stream, requires correlated IMP traffic in both directions, checks the ITS TELSER job, and performs bounded cleanup. `TELNET_COMMAND_TIMEOUT`, `TELNET_MAX_COMMAND_BYTES`, `TELNET_MAX_COMMANDS`, and `TELNET_MAX_RESPONSE_BYTES` are diagnostic limit overrides.
+The deterministic line-oriented proof remains separately available:
 
-A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media), then pass that directory as `PDP11_INTERACTIVE_BUILD_ROOT`. This first interactive slice supports printable lines that return to the ITS DDT prompt; it does not support full-screen programs, character-at-a-time editing, arbitrary controls, or paging. Do not enter the banner's `?`, `:?`, or `:INFO` suggestions through this controller yet because their output or input behavior is outside that framing proof. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
+```sh
+make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_root" telnet-check
+```
+
+`make telnet-check` automatically invokes `/usr/bin/telnet - -h 106`, presents the synthetic local `its>` line prompt after connection, and retains the strict ADR-014 `interactive-telnet.jsonl` command/result stream. Enter a prompt-returning command such as `:TIME`; use `/help` for local instructions and `/quit` after at least one command completes. `TELNET_COMMAND_TIMEOUT`, `TELNET_MAX_COMMAND_BYTES`, `TELNET_MAX_COMMANDS`, and `TELNET_MAX_RESPONSE_BYTES` apply only to this deterministic mode.
+
+A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media), then pass that directory as `PDP11_INTERACTIVE_BUILD_ROOT`. Human mode supports character-at-a-time seven-bit teletype interaction and asynchronous output, but it does not yet claim a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
 
 ## Run the NCC board
 
@@ -161,6 +188,7 @@ Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manif
 | `two-its-telnet-` | Sentinel evidence and direct NCC observation stream |
 | `pdp11-its-telnet-` | Application and cleanup evidence, receipt binding, and `message-journey.jsonl` |
 | `pdp11-its-interactive-` | Application and cleanup evidence plus the strict `interactive-telnet.jsonl` command/result stream |
+| `pdp11-its-terminal-` | Historical terminal lifecycle, application evidence when observed, and exact `terminal-session.jsonl` directional bytes |
 | `ncc-alternate-path-fault-` | `receiver.json`, `historical-events.jsonl`, `direct-relay.json`, and `verdict.json` |
 | `ncc-line-loopback-` | `receiver.json`, `historical-events.jsonl`, `direct-reflector.json`, and `verdict.json` |
 | `ncc-pdp11-its-coexistence-` | PDP-11 application artifacts plus NCC receiver, historical events, and composition verdict |

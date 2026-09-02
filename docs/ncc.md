@@ -17,6 +17,7 @@ The historical and wire-format basis is in the dated [telemetry research note](r
 | Controller live stream | Publishes direct lifecycle and application observations from a bounded formal run; it has no derived-state or gate authority |
 | Message-journey stream | Records typed observations for one named route, exact trace windows, source-local order, provenance, and the terminal reducer diagnosis |
 | Interactive TELNET stream | Records one terminal controller's bounded operator commands and exact prompt-framed PDP-11 console results without granting browser authority |
+| Historical terminal stream | Records bounded directional bytes and local safety decisions for a character-oriented Network UNIX console without claiming command/result grammar |
 | Result adapters | Revalidate supported completed artifacts and derive deterministic in-memory summaries without changing the result |
 | Passive displays | Present fixed topology, progressive evidence, completed conclusions, and detailed inspection through loopback GET and HEAD requests |
 
@@ -47,7 +48,7 @@ The default network board shows a restrained topology-first view. It uses the ex
 - Adapters and displays read retained results without repairing, normalizing, or rewriting them. Any identity, digest, topology, lifecycle, reducer, or support mismatch fails closed.
 - HTTP servers bind IPv4 loopback, accept GET and HEAD only, expose fixed routes, and provide no simulator, controller, guest-input, relay, arbitrary-file, external-network, or result-mutation method.
 
-The accepted application summary contract is [ADR-005](adr/0005-ncc-run-summary-contract.md). Historical-line reconciliation and topology authority are defined by [ADR-006](adr/0006-ncc-line-reconciliation.md) and [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md). State-specific neighbor rules are in [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md) and [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md). Version-2 network-behavior summaries and the journey sidecar are defined by [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md) and [ADR-013](adr/0013-ncc-message-journey-stream.md). The separate terminal-owned interactive session stream is defined by [ADR-014](adr/0014-interactive-telnet-session-stream.md).
+The accepted application summary contract is [ADR-005](adr/0005-ncc-run-summary-contract.md). Historical-line reconciliation and topology authority are defined by [ADR-006](adr/0006-ncc-line-reconciliation.md) and [ADR-009](adr/0009-ncc-paired-line-topology-boundary.md). State-specific neighbor rules are in [ADR-010](adr/0010-ncc-down-report-neighbor-absence.md) and [ADR-011](adr/0011-ncc-looped-report-self-neighbor.md). Version-2 network-behavior summaries and the journey sidecar are defined by [ADR-012](adr/0012-ncc-network-behavior-summary-v2.md) and [ADR-013](adr/0013-ncc-message-journey-stream.md). The prompt-framed terminal session stream is defined by [ADR-014](adr/0014-interactive-telnet-session-stream.md); the character-oriented historical terminal and its separate byte stream are defined by [ADR-015](adr/0015-character-oriented-historical-terminal.md).
 
 ## Accepted scope
 
@@ -58,6 +59,7 @@ The implemented subsystem supports:
 - completed two-ITS summaries and a bounded direct-observation stream;
 - typed Network UNIX-to-ITS journeys over the direct route and the accepted three-IMP failover route;
 - a bounded line-oriented Network UNIX-to-ITS session with strict operator-command and prompt-framed result retention;
+- a bounded character-oriented Network UNIX terminal with guest-owned TELNET behavior, exact directional-byte retention, and simulator-control isolation;
 - passive progressive and completed displays, including a fail-closed application-failover projection and terminal-owned runner;
 - a combined Network UNIX/ITS application and IMP 5/6/7 NCC composition;
 - same-session application survival after the controller cuts the direct IMP 62/IMP 6 cable and traffic reroutes through IMP 7.
@@ -68,7 +70,7 @@ The direct and alternate application-link report identities discovered in the ac
 
 ## Explicit exclusions
 
-The browser cannot send TELNET input, switch a link, signal or restart a component, load memory, transfer core, run DDT, or mutate a result. The formal failover controller alone owns its run-local cut request, and the interactive controller alone owns its foreground terminal session.
+The browser cannot send TELNET input, switch a link, signal or restart a component, load memory, transfer core, run DDT, or mutate a result. The formal failover controller alone owns its run-local cut request, and the interactive controller alone owns either foreground terminal mode. The character bridge blocks the configured SIMH WRU byte and never exposes `sim>`.
 
 The journey model stops at unproved guest ingress. The accepted direct route retains ten observations and first missing `boundary:request:6`; the failover route retains fourteen observations and first missing `boundary:request:8`. Application success does not fill those boundaries. A complete KA10 or IMP11-A host-ingress grammar requires new directly retained evidence.
 
@@ -78,4 +80,4 @@ Original 1971 NCC System 52 compatibility remains a separate investigation. It i
 
 The accepted failover projection validates the terminal manifest and digests, same-session application facts, thirteen-check verdict, relay lifecycle and cut acknowledgement, fourteen-observation alternate journey, complete historical stream, post-cut report sources, and cleanup. It adds no persisted schema, parser, or simulator authority. `make ncc-failover` launches the unchanged formal smoke beside the passive board, and `make view-ncc-failover` replays the retained canonical result.
 
-The terminal-side interactive TELNET seam is now accepted. One foreground controller owns input, every simulator PTY, prompt framing, the strict command/result stream, evidence checks, and cleanup; the exact accepted run completed two operator commands in one Network UNIX-to-ITS session. It adds one separate schema but no browser endpoint, message-journey observation, ingress parser, or simulator authority. Character-oriented terminal behavior, passive NCC presentation of session status, and any browser input are separate optional decisions. Candidate mapping promotion, browser-side faults, per-component restart, new hosts or IMPs, complete guest-ingress grammars, and original NCC compatibility also remain separate decisions. See [workstreams](workstreams.md) for current boundaries.
+Both terminal-side seams are accepted. The prompt-framed mode retains deterministic command/result evidence. The character-oriented mode starts on Network UNIX, delegates connection, option, mode, and protocol behavior to the preserved guest client, retains exact directional bytes, blocks simulator WRU, safely projects output, and closes an application claim only when direct guest, ITS, IMP, and cleanup evidence exists. Neither adds a browser endpoint, message-journey observation, ingress parser, or simulator authority. Passive NCC presentation of session status and any browser input remain separate optional decisions. Candidate mapping promotion, browser-side faults, per-component restart, new hosts or IMPs, complete guest-ingress grammars, and original NCC compatibility also remain separate decisions. See [workstreams](workstreams.md) for current boundaries.

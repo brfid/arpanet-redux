@@ -41,8 +41,8 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 
 | ID | Category | Work item | Impact | Risk | Effort | Priority | Estimate | Status |
 |---|---|---|---:|---:|---:|---:|---|---|
-| RM-01 | Test debt | Move reusable historical-line result construction out of a `unittest.TestCase` and eliminate duplicate discovery | 3 | 3 | 1 | 30 | Less than half a day | Selected |
-| RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Not started |
+| RM-01 | Test debt | Move reusable historical-line result construction out of a `unittest.TestCase` and eliminate duplicate discovery | 3 | 3 | 1 | 30 | Less than half a day | Completed |
+| RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Selected |
 | RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Not started |
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Not started |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Not started |
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** RM-00 established this durable plan and registered the maintenance workstream.
-- **Selected:** RM-01, test fixture boundary.
-- **Next action:** Extract historical-line result construction from `HistoricalLineSummaryTests`, update its consumers, and verify unique discovery before running `make test`.
+- **Last completed:** RM-01 moved reusable historical-line result construction into `tests/support/` and removed the cross-test-module `TestCase` import that caused duplicate discovery.
+- **Selected:** RM-02, package facade.
+- **Next action:** Inventory intentional top-level `ncc` imports and compatibility expectations, minimize `ncc/__init__.py`, and add focused tests for import side effects and retained compatibility.
 - **Blockers:** None.
-- **Last verification:** Baseline `make test` completed successfully with 282 discovered tests, four duplicate historical-summary invocations, one unittest socket skip, and one runtime socket skip.
+- **Last verification:** `make test` completed successfully with 278 distinct tests, one unittest socket skip, and one runtime socket skip; a discovery identity check reported 278 identities and no duplicates.
 
 ## Update protocol
 

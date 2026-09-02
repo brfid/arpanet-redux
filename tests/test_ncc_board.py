@@ -15,9 +15,9 @@ from ncc.board_server import (
 )
 from ncc.board_viewer import render_ncc_board_html
 from tests.test_ncc_coexistence_display import CoexistenceFixture, TOPOLOGY
-from tests.test_ncc_historical_summary import (
-    HistoricalLineSummaryTests,
-    TOPOLOGY as HISTORICAL_TOPOLOGY,
+from tests.support.historical_line_result import (
+    HISTORICAL_LINE_TOPOLOGY,
+    create_historical_line_result,
 )
 
 
@@ -65,13 +65,14 @@ class NccBoardTests(unittest.TestCase):
             )
 
     def test_completes_existing_fault_and_loopback_result_families(self) -> None:
-        fixture = HistoricalLineSummaryTests()
         with tempfile.TemporaryDirectory() as directory_name:
             root = Path(directory_name)
             for expected_state in ("down", "looped"):
                 with self.subTest(expected_state=expected_state):
-                    result = fixture._result(root, final_state=expected_state)
-                    display = NccBoardDisplay(result, HISTORICAL_TOPOLOGY)
+                    result = create_historical_line_result(
+                        root, final_state=expected_state
+                    )
+                    display = NccBoardDisplay(result, HISTORICAL_LINE_TOPOLOGY)
 
                     snapshot = display.snapshot().to_dict()
 

@@ -3,7 +3,7 @@
 - **Status:** Active
 - **Updated:** 2026-09-02
 - **Baseline:** `6baf5d041f5ddf62045b4c16bf905b526ac715e2`
-- **Active phase:** Phase 1 — quick correctness and hygiene
+- **Active phase:** Phase 2 — mechanical deduplication
 - **Worktree:** `/Users/brf/src/arpanet-redux-worktrees/maintenance`
 - **Branch:** `codex/repository-maintenance`
 
@@ -45,7 +45,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Completed |
 | RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Completed |
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Not started |
-| RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Selected |
+| RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
 | RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Not started |
 | RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Not started |
 | RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Not started |
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** RM-03 added pull-request coverage and a three-job source-only matrix spanning Python 3.11 and 3.14 on Linux plus Python 3.14 on macOS, with full-history guarding retained on Linux 3.11.
-- **Selected:** RM-04, worktree and editor state.
-- **Next action:** Recheck clean state and ancestry, retire the seven settled non-maintenance worktrees without deleting their branch refs, ignore the local editor workspace, repair its stale paths, and update the checkout registry.
+- **Last completed:** RM-04 retired seven clean worktrees whose heads were contained in `main`, preserved their branch refs, reduced the checkout registry to current work, and established the root editor workspace as ignored local state.
+- **Selected:** RM-05, passive HTTP transport.
+- **Next action:** Characterize the four passive server modules and their application-specific contracts, then extract only response serialization, loopback binding, method rejection, security headers, content length, quiet logging, and handler dispatch into a neutral transport module.
 - **Blockers:** None.
-- **Last verification:** The workflow parses as YAML, retains one non-shallow full-history job, and delegates all three supported version and platform combinations to `make test`; the preceding RM-02 tree passed all 280 source-only tests with the expected socket skips.
+- **Last verification:** Every retired worktree was clean and its head was an ancestor of `main` immediately before removal; `git worktree list` now contains only the integration and maintenance checkouts, the ignored local editor workspace names those two existing directories, and `make test` completed successfully across 280 discovered tests with the expected socket skips.
 
 ## Update protocol
 
@@ -162,3 +162,4 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 - **2026-09-02:** Preserve complete topology documents and scenario-specific evidence validators even where their shapes overlap.
 - **2026-09-02:** Treat owning `ncc` submodules as the Python package boundary; repository use and history provide no evidence for retaining an aggregate root facade.
 - **2026-09-02:** Exercise both the documented Python 3.11 lower bound and current stable 3.14 series on Linux, add a 3.14 macOS edge, and keep complete-history guarding in one non-shallow job.
+- **2026-09-02:** Keep editor workspace configuration local and ignored, list only attached checkouts in `docs/workstreams.md`, and retain settled branch refs when removing their clean, main-merged worktrees.

@@ -1,4 +1,5 @@
 .DS_Store
+/arpanet-redux.code-workspace
 .venv/
 __pycache__/
 *.py[cod]

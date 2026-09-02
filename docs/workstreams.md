@@ -11,12 +11,9 @@ This page owns active local checkouts, selected work, and decision points. The [
 | Directory | Branch | Use |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only |
-| `/Users/brf/src/arpanet-redux-worktrees/docs` | `codex/docs-concision` | Documentation maintenance |
-| `/Users/brf/src/arpanet-redux-worktrees/ncc` | `codex/ncc-failover-board` | Single passive NCC operator console and terminal runner |
-| `/Users/brf/src/arpanet-redux-worktrees/telnet` | `codex/pdp11-telnet` | Accepted Gate 4H, typed journey, and interactive TELNET |
-| `/Users/brf/src/arpanet-redux-worktrees/network` | `codex/ncc-line-loopback-proof` | Accepted line-state proof and coordinated expansion |
-| `/Users/brf/src/arpanet-redux-worktrees/ka10-ingress` | `codex/ka10-host-ingress` | Accepted bounded KA10 receive-assembly evidence for Gate 4H request ingress |
 | `/Users/brf/src/arpanet-redux-worktrees/maintenance` | `codex/repository-maintenance` | Repository-organization maintenance plan and bounded remediation |
+
+This table lists attached checkouts, not every retained branch. Settled workstream branches remain available as refs after their clean, main-merged worktrees are retired; start future work from current `main` in a fresh dedicated worktree rather than reusing those branches.
 
 The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-party inputs and raw results, not Git worktree state. GitHub `origin` is canonical. Treat `gitlab` as historical unless explicitly directed otherwise.
 
@@ -33,7 +30,7 @@ Do not delete, rebase, merge into, or develop on a recovery ref. Prefer revertin
 
 | Workstream | State | Decision | Read first |
 |---|---|---|---|
-| Repository maintenance | RM-01 through RM-03 are complete: test discovery is unique, NCC imports follow owning submodules, and push and pull-request CI covers the supported Python and operating-system edges | RM-04 is selected; retire settled worktrees, make the checkout registry current, and keep local editor state from dirtying the integration checkout | [Repository maintenance plan](repository-maintenance.md), [architecture](architecture.md), [test plan](test-plan.md) |
+| Repository maintenance | Phase 1 is complete: test discovery is unique, NCC imports follow owning submodules, CI covers supported source edges, and only current clean checkouts remain registered | RM-05 is selected; extract neutral passive-HTTP mechanics while preserving each display application's routes, errors, snapshots, and authority | [Repository maintenance plan](repository-maintenance.md), [NCC observability](ncc.md), [test plan](test-plan.md) |
 | Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
 | NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, and terminal-owned runners feed one fail-closed mid-1970s-style operator console with a banked annunciator, log, and quick summary | No required follow-up. Keep the console read-only and discovered application-link report identities candidate-only; browser input and simulator controls require a separate authority decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
 | PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, an eleven-observation direct journey through ITS request ingress, deterministic repeated commands, clean option negotiation, and a safe character-oriented Network UNIX terminal using the preserved client's command, mode, and protocol controls are integrated | No required follow-up. A cursor-addressed terminal profile, host-176 reply ingress, or remaining bounded NCP anomaly requires separate evidence and may not be filled by inference | [IMP11-A record](research/imp11a-device.md), [KA10 request-ingress result](experiments/2026-09-02-ka10-request-ingress.md), [historical terminal result](experiments/2026-09-01-historical-network-unix-telnet-terminal.md) |

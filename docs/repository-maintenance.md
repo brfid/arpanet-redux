@@ -44,7 +44,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-01 | Test debt | Move reusable historical-line result construction out of a `unittest.TestCase` and eliminate duplicate discovery | 3 | 3 | 1 | 30 | Less than half a day | Completed |
 | RM-02 | Architecture debt | Minimize `ncc/__init__.py` and make direct submodules the explicit package boundary | 4 | 3 | 2 | 28 | Half to one day | Completed |
 | RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Completed |
-| RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Not started |
+| RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | In progress |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
 | RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Not started |
 | RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Not started |
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** RM-04 retired seven clean worktrees whose heads were contained in `main`, preserved their branch refs, reduced the checkout registry to current work, and established the root editor workspace as ignored local state.
+- **Last completed:** `Characterize passive HTTP transport contracts` records the four application adapters' loopback binding, port validation, server identity, threaded serving, GET and HEAD serialization, fixed-route rejection, mutation rejection, security headers, UTF-8 content length, and existing per-application logging behavior without opening a socket.
 - **Selected:** RM-05, passive HTTP transport.
-- **Next action:** Characterize the four passive server modules and their application-specific contracts, then extract only response serialization, loopback binding, method rejection, security headers, content length, quiet logging, and handler dispatch into a neutral transport module.
+- **Next action:** Extract the characterized response serialization, loopback binding, method rejection, security headers, content length, logging policy, and handler dispatch into a neutral transport module; leave each application's routes, snapshot production, pending states, and display errors local.
 - **Blockers:** None.
-- **Last verification:** Every retired worktree was clean and its head was an ancestor of `main` immediately before removal; `git worktree list` now contains only the integration and maintenance checkouts, the ignored local editor workspace names those two existing directories, and `make test` completed successfully across 280 discovered tests with the expected socket skips.
+- **Last verification:** `python3 -m unittest tests.test_ncc_display_transport -v` passed five transport-contract tests across all four application adapters.
 
 ## Update protocol
 

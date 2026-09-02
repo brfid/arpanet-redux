@@ -46,7 +46,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Completed |
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Completed |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
-| RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Not started |
+| RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | In progress |
 | RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Completed |
 | RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Not started |
 | RM-09 | Architecture debt | Introduce a scenario registry only when another composition needs the duplicated wiring | 3 | 3 | 4 | 12 | Two to four days | Deferred until triggered |
@@ -141,11 +141,11 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 
 ## Current checkpoint
 
-- **Last completed:** `Share NCC line-scenario lifecycle` leaves the fault and loopback scripts as distinct public launchers over one common topology, verification, port-allocation, launch, readiness, evidence, transport-check, and cleanup path. Explicit profiles retain their separate scenario, instrument, evaluator, artifact, process, failure, and pass-claim identities, and each manifest hashes both the selected launcher and shared lifecycle.
+- **Last completed:** `Characterize harness process ownership` locks manifest key validation and value retention, PTY console buffering and ordered matching, sent-byte attribution, graceful simulator-control shutdown, interruption-style forced shutdown, IMP log separation, liveness checks, PID attribution, and bounded process cleanup.
 - **Selected:** RM-07, first importable-harness process and PTY slice.
-- **Next action:** Characterize the process and PTY contracts currently owned by `scripts/two-its-controller.py`, then move only those reusable primitives into an ordinary underscore-named import under `ncc/`; migrate the two-ITS controller first without changing its command line, artifacts, timeouts, or flow, and run its formal external smoke before migrating another controller.
+- **Next action:** Move the characterized PTY and IMP process owners plus their minimal manifest dependency into an ordinary importable module under `ncc/`; migrate only `scripts/two-its-controller.py`, preserve its public script and flow, and run the formal two-ITS smoke before touching another controller.
 - **Blockers:** None.
-- **Last verification:** `make test` passed 288 discovered tests with the expected sandbox socket skips; formal runs `ncc-alternate-path-fault-maintenance-rm06-20260902` and `ncc-line-loopback-maintenance-rm06-20260902` both passed at the pinned external sources and simulator binaries with clean repository identity and complete cleanup.
+- **Last verification:** `python3 -m unittest tests.test_harness_process -v` passed four process-contract tests; `make test` passed 292 discovered tests with the expected sandbox socket skips.
 
 ## Update protocol
 

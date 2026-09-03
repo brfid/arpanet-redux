@@ -48,7 +48,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
 | RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Completed |
 | RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Completed |
-| RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Not started |
+| RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Completed |
 | RM-09 | Architecture debt | Introduce a scenario registry only when another composition needs the duplicated wiring | 3 | 3 | 4 | 12 | Two to four days | Deferred until triggered |
 
 ## Execution sequence
@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Complete controller harness imports` removes the interactive controller's dynamic direct-controller load and the now-unused compatibility layer. All four production controllers import focused ordinary owners, and a source-level regression test rejects future sibling-script loading while focused identity tests pin each controller to those owners.
-- **Selected:** RM-08, concise ADR and experiment indexes.
-- **Next action:** Add `docs/adr/README.md` and `docs/experiments/README.md`, organized by claim and successor, with one concise status or evidentiary-scope entry for every existing document and no duplicated conclusions.
-- **Following action:** Run local-link, Markdown soft-wrap, and full source-only checks; then close the maintenance plan and remove its active handoff. Keep RM-09 deferred unless a new composition actually triggers it.
+- **Last completed:** `Add ADR and experiment indexes` gives `docs/adr/` and `docs/experiments/` one concise index each, grouped by claim and carrying an explicit successor column. Every one of the 16 decisions and 21 evidence records has exactly one entry naming its subject, affected composition, and status or evidentiary scope; neither index restates a decision's reasoning or a record's observations.
+- **Selected:** None. RM-08 completes the last unconditional item.
+- **Next action:** Close the maintenance plan and remove its active handoff from `docs/workstreams.md`. Keep RM-09 deferred unless a new composition actually triggers it.
+- **Following action:** None. Git history is the archive once the plan is closed.
 - **Blockers:** None.
-- **Last verification:** All 307 discovered tests passed with one expected UDP sandbox skip at repository revision `e6110a2`. Formal run `pdp11-its-interactive-maintenance-rm07-interactive-line-20260903` passed Gate 4I with one prompt-framed `:TIME`, correlated traffic in both IMP directions, and no survivors. Terminal-mode run `pdp11-its-terminal-maintenance-rm07-interactive-terminal-20260903` reached the real Network UNIX root shell in a PTY, retained a bounded character-session transcript, correctly made no TELNET claim, and completed outer and owned-process cleanup. The failover, direct Gate 4H, and two-ITS migrations remain backed by passing formal runs at revisions `0c12940`, `b43b04a`, and `a8c670d` respectively.
+- **Last verification:** Both new indexes pass Markdown soft-wrap, and all 81 of their local file and heading-anchor links resolve. `make check-source-only` passes and all 307 discovered tests passed with no skips at the RM-08 working tree. Earlier: all 307 discovered tests passed with one expected UDP sandbox skip at repository revision `e6110a2`. Formal run `pdp11-its-interactive-maintenance-rm07-interactive-line-20260903` passed Gate 4I with one prompt-framed `:TIME`, correlated traffic in both IMP directions, and no survivors. Terminal-mode run `pdp11-its-terminal-maintenance-rm07-interactive-terminal-20260903` reached the real Network UNIX root shell in a PTY, retained a bounded character-session transcript, correctly made no TELNET claim, and completed outer and owned-process cleanup. The failover, direct Gate 4H, and two-ITS migrations remain backed by passing formal runs at revisions `0c12940`, `b43b04a`, and `a8c670d` respectively.
 
 ## Update protocol
 

@@ -4,7 +4,7 @@
 - **Canonical repository:** [`brfid/arpanet-redux`](https://github.com/brfid/arpanet-redux)
 - **Integration policy:** Keep `main` test-passing; develop in dedicated branches and worktrees.
 
-This page owns active local checkouts, selected work, and decision points. The [README](../README.md) owns public status, subsystem pages own current contracts, [ADRs](adr/) own decisions, and dated notes own evidence.
+This page owns active local checkouts, selected work, and decision points. The [README](../README.md) owns public status, subsystem pages own current contracts, [ADRs](adr/README.md) own decisions, and [dated notes](experiments/README.md) own evidence.
 
 ## Local checkouts
 
@@ -33,7 +33,7 @@ Do not delete, rebase, merge into, or develop on a recovery ref. Prefer revertin
 
 | Workstream | State | Decision | Read first |
 |---|---|---|---|
-| Repository maintenance | Phases 1 through 3 are complete; RM-07 gives all four controllers ordinary focused harness owners, protects the boundary with source and identity tests, and has passing real smokes for each migration | Immediate: complete RM-08 with concise ADR and experiment indexes organized by claim and successor. Following: run link, soft-wrap, and source-only checks, close the maintenance plan, and remove this handoff; leave RM-09 deferred until triggered | [Repository maintenance plan](repository-maintenance.md), [harness design](harness.md), [test plan](test-plan.md) |
+| Repository maintenance | All unconditional items are complete; RM-07 gives all four controllers ordinary focused harness owners, and RM-08 gives `docs/adr/` and `docs/experiments/` one claim-organized index each with an explicit successor column | Immediate: close the maintenance plan and remove this handoff; leave RM-09 deferred until triggered | [Repository maintenance plan](repository-maintenance.md), [harness design](harness.md), [test plan](test-plan.md) |
 | Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
 | NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, and terminal-owned runners feed one fail-closed mid-1970s-style operator console with a banked annunciator, log, and quick summary | No required follow-up. Keep the console read-only and discovered application-link report identities candidate-only; browser input and simulator controls require a separate authority decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
 | PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, an eleven-observation direct journey through ITS request ingress, deterministic repeated commands, clean option negotiation, and a safe character-oriented Network UNIX terminal using the preserved client's command, mode, and protocol controls are integrated | No required follow-up. A cursor-addressed terminal profile, host-176 reply ingress, or remaining bounded NCP anomaly requires separate evidence and may not be filled by inference | [IMP11-A record](research/imp11a-device.md), [KA10 request-ingress result](experiments/2026-09-02-ka10-request-ingress.md), [historical terminal result](experiments/2026-09-01-historical-network-unix-telnet-terminal.md) |

@@ -70,7 +70,7 @@ def _main() -> int:
                     help="Open SIMH pdp11 binary built with the IMP11-A device")
     p.add_argument("--mini-root", required=True, type=Path,
                     help="arpanet-in-a-box mini/ dir (impconfig.simh, impcode.simh)")
-    p.add_argument("--host106-media", required=True, type=Path,
+    p.add_argument("--its-host-media", required=True, type=Path,
                     help="prepared ITS host-106 media dir (dskdmp.rim, rp03.*)")
     p.add_argument("--results-dir", required=True, type=Path)
     p.add_argument("--pdp11-root-image", required=True, type=Path)
@@ -96,10 +96,10 @@ def _main() -> int:
     for k, v in ports.items():
         print(f"[driver] {k}={v}", file=sys.stderr)
 
-    host106_work = results / "host106"
-    host106_work.mkdir(exist_ok=True)
+    its_host_work = results / "host106"
+    its_host_work.mkdir(exist_ok=True)
     for asset in ("dskdmp.rim", "rp03.0", "rp03.1", "rp03.2", "rp03.3"):
-        shutil.copy(args.host106_media / asset, host106_work / asset)
+        shutil.copy(args.its_host_media / asset, its_host_work / asset)
 
     pdp11_work = results / "pdp11"
     (pdp11_work / "images").mkdir(parents=True, exist_ok=True)
@@ -108,7 +108,7 @@ def _main() -> int:
 
     imp6_cfg = args.repo_root / "config/imp/its-pair/imp6.simh"
     imp62_cfg = args.repo_root / "config/imp/its-pair/imp62.simh"
-    host106_cfg = args.repo_root / "config/hosts/its106-pair.simh"
+    its_host_cfg = args.repo_root / "config/hosts/its106-pair.simh"
 
     procs = []
 
@@ -124,10 +124,10 @@ def _main() -> int:
 
     time.sleep(2.0)
 
-    host106_proc, host106_log = start_background(
-        "host106", [str(args.pdp10_ka), str(host106_cfg)], host106_work,
+    its_host_proc, its_host_log = start_background(
+        "host106", [str(args.pdp10_ka), str(its_host_cfg)], its_host_work,
         results / "host106.console.log", env)
-    procs.append(("host106", host106_proc, host106_log))
+    procs.append(("host106", its_host_proc, its_host_log))
 
     # Informal readiness -- not the Gate 4 watchdog-state machine in
     # docs/test-plan.md, just enough to know both IMPs are up before

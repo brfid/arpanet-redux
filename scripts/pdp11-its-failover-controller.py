@@ -47,12 +47,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pdp10-ka", required=True, type=Path)
     parser.add_argument("--pdp11", required=True, type=Path)
     parser.add_argument("--mini-root", required=True, type=Path)
-    parser.add_argument("--host106-work", required=True, type=Path)
+    parser.add_argument("--its-host-work", required=True, type=Path)
     parser.add_argument("--pdp11-work", required=True, type=Path)
     parser.add_argument("--imp6-config", required=True, type=Path)
     parser.add_argument("--imp62-config", required=True, type=Path)
     parser.add_argument("--imp7-debug", required=True, type=Path)
-    parser.add_argument("--host106-config", required=True, type=Path)
+    parser.add_argument("--its-host-config", required=True, type=Path)
     parser.add_argument("--pdp11-config", required=True, type=Path)
     parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
@@ -74,7 +74,7 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def wait_for_network_unix_host106_ready(
+def wait_for_network_unix_its_host_ready(
     process: PtyProcess, timeout: float
 ) -> re.Match[bytes]:
     """Wait until Network UNIX consumes host 106's Reset Reply.
@@ -269,7 +269,7 @@ def run(args: argparse.Namespace) -> int:
         )
 
     attach_config = results_dir / "host106-attach-only.simh"
-    SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    SHARED.create_its_host_attach_config(args.its_host_config.resolve(), attach_config)
     SHARED.append_manifest(
         manifest,
         "sha256.host106-attach-config",
@@ -292,11 +292,11 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    host106 = PtyProcess(
+    its_host = PtyProcess(
         "host106",
         args.pdp10_ka.resolve(),
         attach_config,
-        args.host106_work.resolve(),
+        args.its_host_work.resolve(),
         results_dir / "host106.console.log",
         results_dir / "host106.sent.log",
         manifest,
@@ -310,7 +310,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir / "pdp11.sent.log",
         manifest,
     )
-    hosts = (pdp11, host106)
+    hosts = (pdp11, its_host)
     imps = (imp6, imp62)
     outcome = "failed"
     interrupted = False
@@ -335,9 +335,9 @@ def run(args: argparse.Namespace) -> int:
             timeout=90,
         )
 
-        host106.launch(state="PROMPT")
+        its_host.launch(state="PROMPT")
         pdp11.launch(state="PROMPT")
-        host106.expect("sim> ", timeout=60)
+        its_host.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
         wait_for_imp_devices_ready(
             imp6,
@@ -351,19 +351,19 @@ def run(args: argparse.Namespace) -> int:
         )
         route_settle_deadline = time.monotonic() + args.route_settle
 
-        host106.send(
+        its_host.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
-        host106.expect("sim> ", timeout=30)
-        host106.send("boot ptr\r")
-        host106.state = "BOOTING"
-        host106.mark_running_after_banner()
-        host106.enter_ddt_and_prove_local_time()
+        its_host.expect("sim> ", timeout=30)
+        its_host.send("boot ptr\r")
+        its_host.state = "BOOTING"
+        its_host.mark_running_after_banner()
+        its_host.enter_ddt_and_prove_local_time()
         BASE.boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
         BASE.wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
-        wait_for_network_unix_host106_ready(pdp11, args.ncp_ready_timeout)
+        wait_for_network_unix_its_host_ready(pdp11, args.ncp_ready_timeout)
         SHARED.append_manifest(
             manifest,
             "application.network-unix-host106-ready",
@@ -392,7 +392,7 @@ def run(args: argparse.Namespace) -> int:
 
         pre_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         pre_pdp11_offset = pdp11.position()
-        pre_host106_offset = host106.position()
+        pre_its_host_offset = its_host.position()
         pdp11.send("/usr/bin/telnet - -h 106\r")
         event, _ = pdp11.expect_any(
             (rb"Connection open", rb"Host is Unavailable"),
@@ -400,7 +400,7 @@ def run(args: argparse.Namespace) -> int:
         )
         if event != 0:
             raise RuntimeError("guest TELNET reported Host is Unavailable")
-        service_match = host106.expect(BASE.SERVICE_PATTERN, timeout=120)
+        service_match = its_host.expect(BASE.SERVICE_PATTERN, timeout=120)
         service_user = service_match.group(1).decode("ascii")
         pdp11.expect(rb"MIT Dynamic[\s\S]*?Modelling PDP-10", timeout=60)
         pdp11.expect(rb"TTY [0-9]+", timeout=60)
@@ -418,7 +418,7 @@ def run(args: argparse.Namespace) -> int:
         ]
         pre_failures = BASE.application_evidence_failures(
             pdp11.output_from(pre_pdp11_offset),
-            host106.output_from(pre_host106_offset),
+            its_host.output_from(pre_its_host_offset),
             pre_imp6,
             pre_imp62,
             imp6_mi_device=imp6_direct,

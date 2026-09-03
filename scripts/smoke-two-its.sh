@@ -19,8 +19,8 @@ repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 brfid_runtime_init
 brfid_install_cleanup_traps
 mini_dir="$arpanet_root/mini"
-host106_base="$mini_dir/host70/106"
-host176_base="$its_root/out/pdp10-ka"
+its_host_base="$mini_dir/host70/106"
+its_peer_base="$its_root/out/pdp10-ka"
 
 for required in "$h316_bin" "$pdp10_bin" "$its_build_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh"; do
   if [ ! -e "$required" ]; then
@@ -29,7 +29,7 @@ for required in "$h316_bin" "$pdp10_bin" "$its_build_receipt" "$mini_dir/impconf
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  for source_dir in "$host106_base" "$host176_base"; do
+  for source_dir in "$its_host_base" "$its_peer_base"; do
     if [ ! -f "$source_dir/$asset" ]; then
       echo "missing required ITS media: $source_dir/$asset" >&2
       exit 66
@@ -61,18 +61,18 @@ brfid_manifest_add_file imp-firmware "$mini_dir/impcode.simh" "$repo_root/script
 brfid_manifest_add_file imp-base-config "$mini_dir/impconfig.simh" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file asset-manifest "$repo_root/pins/arpanet-assets.sha256" "$repo_root/scripts/sha256-file.sh"
 
-host106_work="$results_dir/host106"
-host176_work="$results_dir/host176"
-mkdir -p "$host106_work" "$host176_work"
+its_host_work="$results_dir/host106"
+its_peer_work="$results_dir/host176"
+mkdir -p "$its_host_work" "$its_peer_work"
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  if ! cp -c -p "$host106_base/$asset" "$host106_work/$asset" 2>/dev/null; then
-    cp -p "$host106_base/$asset" "$host106_work/$asset"
+  if ! cp -c -p "$its_host_base/$asset" "$its_host_work/$asset" 2>/dev/null; then
+    cp -p "$its_host_base/$asset" "$its_host_work/$asset"
   fi
-  if ! cp -c -p "$host176_base/$asset" "$host176_work/$asset" 2>/dev/null; then
-    cp -p "$host176_base/$asset" "$host176_work/$asset"
+  if ! cp -c -p "$its_peer_base/$asset" "$its_peer_work/$asset" 2>/dev/null; then
+    cp -p "$its_peer_base/$asset" "$its_peer_work/$asset"
   fi
-  brfid_manifest_add_file "host106-$asset" "$host106_work/$asset" "$repo_root/scripts/sha256-file.sh"
-  brfid_manifest_add_file "host176-$asset" "$host176_work/$asset" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file "host106-$asset" "$its_host_work/$asset" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file "host176-$asset" "$its_peer_work/$asset" "$repo_root/scripts/sha256-file.sh"
 done
 
 brfid_reserve_udp_ports "$repo_root/scripts/reserve-udp-ports.py" 6 "$runtime_dir" "$runtime_dir/ports.env"
@@ -92,12 +92,12 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
   --h316 "$h316_bin" \
   --pdp10-ka "$pdp10_bin" \
   --mini-root "$mini_dir" \
-  --host106-work "$host106_work" \
-  --host176-work "$host176_work" \
+  --its-host-work "$its_host_work" \
+  --its-peer-work "$its_peer_work" \
   --imp6-config "$repo_root/config/imp/its-pair/imp6.simh" \
   --imp62-config "$repo_root/config/imp/its-pair/imp62.simh" \
-  --host106-config "$repo_root/config/hosts/its106-pair.simh" \
-  --host176-config "$repo_root/config/hosts/its176-pair.simh" \
+  --its-host-config "$repo_root/config/hosts/its106-pair.simh" \
+  --its-peer-config "$repo_root/config/hosts/its176-pair.simh" \
   --results-dir "$results_dir" \
   --manifest "$runtime_dir/run.env" \
   --ncc-observation-stream "$results_dir/ncc-observations.jsonl" >/dev/null

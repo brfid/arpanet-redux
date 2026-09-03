@@ -22,7 +22,7 @@ brfid_runtime_init
 brfid_install_cleanup_traps
 
 mini_dir="$arpanet_root/mini"
-host106_base="$mini_dir/host70/106"
+its_host_base="$mini_dir/host70/106"
 pdp11_receipt="$pdp11_build_root/pdp11-build-receipt.json"
 pdp11_media="$pdp11_build_root/ncpd/guest/images"
 
@@ -33,8 +33,8 @@ for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_di
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
+  if [ ! -f "$its_host_base/$asset" ]; then
+    echo "missing required ITS media: $its_host_base/$asset" >&2
     exit 66
   fi
 done
@@ -67,14 +67,14 @@ brfid_manifest_add_file imp-firmware "$mini_dir/impcode.simh" "$repo_root/script
 brfid_manifest_add_file imp-base-config "$mini_dir/impconfig.simh" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file asset-manifest "$repo_root/pins/arpanet-assets.sha256" "$repo_root/scripts/sha256-file.sh"
 
-host106_work="$results_dir/host106"
+its_host_work="$results_dir/host106"
 pdp11_work="$results_dir/pdp11"
-mkdir -p "$host106_work" "$pdp11_work/images"
+mkdir -p "$its_host_work" "$pdp11_work/images"
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  if ! cp -c -p "$host106_base/$asset" "$host106_work/$asset" 2>/dev/null; then
-    cp -p "$host106_base/$asset" "$host106_work/$asset"
+  if ! cp -c -p "$its_host_base/$asset" "$its_host_work/$asset" 2>/dev/null; then
+    cp -p "$its_host_base/$asset" "$its_host_work/$asset"
   fi
-  brfid_manifest_add_file "host106-$asset" "$host106_work/$asset" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file "host106-$asset" "$its_host_work/$asset" "$repo_root/scripts/sha256-file.sh"
 done
 for asset in ncp_root.rl01 ncp_swap.rl01; do
   if ! cp -c -p "$pdp11_media/$asset" "$pdp11_work/images/$asset" 2>/dev/null; then
@@ -104,11 +104,11 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
   --pdp10-ka "$pdp10_bin" \
   --pdp11 "$pdp11_bin" \
   --mini-root "$mini_dir" \
-  --host106-work "$host106_work" \
+  --its-host-work "$its_host_work" \
   --pdp11-work "$pdp11_work" \
   --imp6-config "$repo_root/config/imp/its-pair/imp6.simh" \
   --imp62-config "$repo_root/config/imp/pdp11-its/imp62.simh" \
-  --host106-config "$repo_root/config/hosts/its106-pair.simh" \
+  --its-host-config "$repo_root/config/hosts/its106-pair.simh" \
   --pdp11-config "$repo_root/config/hosts/pdp11-176.simh" \
   --topology "$repo_root/config/topologies/pdp11-its-telnet.json" \
   --ka10-ingress-trace \

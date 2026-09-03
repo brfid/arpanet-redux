@@ -366,11 +366,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pdp10-ka", required=True, type=Path)
     parser.add_argument("--pdp11", required=True, type=Path)
     parser.add_argument("--mini-root", required=True, type=Path)
-    parser.add_argument("--host106-work", required=True, type=Path)
+    parser.add_argument("--its-host-work", required=True, type=Path)
     parser.add_argument("--pdp11-work", required=True, type=Path)
     parser.add_argument("--imp6-config", required=True, type=Path)
     parser.add_argument("--imp62-config", required=True, type=Path)
-    parser.add_argument("--host106-config", required=True, type=Path)
+    parser.add_argument("--its-host-config", required=True, type=Path)
     parser.add_argument("--pdp11-config", required=True, type=Path)
     parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
@@ -741,7 +741,7 @@ def run(args: argparse.Namespace) -> int:
     shared_topology = shared_topology_from_mapping(topology_document)
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
-    SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    SHARED.create_its_host_attach_config(args.its_host_config.resolve(), attach_config)
     SHARED.append_manifest(
         manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config)
     )
@@ -763,11 +763,11 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    host106 = SHARED.PtyProcess(
+    its_host = SHARED.PtyProcess(
         "host106",
         args.pdp10_ka.resolve(),
         attach_config,
-        args.host106_work.resolve(),
+        args.its_host_work.resolve(),
         results_dir / "host106.console.log",
         results_dir / "host106.sent.log",
         manifest,
@@ -781,7 +781,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir / "pdp11.sent.log",
         manifest,
     )
-    hosts = (pdp11, host106)
+    hosts = (pdp11, its_host)
     imps = (imp6, imp62)
     outcome = "failed"
     interrupted = False
@@ -809,9 +809,9 @@ def run(args: argparse.Namespace) -> int:
         display.milestone(
             "START", "Historical hosts", "launching PDP-11 and KA10 simulators"
         )
-        host106.launch(state="PROMPT")
+        its_host.launch(state="PROMPT")
         pdp11.launch(state="PROMPT")
-        host106.expect("sim> ", timeout=60)
+        its_host.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
         display.milestone(
             "READY", "Simulator consoles", "PDP-11 and KA10 attached"
@@ -828,14 +828,14 @@ def run(args: argparse.Namespace) -> int:
         display.milestone("READY", "IMP trunk", "inter-IMP modem path up")
 
         display.milestone("BOOT", "ITS 106", "starting KA10/ITS and local DDT")
-        host106.send(
+        its_host.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
-        host106.expect("sim> ", timeout=30)
-        host106.send("boot ptr\r")
-        host106.state = "BOOTING"
-        host106.mark_running_after_banner()
-        host106.enter_ddt_and_prove_local_time()
+        its_host.expect("sim> ", timeout=30)
+        its_host.send("boot ptr\r")
+        its_host.state = "BOOTING"
+        its_host.mark_running_after_banner()
+        its_host.enter_ddt_and_prove_local_time()
         display.milestone("READY", "ITS 106", "DDT and local :TIME responsive")
 
         display.milestone(
@@ -889,12 +889,12 @@ def run(args: argparse.Namespace) -> int:
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         pdp11_offset = pdp11.position()
-        host106_offset = host106.position()
+        its_host_offset = its_host.position()
         for name, offset in (
             ("imp6", imp_offsets["imp6"]),
             ("imp62", imp_offsets["imp62"]),
             ("pdp11-console", pdp11_offset),
-            ("host106-console", host106_offset),
+            ("host106-console", its_host_offset),
         ):
             SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
 
@@ -970,7 +970,7 @@ def run(args: argparse.Namespace) -> int:
                 raise RuntimeError("historical terminal transcript is not complete")
 
             pdp11_output = pdp11.output_from(pdp11_offset)
-            its_output = host106.output_from(host106_offset)
+            its_output = its_host.output_from(its_host_offset)
             imp_end_offsets = {
                 imp.name: imp.debug_path.stat().st_size for imp in imps
             }
@@ -1122,7 +1122,7 @@ def run(args: argparse.Namespace) -> int:
         )
         if event != 0:
             raise RuntimeError("guest TELNET reported Host is Unavailable")
-        service_match = host106.expect(BASE.SERVICE_PATTERN, timeout=120)
+        service_match = its_host.expect(BASE.SERVICE_PATTERN, timeout=120)
         service_user = service_match.group(1).decode("ascii")
         pdp11.expect(rb"MIT Dynamic[\s\S]*?Modelling PDP-10", timeout=60)
         pdp11.expect(rb"TTY [0-9]+", timeout=60)
@@ -1193,7 +1193,7 @@ def run(args: argparse.Namespace) -> int:
             )
 
         pdp11_output = pdp11.output_from(pdp11_offset)
-        its_output = host106.output_from(host106_offset)
+        its_output = its_host.output_from(its_host_offset)
         imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         imp6_output = imp6.debug_path.read_bytes()[
             imp_offsets["imp6"] : imp_end_offsets["imp6"]

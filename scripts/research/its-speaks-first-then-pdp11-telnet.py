@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Test whether having ITS host 106 dial the PDP-11 guest first (host 176,
-the network address IMP 62's hi2 has carried since the host176-pair.simh
+the network address IMP 62's hi2 has carried since the its_peer-pair.simh
 ITS occupied it -- see docs/test-plan.md's "Host B must identify as octal
 176") unblocks the guest's own later TELNET attempt to host 106, per the
 RFNM-bookkeeping deadlock recorded in docs/research/imp11a-device.md
@@ -17,7 +17,7 @@ before the guest calls chk_host(), chk_host() should see the host already
 up and skip the defensive RST that otherwise consumes the RFNM slot the
 real RFC needs.
 
-Drives host106's ITS console interactively (boot, DDT, login, UT) using
+Drives its_host's ITS console interactively (boot, DDT, login, UT) using
 the same expect sequence proven in scripts/two-its-controller.py, then
 reuses two-imp-its-pdp11-telnet.py's own PDP-11 guest sequence unchanged.
 
@@ -69,7 +69,7 @@ def _main() -> int:
     p.add_argument("--pdp10-ka", required=True, type=Path)
     p.add_argument("--pdp11", required=True, type=Path)
     p.add_argument("--mini-root", required=True, type=Path)
-    p.add_argument("--host106-media", required=True, type=Path)
+    p.add_argument("--its-host-media", required=True, type=Path)
     p.add_argument("--results-dir", required=True, type=Path)
     p.add_argument("--pdp11-root-image", required=True, type=Path)
     p.add_argument("--pdp11-swap-image", required=True, type=Path)
@@ -106,10 +106,10 @@ def _main() -> int:
     for k, v in ports.items():
         print(f"[driver] {k}={v}", file=sys.stderr)
 
-    host106_work = results / "host106"
-    host106_work.mkdir(exist_ok=True)
+    its_host_work = results / "host106"
+    its_host_work.mkdir(exist_ok=True)
     for asset in ("dskdmp.rim", "rp03.0", "rp03.1", "rp03.2", "rp03.3"):
-        shutil.copy(args.host106_media / asset, host106_work / asset)
+        shutil.copy(args.its_host_media / asset, its_host_work / asset)
 
     pdp11_work = results / "pdp11"
     (pdp11_work / "images").mkdir(parents=True, exist_ok=True)
@@ -129,7 +129,7 @@ def _main() -> int:
         if expected not in imp62_text:
             raise RuntimeError("IMP 62 configuration no longer has the expected HI2 conversion line")
         imp62_cfg.write_text(imp62_text.replace(expected, "set hi2 noconvert\n", 1))
-    host106_cfg = args.repo_root / "config/hosts/its106-pair.simh"
+    its_host_cfg = args.repo_root / "config/hosts/its106-pair.simh"
 
     procs = []
     imp6_proc, imp6_log = start_background(
@@ -144,10 +144,10 @@ def _main() -> int:
     time.sleep(2.0)
 
     print("[driver] starting host106 (ITS) interactively", file=sys.stderr)
-    host106_console = open(results / "host106.console.log", "w")
-    its = pexpect.spawn(str(args.pdp10_ka), [str(host106_cfg)], cwd=str(host106_work),
+    its_host_console = open(results / "host106.console.log", "w")
+    its = pexpect.spawn(str(args.pdp10_ka), [str(its_host_cfg)], cwd=str(its_host_work),
                          timeout=60, encoding="utf-8", env=env)
-    its.logfile = host106_console
+    its.logfile = its_host_console
 
     wait_for(results / "imp6.console.log", "077400", 30, "imp6 modem light")
     wait_for(results / "imp62.console.log", "077400", 30, "imp62 modem light")
@@ -287,7 +287,7 @@ def _main() -> int:
         its.expect(pexpect.EOF, timeout=15)
     except (pexpect.TIMEOUT, OSError):
         its.close(force=True)
-    host106_console.close()
+    its_host_console.close()
 
     print("[driver] stopping imp6/imp62", file=sys.stderr)
     for name, proc, log in procs:

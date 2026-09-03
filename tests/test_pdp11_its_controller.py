@@ -50,12 +50,12 @@ def failures(
 
 
 class Pdp11ItsEvidenceTests(unittest.TestCase):
-    def test_host106_observation_config_enables_only_assembly_trace(self) -> None:
+    def test_its_host_observation_config_enables_only_assembly_trace(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)
             destination = directory / "host106-attach-only.simh"
 
-            CONTROLLER.create_host106_observation_config(
+            CONTROLLER.create_its_host_observation_config(
                 ROOT / "config" / "hosts" / "its106-pair.simh",
                 destination,
             )

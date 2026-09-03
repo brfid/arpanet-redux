@@ -35,7 +35,7 @@ if [ "$receiver_duration" -le 0 ]; then
 fi
 
 mini_dir="$arpanet_root/mini"
-host106_base="$mini_dir/host70/106"
+its_host_base="$mini_dir/host70/106"
 pdp11_receipt="$pdp11_build_root/pdp11-build-receipt.json"
 pdp11_media="$pdp11_build_root/ncpd/guest/images"
 topology="$repo_root/config/topologies/ncc-pdp11-its-coexistence.json"
@@ -43,21 +43,21 @@ imp5_config="$repo_root/config/imp/ncc-pdp11-its/imp5.simh"
 imp6_config="$repo_root/config/imp/ncc-pdp11-its/imp6.simh"
 imp7_config="$repo_root/config/imp/ncc-alternate-path/imp7.simh"
 imp62_config="$repo_root/config/imp/pdp11-its/imp62.simh"
-host106_config="$repo_root/config/hosts/its106-pair.simh"
+its_host_config="$repo_root/config/hosts/its106-pair.simh"
 pdp11_config="$repo_root/config/hosts/pdp11-176.simh"
 receiver="$repo_root/scripts/ncc-host-interface-proof.py"
 evaluator="$repo_root/scripts/ncc-evaluate-pdp11-its-coexistence.py"
 controller="$repo_root/scripts/pdp11-its-controller.py"
 
-for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01" "$topology" "$imp5_config" "$imp6_config" "$imp7_config" "$imp62_config" "$host106_config" "$pdp11_config" "$receiver" "$evaluator" "$controller"; do
+for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01" "$topology" "$imp5_config" "$imp6_config" "$imp7_config" "$imp62_config" "$its_host_config" "$pdp11_config" "$receiver" "$evaluator" "$controller"; do
   if [ ! -f "$required" ]; then
     echo "missing required integrated NCC smoke input: $required" >&2
     exit 66
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
+  if [ ! -f "$its_host_base/$asset" ]; then
+    echo "missing required ITS media: $its_host_base/$asset" >&2
     exit 66
   fi
 done
@@ -87,7 +87,7 @@ brfid_manifest_add_file imp5-config "$imp5_config" "$repo_root/scripts/sha256-fi
 brfid_manifest_add_file imp6-config "$imp6_config" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file imp7-config "$imp7_config" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file imp62-config "$imp62_config" "$repo_root/scripts/sha256-file.sh"
-brfid_manifest_add_file host106-config "$host106_config" "$repo_root/scripts/sha256-file.sh"
+brfid_manifest_add_file host106-config "$its_host_config" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file pdp11-config "$pdp11_config" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file smoke-runner "$repo_root/scripts/smoke-ncc-pdp11-its.sh" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file application-controller "$controller" "$repo_root/scripts/sha256-file.sh"
@@ -100,14 +100,14 @@ brfid_manifest_add_file asset-pins "$repo_root/pins/arpanet-assets.sha256" "$rep
 brfid_manifest_append experiment.receiver-duration-seconds "$receiver_duration"
 brfid_manifest_append runtime.python-version "$($python_command --version 2>&1)"
 
-host106_work="$results_dir/host106"
+its_host_work="$results_dir/host106"
 pdp11_work="$results_dir/pdp11"
-mkdir -p "$host106_work" "$pdp11_work/images"
+mkdir -p "$its_host_work" "$pdp11_work/images"
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
-  if ! cp -c -p "$host106_base/$asset" "$host106_work/$asset" 2>/dev/null; then
-    cp -p "$host106_base/$asset" "$host106_work/$asset"
+  if ! cp -c -p "$its_host_base/$asset" "$its_host_work/$asset" 2>/dev/null; then
+    cp -p "$its_host_base/$asset" "$its_host_work/$asset"
   fi
-  brfid_manifest_add_file "host106-$asset" "$host106_work/$asset" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file "host106-$asset" "$its_host_work/$asset" "$repo_root/scripts/sha256-file.sh"
 done
 for asset in ncp_root.rl01 ncp_swap.rl01; do
   if ! cp -c -p "$pdp11_media/$asset" "$pdp11_work/images/$asset" 2>/dev/null; then
@@ -186,11 +186,11 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
     --pdp10-ka "$pdp10_bin" \
     --pdp11 "$pdp11_bin" \
     --mini-root "$mini_dir" \
-    --host106-work "$host106_work" \
+    --its-host-work "$its_host_work" \
     --pdp11-work "$pdp11_work" \
     --imp6-config "$imp6_config" \
     --imp62-config "$imp62_config" \
-    --host106-config "$host106_config" \
+    --its-host-config "$its_host_config" \
     --pdp11-config "$pdp11_config" \
     --topology "$topology" \
     --results-dir "$results_dir" \

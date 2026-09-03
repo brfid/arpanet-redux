@@ -40,12 +40,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--h316", required=True, type=Path)
     parser.add_argument("--pdp10-ka", required=True, type=Path)
     parser.add_argument("--mini-root", required=True, type=Path)
-    parser.add_argument("--host106-work", required=True, type=Path)
-    parser.add_argument("--host176-work", required=True, type=Path)
+    parser.add_argument("--its-host-work", required=True, type=Path)
+    parser.add_argument("--its-peer-work", required=True, type=Path)
     parser.add_argument("--imp6-config", required=True, type=Path)
     parser.add_argument("--imp62-config", required=True, type=Path)
-    parser.add_argument("--host106-config", required=True, type=Path)
-    parser.add_argument("--host176-config", required=True, type=Path)
+    parser.add_argument("--its-host-config", required=True, type=Path)
+    parser.add_argument("--its-peer-config", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--ncc-observation-stream", required=True, type=Path)
@@ -67,7 +67,7 @@ def validate_environment() -> None:
             raise ValueError(f"{name} is not a valid UDP port")
 
 
-def create_host106_attach_config(source: Path, destination: Path) -> None:
+def create_its_host_attach_config(source: Path, destination: Path) -> None:
     text = source.read_text(encoding="ascii")
     boot_expect = (
         '# Boot the host-106 ITS image and connect its NCP interface to IMP 6.\n'
@@ -297,7 +297,7 @@ def run(args: argparse.Namespace) -> int:
     results_dir = args.results_dir.resolve()
     manifest = args.manifest.resolve()
     attach_config = results_dir / "host106-attach-only.simh"
-    create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    create_its_host_attach_config(args.its_host_config.resolve(), attach_config)
     append_manifest(manifest, "sha256.host106-attach-config", sha256(attach_config))
     append_manifest(manifest, "path.host106-attach-config", attach_config)
 
@@ -317,25 +317,25 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    host106 = PtyProcess(
+    its_host = PtyProcess(
         "host106",
         args.pdp10_ka.resolve(),
         attach_config,
-        args.host106_work.resolve(),
+        args.its_host_work.resolve(),
         results_dir / "host106.console.log",
         results_dir / "host106.sent.log",
         manifest,
     )
-    host176 = PtyProcess(
+    its_peer = PtyProcess(
         "host176",
         args.pdp10_ka.resolve(),
-        args.host176_config.resolve(),
-        args.host176_work.resolve(),
+        args.its_peer_config.resolve(),
+        args.its_peer_work.resolve(),
         results_dir / "host176.console.log",
         results_dir / "host176.sent.log",
         manifest,
     )
-    hosts = (host176, host106)
+    hosts = (its_peer, its_host)
     imps = (imp6, imp62)
     publisher = LiveObservationPublisher(
         args.ncc_observation_stream.resolve(),
@@ -392,11 +392,11 @@ def run(args: argparse.Namespace) -> int:
 
         # Both guest endpoints must bind before the recovered IMPs can send
         # their first host-link NOP after the modem route comes up.
-        host176.launch()
+        its_peer.launch()
         observe("harness", "host:176", "started", {"process": "host176"})
-        host106.launch(state="PROMPT")
+        its_host.launch(state="PROMPT")
         observe("harness", "host:106", "started", {"process": "host106"})
-        host106.expect("sim> ", timeout=60)
+        its_host.expect("sim> ", timeout=60)
         observe("harness", "host:106", "console-ready", {"state": "PROMPT"})
 
         imp6_modem_up = wait_for_log_marker(
@@ -410,24 +410,24 @@ def run(args: argparse.Namespace) -> int:
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + 60
         observe("harness", "link:62-6", "modem-ready", {"watchdog_lights": "077400"})
 
-        host176.mark_running_after_banner()
+        its_peer.mark_running_after_banner()
         observe("harness", "host:176", "running", {"marker": "system-console-banner"})
-        host106.send(
+        its_host.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
-        host106.expect("sim> ", timeout=30)
-        host106.send("boot ptr\r")
-        host106.state = "BOOTING"
-        host106.mark_running_after_banner()
+        its_host.expect("sim> ", timeout=30)
+        its_host.send("boot ptr\r")
+        its_host.state = "BOOTING"
+        its_host.mark_running_after_banner()
         observe("harness", "host:106", "running", {"marker": "system-console-banner"})
         for imp in imps:
             imp.ensure_alive()
 
-        host106.enter_ddt_and_prove_local_time()
-        host176.enter_ddt_and_prove_local_time()
-        host106.expect(rb"LOGIN  GUNNER 0", timeout=180)
-        host176.expect(rb"LOGIN  GUNNER 0", timeout=180)
-        host106.send_slow(":login db\r")
+        its_host.enter_ddt_and_prove_local_time()
+        its_peer.enter_ddt_and_prove_local_time()
+        its_host.expect(rb"LOGIN  GUNNER 0", timeout=180)
+        its_peer.expect(rb"LOGIN  GUNNER 0", timeout=180)
+        its_host.send_slow(":login db\r")
         time.sleep(8)
 
         wait_for_log_marker(imp6, "WDT LIGHTS: changed to 075400", 1200)
@@ -443,7 +443,7 @@ def run(args: argparse.Namespace) -> int:
                 raise RuntimeError(
                     f"{imp.name} is not host-link ready: {latest_watchdog(imp.debug_path)}"
                 )
-        if host106.state != "RUNNING" or host176.state != "RUNNING":
+        if its_host.state != "RUNNING" or its_peer.state != "RUNNING":
             raise RuntimeError("both KA10 controllers must be RUNNING before UT")
         observe(
             "harness",
@@ -453,42 +453,42 @@ def run(args: argparse.Namespace) -> int:
         )
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
-        client_offset = host176.position()
+        client_offset = its_peer.position()
         observe("harness", "route:host176-to-host106", "probing")
-        host176.send_slow("ut")
-        host176.send(b"\x0b")
-        host176.expect(rb"UT\.76", timeout=45)
-        host176.send_slow("106\r")
-        service_match = host106.expect(
+        its_peer.send_slow("ut")
+        its_peer.send(b"\x0b")
+        its_peer.expect(rb"UT\.76", timeout=45)
+        its_peer.send_slow("106\r")
+        service_match = its_host.expect(
             rb"LOGIN  ([0-9]{2}TLNT) 0 HST176", timeout=180
         )
         service_user = service_match.group(1).decode("ascii")
 
-        host176.expect("MIT Dynamic", timeout=60)
-        host176.send_slow(b"\x1eTRANSPARENT\r")
-        host176.send(b"\x1a")
-        host176.expect("Welcome to ITS!", timeout=60)
+        its_peer.expect("MIT Dynamic", timeout=60)
+        its_peer.send_slow(b"\x1eTRANSPARENT\r")
+        its_peer.send(b"\x1a")
+        its_peer.expect("Welcome to ITS!", timeout=60)
         remote_user = "NETTST"
-        host176.send_slow(f":login {remote_user.lower()}\r")
-        host106.expect(rf"LOGIN  {remote_user}", timeout=60)
-        host176.send_slow(":time\r")
-        host176.expect("The time is", timeout=60)
-        host176.expect("Today is", timeout=30)
-        host176.expect(rb"KA ITS [0-9]+ has run for", timeout=30)
+        its_peer.send_slow(f":login {remote_user.lower()}\r")
+        its_host.expect(rf"LOGIN  {remote_user}", timeout=60)
+        its_peer.send_slow(":time\r")
+        its_peer.expect("The time is", timeout=60)
+        its_peer.expect("Today is", timeout=30)
+        its_peer.expect(rb"KA ITS [0-9]+ has run for", timeout=30)
 
         token = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         token += f"-{os.getpid():X}"
         sentinel = f"ARPANET-REDUX-{token}"
-        host106.send_slow(f":osend {remote_user} {sentinel}")
-        host106.send(b"\x03")
-        host176.expect(re.escape(sentinel.encode("ascii")), timeout=60)
+        its_host.send_slow(f":osend {remote_user} {sentinel}")
+        its_host.send(b"\x03")
+        its_peer.expect(re.escape(sentinel.encode("ascii")), timeout=60)
         recovered = sentinel.encode("ascii")
         source_digest = hashlib.sha256(sentinel.encode("ascii")).hexdigest()
         recovered_digest = hashlib.sha256(recovered).hexdigest()
         if recovered_digest != source_digest:
             raise RuntimeError("the recovered sentinel digest does not match")
 
-        client_output = host176.output_from(client_offset)
+        client_output = its_peer.output_from(client_offset)
         assert_client_application_evidence(client_output)
         for imp in imps:
             assert_imp_application_evidence(imp, imp_offsets[imp.name])

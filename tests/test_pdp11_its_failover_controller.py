@@ -73,7 +73,7 @@ class Pdp11ItsFailoverControllerTests(unittest.TestCase):
                 return re.search(pattern, b"SKTRACE hh h=106 bytes=1 op=15\n")
 
         guest = FakeGuest()
-        match = self.controller.wait_for_network_unix_host106_ready(guest, 17.0)
+        match = self.controller.wait_for_network_unix_its_host_ready(guest, 17.0)
 
         self.assertIsNotNone(match)
         self.assertEqual(

@@ -132,7 +132,7 @@ class TwoItsEvidenceTests(unittest.TestCase):
             short_only = {b"000377"}
             self.assertEqual(CONTROLLER.significant(short_only), set())
 
-    def test_host106_attach_config_cannot_boot_early(self) -> None:
+    def test_its_host_attach_config_cannot_boot_early(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)
             source = directory / "host106.simh"
@@ -144,7 +144,7 @@ class TwoItsEvidenceTests(unittest.TestCase):
                 "boot ptr\n",
                 encoding="ascii",
             )
-            CONTROLLER.create_host106_attach_config(source, destination)
+            CONTROLLER.create_its_host_attach_config(source, destination)
             generated = destination.read_text(encoding="ascii")
             self.assertEqual(generated, "set nothrottle\n")
             self.assertNotIn("boot ptr", generated)

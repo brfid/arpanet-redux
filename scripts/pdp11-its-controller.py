@@ -56,11 +56,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pdp10-ka", required=True, type=Path)
     parser.add_argument("--pdp11", required=True, type=Path)
     parser.add_argument("--mini-root", required=True, type=Path)
-    parser.add_argument("--host106-work", required=True, type=Path)
+    parser.add_argument("--its-host-work", required=True, type=Path)
     parser.add_argument("--pdp11-work", required=True, type=Path)
     parser.add_argument("--imp6-config", required=True, type=Path)
     parser.add_argument("--imp62-config", required=True, type=Path)
-    parser.add_argument("--host106-config", required=True, type=Path)
+    parser.add_argument("--its-host-config", required=True, type=Path)
     parser.add_argument("--pdp11-config", required=True, type=Path)
     parser.add_argument("--topology", required=True, type=Path)
     parser.add_argument("--results-dir", required=True, type=Path)
@@ -168,10 +168,10 @@ def wait_for_prompt(process: PtyProcess, timeout: float = 30) -> None:
     process.expect(rb"\r\n# ?", timeout=timeout)
 
 
-def create_host106_observation_config(source: Path, destination: Path) -> None:
+def create_its_host_observation_config(source: Path, destination: Path) -> None:
     """Create the normal attach-only config with observation-only IMP tracing."""
 
-    SHARED.create_host106_attach_config(source, destination)
+    SHARED.create_its_host_attach_config(source, destination)
     with destination.open("a", encoding="ascii") as stream:
         stream.write("set -f debug stdout\nset imp debug=ASSEMBLY\n")
 
@@ -223,9 +223,9 @@ def run(args: argparse.Namespace) -> int:
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
     if args.ka10_ingress_trace:
-        create_host106_observation_config(args.host106_config.resolve(), attach_config)
+        create_its_host_observation_config(args.its_host_config.resolve(), attach_config)
     else:
-        SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
+        SHARED.create_its_host_attach_config(args.its_host_config.resolve(), attach_config)
     SHARED.append_manifest(manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config))
     SHARED.append_manifest(manifest, "path.host106-attach-config", attach_config)
 
@@ -245,11 +245,11 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    host106 = PtyProcess(
+    its_host = PtyProcess(
         "host106",
         args.pdp10_ka.resolve(),
         attach_config,
-        args.host106_work.resolve(),
+        args.its_host_work.resolve(),
         results_dir / "host106.console.log",
         results_dir / "host106.sent.log",
         manifest,
@@ -263,7 +263,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir / "pdp11.sent.log",
         manifest,
     )
-    hosts = (pdp11, host106)
+    hosts = (pdp11, its_host)
     imps = (imp6, imp62)
     outcome = "failed"
     interrupted = False
@@ -283,9 +283,9 @@ def run(args: argparse.Namespace) -> int:
         SHARED.wait_for_log_marker(imp6, "listening on port", 30)
         SHARED.wait_for_log_marker(imp62, "listening on port", 30)
 
-        host106.launch(state="PROMPT")
+        its_host.launch(state="PROMPT")
         pdp11.launch(state="PROMPT")
-        host106.expect("sim> ", timeout=60)
+        its_host.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
 
         imp6_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
@@ -296,14 +296,14 @@ def run(args: argparse.Namespace) -> int:
         )
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + args.route_settle
 
-        host106.send(
+        its_host.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
-        host106.expect("sim> ", timeout=30)
-        host106.send("boot ptr\r")
-        host106.state = "BOOTING"
-        host106.mark_running_after_banner()
-        host106.enter_ddt_and_prove_local_time()
+        its_host.expect("sim> ", timeout=30)
+        its_host.send("boot ptr\r")
+        its_host.state = "BOOTING"
+        its_host.mark_running_after_banner()
+        its_host.enter_ddt_and_prove_local_time()
 
         boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
@@ -344,18 +344,18 @@ def run(args: argparse.Namespace) -> int:
 
         imp_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
         pdp11_offset = pdp11.position()
-        host106_offset = host106.position()
+        its_host_offset = its_host.position()
         for name, offset in (
             ("imp6", imp_offsets["imp6"]),
             ("imp62", imp_offsets["imp62"]),
             ("pdp11-console", pdp11_offset),
-            ("host106-console", host106_offset),
+            ("host106-console", its_host_offset),
         ):
             SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
-        host106_trace_offset = host106_offset if args.ka10_ingress_trace else None
-        if host106_trace_offset is not None:
+        its_host_trace_offset = its_host_offset if args.ka10_ingress_trace else None
+        if its_host_trace_offset is not None:
             SHARED.append_manifest(
-                manifest, "application.offset.host106-imp", host106_trace_offset
+                manifest, "application.offset.host106-imp", its_host_trace_offset
             )
 
         pdp11.send("/usr/bin/telnet - -h 106\r")
@@ -364,7 +364,7 @@ def run(args: argparse.Namespace) -> int:
         )
         if event != 0:
             raise RuntimeError("guest TELNET reported Host is Unavailable")
-        service_match = host106.expect(SERVICE_PATTERN, timeout=120)
+        service_match = its_host.expect(SERVICE_PATTERN, timeout=120)
         service_user = service_match.group(1).decode("ascii")
         pdp11.expect(rb"MIT Dynamic[\s\S]*?Modelling PDP-10", timeout=60)
         pdp11.expect(rb"TTY [0-9]+", timeout=60)
@@ -376,11 +376,11 @@ def run(args: argparse.Namespace) -> int:
         time.sleep(3)
 
         pdp11_output = pdp11.output_from(pdp11_offset)
-        its_output = host106.output_from(host106_offset)
+        its_output = its_host.output_from(its_host_offset)
         imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
-        host106_trace_end_offset = (
-            host106_trace_offset + len(its_output)
-            if host106_trace_offset is not None
+        its_host_trace_end_offset = (
+            its_host_trace_offset + len(its_output)
+            if its_host_trace_offset is not None
             else None
         )
         imp6_output = imp6.debug_path.read_bytes()[
@@ -389,7 +389,7 @@ def run(args: argparse.Namespace) -> int:
         imp62_output = imp62.debug_path.read_bytes()[
             imp_offsets["imp62"] : imp_end_offsets["imp62"]
         ]
-        host106_trace = its_output if args.ka10_ingress_trace else None
+        its_host_trace = its_output if args.ka10_ingress_trace else None
         failures = application_evidence_failures(
             pdp11_output,
             its_output,
@@ -429,17 +429,17 @@ def run(args: argparse.Namespace) -> int:
             ),
         ]
         if (
-            host106_trace is not None
-            and host106_trace_offset is not None
-            and host106_trace_end_offset is not None
+            its_host_trace is not None
+            and its_host_trace_offset is not None
+            and its_host_trace_end_offset is not None
         ):
             window.append(
                 transaction_window_source(
                     source_id="source:host106-imp",
-                    artifact=host106.console_log_path.name,
-                    start_offset=host106_trace_offset,
-                    end_offset=host106_trace_end_offset,
-                    content=host106_trace,
+                    artifact=its_host.console_log_path.name,
+                    start_offset=its_host_trace_offset,
+                    end_offset=its_host_trace_end_offset,
+                    content=its_host_trace,
                 )
             )
         provenance = [
@@ -454,7 +454,7 @@ def run(args: argparse.Namespace) -> int:
                 manifest_values["source.h316-simh.revision"],
             ),
         ]
-        if host106_trace is not None:
+        if its_host_trace is not None:
             provenance.append(
                 ObservationProvenance(
                     "source:host106-imp",
@@ -471,11 +471,11 @@ def run(args: argparse.Namespace) -> int:
             transaction_window=window,
             imp6_trace=imp6_output,
             imp62_trace=imp62_output,
-            ka10_trace=host106_trace,
+            ka10_trace=its_host_trace,
             h316_revision=manifest_values["source.h316-simh.revision"],
             ka10_revision=(
                 manifest_values["source.ka10-simh.revision"]
-                if host106_trace is not None
+                if its_host_trace is not None
                 else None
             ),
         )
@@ -485,11 +485,11 @@ def run(args: argparse.Namespace) -> int:
                 f"application.offset.end.{name}",
                 imp_end_offsets[name],
             )
-        if host106_trace_end_offset is not None:
+        if its_host_trace_end_offset is not None:
             SHARED.append_manifest(
                 manifest,
                 "application.offset.end.host106-imp",
-                host106_trace_end_offset,
+                its_host_trace_end_offset,
             )
         SHARED.append_manifest(manifest, "path.message-journey", journey_path)
         SHARED.append_manifest(

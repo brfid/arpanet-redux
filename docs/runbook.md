@@ -215,6 +215,16 @@ Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manif
 
 Use the [test plan](test-plan.md) to evaluate a result. A zero process exit without the required application, network, identity, and cleanup evidence is not a pass. Never edit a retained result or write a reevaluated artifact into it; use a fresh temporary output path.
 
+### Retain and prune results
+
+A retained result holds two different kinds of file. Its evidence — the `runtime/run.env` manifest, `outcome.txt`, console and debug logs, and the structured artifacts listed above — is immutable and is never edited.
+
+Its staged guest media is not evidence. The manifest hashes each image when the run stages it, the simulator then writes to that image for the length of the run, and the retained file therefore matches neither its own manifest entry nor the pristine base it was cloned from. It is reproducible working state, and no accepted result cites it. Prune it when the laboratory needs space: remove the staged `rp03.*`, `*.rk05`, `*.rl01`, and `*.rl02` images and leave a short note in the run directory recording what was removed and when. Keep `dskdmp.rim`, which the guest does not write and which still matches its manifest entry.
+
+Base media stays under `$LAB_ROOT/work`, and [`pins/`](../pins/) records its provenance, so a pruned composition remains reproducible by rerunning it.
+
+Delete a run directory outright only when it produced no `outcome.txt`, meaning it never completed and has no verdict to preserve.
+
 ## Use read-only diagnostics
 
 All viewer servers bind `127.0.0.1`, accept GET and HEAD only, and provide no control or mutation route. Adapters validate their inputs and fail closed. Save derived files outside the retained result directory.

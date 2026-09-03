@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Extract importable harness process owners` moves the characterized PTY and IMP child ownership into `ncc.harness_process` and its validated append dependency into `ncc.harness_manifest`. The two-ITS controller now imports those owners normally while preserving compatibility aliases for unmigrated dependent controllers, its public command, arguments, flow, logs, PID fields, state transitions, timeouts, and cleanup behavior.
+- **Last completed:** `Characterize remaining two-ITS harness primitives` pins full-file SHA-256 hashing, accepted UDP-port environment values, offset-aware log-marker readiness, timeout and liveness behavior, and host-before-IMP cleanup ordering before those responsibilities move out of the controller.
 - **Selected:** RM-07, manifest and readiness primitives.
-- **Next action:** Characterize the remaining manifest hashing and generic log-readiness contracts in `scripts/two-its-controller.py`, then move them into focused ordinary harness modules without changing controller behavior.
+- **Next action:** Move the characterized manifest hashing, environment/configuration, log-readiness, modem-interface evidence, and aggregate cleanup primitives into focused ordinary harness modules without changing two-ITS controller behavior.
 - **Following action:** After that slice is committed, integrated, and smoke-verified, remove `scripts/pdp11-its-controller.py`'s dynamic sibling load in its own separately verified migration.
 - **Blockers:** None.
-- **Last verification:** The focused process and dependent-controller suites passed 42 tests; formal run `two-its-telnet-maintenance-rm07-process-20260902` passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup; [GitHub Actions run 33696737623](https://github.com/brfid/arpanet-redux/actions/runs/33696737623) passed Linux on Python 3.11 and 3.14 plus macOS on Python 3.14. Handoff hardening then passed 294 discovered tests with the expected sandbox socket skips and completed the real external `lab-setup` path with exact clean pins and all three native simulator builds.
+- **Last verification:** The focused primitive, process, and two-ITS evidence suites passed 16 tests at repository revision `447fa91`; the synchronized baseline passed all 294 discovered tests with the expected sandbox socket skips. Formal run `two-its-telnet-maintenance-rm07-process-20260902` remains the last external acceptance result and passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup; [GitHub Actions run 33696737623](https://github.com/brfid/arpanet-redux/actions/runs/33696737623) passed Linux on Python 3.11 and 3.14 plus macOS on Python 3.14.
 
 ## Update protocol
 

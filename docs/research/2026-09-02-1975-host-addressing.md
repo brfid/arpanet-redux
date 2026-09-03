@@ -34,6 +34,8 @@ This is the constraint that shapes any rework. Site numbering was reused as node
 
 The evidence is in two documents already held locally. The July 1975 Directory gives IMP 3 as UCSB. BBN TIR 90's sample ARPA NETWORK SUMMARY of November 1976 gives SITE 3 as NUC, alongside SITE 1 UCLA, SITE 2 SRI-5, SITE 4 UTAH and SITE 5 BBN. The same TIR 90 line table shows a RAND-to-NELC circuit that does not correspond to anything in the July 1975 Directory, where NELC has no host at all.
 
+That TIR 90 reading rests on one inference: that its "SITE *n*" is the IMP number. Four of its five sampled sites match the 1975 Directory's IMP numbers exactly, which is what supports the inference, and the fifth is the discrepancy itself. Whether IMP 3 was renumbered or UCSB's node was decommissioned and its number reissued to NUC, the consequence for this project is identical — a number alone does not identify a site without a date.
+
 A rework must therefore name one dated snapshot as its authority in the schema itself, not merely in prose. July 1975 (NIC 32992) is the natural choice for this project because it is contemporary with the recovered 1973 IMP firmware's operating era, sits inside the pre-1976 short-leader regime the project depends on, and is the only located source carrying address, site, machine, operating system and service status together.
 
 ## Per-host findings
@@ -43,6 +45,8 @@ A rework must therefore name one dated snapshot as its authority in the schema i
 Host `106` on IMP 6, host slot 1, decimal 70, is MIT-DMS. The Directory's Servers table gives it as a PDP-10 running ITS, accounts contact S. Pitkin, described as a research facility providing MDL. The same entry notes that MIT-DMS ran SURVEY, which monitored network host availability and response time — so pairing this host with a monitoring surface, as the project's NCC compositions do, has a historical warrant rather than being only an aesthetic choice.
 
 The promoted guest image already greets with `MIT Dynamic Modelling PDP-10`. Address, machine, operating system and greeting all agree with the source. No change is required, and none should be made.
+
+The greeting is corroboration of a weaker kind than it first appears, and the distinction is worth keeping. Upstream's KA build sets the host number and the banner together, so the two agree because one upstream decision produced both, not because two independent witnesses converge. What the Directory adds is the confirmation that upstream's choice matches the July 1975 record.
 
 | Host/IMP | Decimal | Octal | Hostname | Computer | Op sys | Status |
 |---|---|---|---|---|---|---|
@@ -65,7 +69,9 @@ The Directory lists exactly three PDP-11s with UNIX among their operating system
 | 0/1 | 1 | 1 | UCLA-ATS | PDP-11/45 | ANTS, ELF, UCLA-VMM, UNIX | Network analysis and modeling |
 | 1/34 | 98 | 142 | UCB | PDP-11/40 | ELF, DOS, RSX11-M, UNIX | Speech and graphics protocol research |
 
-**RAND-ISO, host 1 on IMP 7, octal `107`** is the recommended target. It is the only entry whose sole listed operating system is UNIX, it is a PDP-11/45, and it is listed under Servers — which matches what the project's guest actually is, since it both originates and accepts TELNET.
+**RAND-ISO, host 1 on IMP 7, octal `107`** is the recommended target. It is the only entry whose sole listed operating system is UNIX, it is a PDP-11/45, and it appears in the Servers table, which matches what the project's guest does, since it both originates and accepts TELNET.
+
+Three caveats belong with that recommendation rather than in a footnote. The Directory annotates RAND-ISO "Not yet up as a Server", so in July 1975 it was not yet doing what the project would have it do; a reconstruction at this address depicts an intended rather than an achieved service. UCB is disqualified for a different reason worth recording: it is marked `USER (VDH)`, a Very Distant Host, which is not the local host interface this project simulates. And RAND is not the lineage of the preserved source — see the next section — so choosing it settles which 1975 host had a PDP-11 running UNIX, not whose UNIX the project is running.
 
 Two properties make the move cheap. The PDP-11 does not know its own address: [`docs/research/imp11a-device.md`](imp11a-device.md) records that `176` is simply the address IMP 62's `hi2` has carried since an ITS guest occupied that port, and the guest never self-identifies. And IMP 7 is already instantiated in the project's NCC compositions, so the number is not new to the topology — it merely stops being arbitrary. The functional change is one line in the IMP configuration the PDP-11 attaches to; no guest media rebuild is involved.
 
@@ -73,7 +79,9 @@ Two properties make the move cheap. The PDP-11 does not know its own address: [`
 
 The pin in [`pins/sources.lock.toml`](../../pins/sources.lock.toml) describes `network-unix-v6` as "SRI/NOSC Network UNIX V6". That naming post-dates the target year. NOSC took that name in 1977. Neither NOSC nor NELC appears as a host in the July 1975 Directory; NUC (Naval Undersea Center) appears only as an organization, with a liaison whose network mailbox was on `UTAH-10`. By November 1976 a RAND-to-NELC line exists in BBN's line table, so the Navy association is real but later than 1975.
 
-The provenance of the preserved source code and the identity of the 1975 host that should run it are independent. A rework should keep them separate and not let the pin's name drive the address.
+The Directory does point at the software's lineage, just not at RAND. Its list of interest groups names a UNIX Interest Group whose contact is `HOLMGREN@BBN` — Steve Holmgren, one of the Illinois CAC authors of Network UNIX, by then at BBN. So in July 1975 the NCP UNIX lineage runs Illinois to BBN, and onward to the Navy sites later; BBN's own ARPANET PDP-11s are listed as ELF, not UNIX, and RAND appears nowhere in it.
+
+The provenance of the preserved source code and the identity of the 1975 host that should run it are therefore independent, and no available assignment makes them agree. A rework should keep them separate, not let the pin's name drive the address, and say plainly that the address answers "which 1975 host ran a PDP-11 UNIX" while the pin answers "whose UNIX this is".
 
 ### Remaining configured addresses
 
@@ -122,9 +130,15 @@ Any rework has to touch four layers. Three are cheap and one is not.
 3. **Guest self-knowledge** — asymmetric. Network UNIX needs nothing. ITS assembles its host number into the monitor and needs a rebuild.
 4. **Identifiers and evidence** — the expensive layer, described below.
 
-Addresses are currently spelled into roughly 1,100 identifiers across about 64 files: `host106_work`, `--host106-config`, `host106.console.log`, `host106-attach-only.simh`, `route:host176-to-host106`, `application.network-unix-host106-ready`, and similar, spanning controllers, NCC display modules, log filenames, JSONL event names, route ids and test fixtures. The topology is also declared twice — once in [`config/topologies/`](../../config/topologies/) and again as a literal dict in [`ncc/topology.py`](../../ncc/topology.py).
+Addresses are currently spelled into roughly 1,100 identifiers across about 79 files: `host106_work`, `--host106-config`, `host106.console.log`, `host106-attach-only.simh`, `route:host176-to-host106`, `application.network-unix-host106-ready`, and similar, spanning controllers, NCC display modules, log filenames, JSONL event names, route ids and test fixtures. Only some of these are internal, as the paragraph after next records.
 
-The ITS re-address mechanism is the one genuinely undocumented step. The `pdp10-its` pin is checked out as `work/its-readdress-src` "for generic KA host 176", and [the two-ITS readiness note](../experiments/2026-08-28-two-its-readiness.md) records that image booting and self-identifying at `176` natively, without the runtime `IMPUS` override the earlier debugger-modified disk required. How the tree was re-addressed is not recorded anywhere in this repository; it exists only as a local modification in the external tree. Documenting it as a build parameter is a precondition for a clean rework.
+The ITS host number is an ordinary upstream build option, not a local modification. In the external laboratory at `/Users/brf/src/arpanet-redux-lab`, `work/its-readdress-src` sits at the pinned revision `0f7d679` with no tracked modifications at all, despite the checkout's name. `build/pdp10-ka/config.202` line 238 reads `DEFOPT IMPUS==176 ; ARPA net host number`, and that file is templated into the built system by the ITS Makefile at line 327. The same file carries `206` and `306` elsewhere, which are MIT-AI and MIT-ML — upstream's KA configuration is already historically addressed, and `176` is upstream's own stock value rather than anything this project chose.
+
+Two consequences. Re-addressing ITS is a one-line change to a documented upstream build option, so it needs recording rather than reverse-engineering. And a natively built MIT-DMS at `106` is equally one line away, which would let the project retire the prepared debugger-modified disk that [`its106-pair.simh`](../../config/hosts/its106-pair.simh) still boots — that file loads `NITS`, the pre-rename working name, where the natively built image loads `ITS`.
+
+Not every address-bearing name is internal. Topology component, binding, link and route identifiers, simulator process names, console and sent-log filenames, and manifest keys are all written into retained results and read back by the replay viewers. `route:host176-to-host106` appears in the release v0.2.0 failover run's `message-journey.jsonl`, `verdict.json` and `historical-events.jsonl`; `host106.console.log`, `host106.sent.log` and `host106-attach-only.simh` are files in accepted result directories. Renaming any of these breaks `make view-ncc` against results the project has already accepted, so they are part of the retained-evidence format rather than internal vocabulary, and they can only change when an address change supersedes those results anyway.
+
+What is safely renameable is therefore narrower than a raw reference count suggests: controller variables and function names, CLI flag names, and shell variables, none of which appear in any retained result. The PDP-11 side of the harness already names its role rather than its address and is the precedent for the rest.
 
 Evidence invalidation is the unavoidable cost. Acceptance is bound to exact runs with byte-level decodes and log hashes — [`imp11a-device.md`](imp11a-device.md) asserts the guest RST as `000106 000000 000010 000001 000014`, and [the KA10 ingress-grammar note](../experiments/2026-09-01-ka10-host-ingress-grammar.md) pins a debug-log SHA-256. Changing a destination address changes those leader bytes. Gates 3, 4, 4H, 4I, 4J, 5 and both NCC gates would need fresh accepted runs. Per [`AGENTS.md`](../../AGENTS.md) and the configuration boundary's intent-versus-observation rule, existing dated experiment notes must not be edited to match; a re-address is a new composition with new dated experiments.
 
@@ -177,10 +191,12 @@ A sketch of the topology change:
 
 Ordered so that every phase before the fifth is behaviour-preserving. Nothing needs re-running until phase 5.
 
+Phases 3 and 4 are implemented on the unmerged branch `research/historical-addressing-model` and are described below as done there, not on `main`.
+
 1. Pin NIC 32992 and land this note. No code, no re-runs.
-2. Document how ITS gets its address, so `make its` becomes the re-addressing tool, and retire the vestigial `IMPUS=` override in the host boot files. Documentation plus one confirming rebuild.
-3. Introduce the registry, the derived-address schema fields and the validation test; collapse the duplicate topology in `ncc/topology.py` onto the JSON. Keep every current number unchanged: the ITS host validates clean immediately and the PDP-11 is marked synthetic pending phase 5.
-4. Rename identifiers from addresses to roles. Wide and mechanical, covered by existing tests, and it makes the phase-5 diff readable.
+2. Record `DEFOPT IMPUS==` in `build/pdp10-ka/config.202` as the ITS addressing parameter, so `make its` is understood to be the re-addressing tool, and retire the vestigial `IMPUS=` override in the host boot files. Documentation plus one confirming rebuild.
+3. Introduce the authority extract, the derived-address schema fields and the validation test. Keep every current number unchanged: the ITS host validates clean immediately and every other host position declares synthetic pending phase 5. **Done on `research/historical-addressing-model`.**
+4. Rename the safely renameable identifiers — controller variables and function names, CLI flags, shell variables — from addresses to roles, leaving every name a retained result depends on for phase 5. **Done on `research/historical-addressing-model`.**
 5. Re-address the PDP-11 to RAND-ISO and re-run every affected gate, writing new dated experiments.
 6. Settle the remaining identities, then update the README and [`docs/architecture.md`](../architecture.md) and write the ADR recording the change of position.
 
@@ -195,6 +211,8 @@ Ordered so that every phase before the fifth is behaviour-preserving. Nothing ne
 
 - An initial reading suggested the University of Illinois CAC as the natural 1975 home for Network UNIX. The Directory lists ILL-CAC as a PDP-11/20 running ANTS, a terminal concentrator, and ILL-NTS at 1/12 as a separate host. Illinois is not the target; RAND-ISO is.
 - The project's `176` is octal. Decimal 176 is octal `260`, which is AFWL-TIP at 2/48 — unrelated, and worth stating because the two readings are easy to confuse when checking this note against the source.
+- An earlier revision of this note described the ITS re-address as an undocumented local modification and made documenting it a precondition for the rework. It is an upstream build option; the section above now records where. The external laboratory is at `/Users/brf/src/arpanet-redux-lab`, not the path the 2026-08-28 experiment note cites.
+- An earlier revision described `ncc/topology.py` as a second copy of a topology already declared in JSON. It is not a duplicate: it describes the two-ITS composition, which has no shared-topology file, and it differs from [`pdp11-its-telnet.json`](../../config/topologies/pdp11-its-telnet.json) in endpoint identifiers and labels even where the component numbering coincides.
 
 ## Related
 

@@ -50,6 +50,77 @@ def failures(
 
 
 class Pdp11ItsEvidenceTests(unittest.TestCase):
+    def test_manifest_reader_preserves_values_and_rejects_ambiguous_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            path = Path(directory_name) / "run.env"
+            path.write_text("alpha=one\npath=a=b\n", encoding="utf-8")
+            self.assertEqual(
+                CONTROLLER.read_manifest(path),
+                {"alpha": "one", "path": "a=b"},
+            )
+
+            for text, message in (
+                ("missing-separator\n", "has no '=' separator"),
+                ("=empty-key\n", "invalid or duplicate key"),
+                ("key=first\nkey=second\n", "invalid or duplicate key"),
+            ):
+                with self.subTest(text=text):
+                    path.write_text(text, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, message):
+                        CONTROLLER.read_manifest(path)
+
+    def test_pdp11_boot_sequence_requires_prompt_and_reaches_running(self) -> None:
+        class FakeProcess:
+            name = "pdp11"
+
+            def __init__(self, state: str) -> None:
+                self.state = state
+                self.events: list[tuple[object, ...]] = []
+
+            def send(self, data: str) -> None:
+                self.events.append(("send", data))
+
+            def expect(self, pattern: bytes | str, timeout: float) -> None:
+                self.events.append(("expect", pattern, timeout))
+
+        process = FakeProcess("PROMPT")
+        CONTROLLER.boot_pdp11(process)
+        self.assertEqual(process.state, "RUNNING")
+        self.assertEqual(
+            process.events,
+            [
+                ("send", "boot rl0\r"),
+                ("expect", "!", 15),
+                ("send", "green\r"),
+                ("expect", "login:", 30),
+                ("send", "root\r"),
+                ("expect", rb"\r\n# ?", 15),
+            ],
+        )
+
+        invalid = FakeProcess("RUNNING")
+        with self.assertRaisesRegex(RuntimeError, "cannot boot from RUNNING"):
+            CONTROLLER.boot_pdp11(invalid)
+        self.assertEqual(invalid.events, [])
+
+    def test_explicit_process_liveness_rejects_missing_or_exited_children(self) -> None:
+        missing = SimpleNamespace(name="missing", process=None)
+        with self.assertRaisesRegex(RuntimeError, "missing exited early"):
+            CONTROLLER.ensure_process_alive(missing)
+
+        exited = SimpleNamespace(
+            name="exited",
+            process=SimpleNamespace(poll=lambda: 1),
+        )
+        with self.assertRaisesRegex(RuntimeError, "exited exited early"):
+            CONTROLLER.ensure_process_alive(exited)
+
+        alive = SimpleNamespace(
+            name="alive",
+            process=SimpleNamespace(poll=lambda: None),
+        )
+        CONTROLLER.ensure_process_alive(alive)
+
     def test_host106_observation_config_enables_only_assembly_trace(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)

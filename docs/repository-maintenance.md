@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Extract shared two-ITS harness primitives` moves the characterized artifact hashing, UDP-port environment contract, attach-only configuration, log and watchdog readiness, modem-message correlation, and aggregate shutdown into focused ordinary `ncc` modules. The two-ITS controller retains its command, arguments, timing, evidence, and cleanup behavior while exporting the same names for its not-yet-migrated dependents.
+- **Last completed:** `Characterize reusable direct PDP-11 harness helpers` adds explicit contracts for strict line-oriented manifest reads, prompt-gated Network UNIX boot steps and state transition, and missing, exited, or live owned-child checks. Existing tests continue to pin evidence ordering, observation configuration, readiness timeouts, and cleanup records.
 - **Selected:** RM-07, direct PDP-11 controller migration.
-- **Next action:** Characterize the direct controller's strict manifest reader and reusable PDP-11/ITS lifecycle helpers, move them into an ordinary underscore-named module, and remove its dynamic load of `scripts/two-its-controller.py` without changing the Gate 4H flow.
+- **Next action:** Move the characterized reusable PDP-11/ITS lifecycle helpers into `ncc.pdp11_its_harness` and replace the direct controller's dynamic two-ITS sibling load with ordinary focused imports, preserving temporary name aliases for the two dependent controllers.
 - **Following action:** After that slice is committed and smoke-verified, migrate the failover controller away from its dynamic direct-controller load.
 - **Blockers:** None.
-- **Last verification:** All 300 discovered tests passed with one expected UDP sandbox skip. Formal run `two-its-telnet-maintenance-rm07-primitives-20260903b` passed Gates 4 and 5 at repository revision `a8c670d`, exact clean external pins, and the receipt-bound simulator binaries; its manifest records `outcome=passed`, `exit_status=0`, and the smoke verified complete owned-process cleanup.
+- **Last verification:** The direct, failover, and interactive controller suites passed 34 focused tests at repository revision `09e8fa7`. All 300 discovered tests previously passed with one expected UDP sandbox skip. Formal run `two-its-telnet-maintenance-rm07-primitives-20260903b` passed Gates 4 and 5 at repository revision `a8c670d`, exact clean external pins, and the receipt-bound simulator binaries; its manifest records `outcome=passed`, `exit_status=0`, and the smoke verified complete owned-process cleanup.
 
 ## Update protocol
 

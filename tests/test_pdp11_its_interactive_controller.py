@@ -9,10 +9,28 @@ import tempfile
 import termios
 import unittest
 
+from ncc.harness_config import create_host106_attach_config, validate_environment
+from ncc.harness_imp import (
+    latest_watchdog,
+    mi_link_messages_from_bytes,
+    significant,
+    wait_for_log_marker,
+    wait_for_watchdog_devices_ready,
+    watchdog_devices_ready,
+    watchdog_reports_modem_dead,
+)
+from ncc.harness_manifest import append_manifest, read_manifest, sha256
+from ncc.harness_process import (
+    ImpProcess,
+    PtyProcess,
+    ensure_process_alive,
+    utc_now,
+)
 from ncc.interactive_telnet import (
     InteractiveTelnetRecorder,
     read_interactive_telnet_stream,
 )
+from ncc.pdp11_its_harness import boot_pdp11, stop_and_record, wait_for_prompt
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +119,34 @@ def recorder(path: Path) -> InteractiveTelnetRecorder:
 
 
 class InteractiveControllerTests(unittest.TestCase):
+    def test_controller_uses_importable_lifecycle_owners(self) -> None:
+        owners = {
+            "create_host106_attach_config": create_host106_attach_config,
+            "validate_environment": validate_environment,
+            "latest_watchdog": latest_watchdog,
+            "mi_link_messages_from_bytes": mi_link_messages_from_bytes,
+            "significant": significant,
+            "wait_for_log_marker": wait_for_log_marker,
+            "wait_for_watchdog_devices_ready": wait_for_watchdog_devices_ready,
+            "watchdog_devices_ready": watchdog_devices_ready,
+            "watchdog_reports_modem_dead": watchdog_reports_modem_dead,
+            "append_manifest": append_manifest,
+            "read_manifest": read_manifest,
+            "sha256": sha256,
+            "ImpProcess": ImpProcess,
+            "PtyProcess": PtyProcess,
+            "ensure_process_alive": ensure_process_alive,
+            "utc_now": utc_now,
+            "boot_pdp11": boot_pdp11,
+            "stop_and_record": stop_and_record,
+            "wait_for_prompt": wait_for_prompt,
+        }
+        self.assertFalse(hasattr(CONTROLLER, "BASE"))
+        self.assertFalse(hasattr(CONTROLLER, "SHARED"))
+        for name, owner in owners.items():
+            with self.subTest(name=name):
+                self.assertIs(getattr(CONTROLLER, name), owner)
+
     def test_boot_display_is_line_stable_and_shows_elapsed_milestones(self) -> None:
         ticks = iter((100.0, 101.9, 104.2))
         output = StringIO()

@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import tempfile
 import unittest
 
-import ncc.pdp11_its_harness as PDP11_ITS_HARNESS
 from ncc.harness_config import PORT_VARIABLES
 from ncc.harness_manifest import read_manifest
 from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
@@ -89,7 +88,6 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
             "boot_pdp11": boot_pdp11,
             "stop_and_record": stop_and_record,
         }
-        self.assertIs(CONTROLLER.SHARED, PDP11_ITS_HARNESS)
         for name, owner in owners.items():
             with self.subTest(name=name):
                 self.assertIs(getattr(CONTROLLER, name), owner)
@@ -314,9 +312,7 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
                 ensure_alive=lambda: None,
             )
             with self.assertRaisesRegex(TimeoutError, "did not report"):
-                CONTROLLER.SHARED.wait_for_log_marker(
-                    imp, "never-ready", timeout=0.01
-                )
+                CONTROLLER.wait_for_log_marker(imp, "never-ready", timeout=0.01)
 
     def test_cleanup_records_ordinary_and_interrupted_paths(self) -> None:
         class FakeProcess:

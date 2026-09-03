@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -23,12 +22,23 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-BASE_PATH = Path(__file__).with_name("pdp11-its-controller.py")
-BASE_SPEC = importlib.util.spec_from_file_location("pdp11_its_controller", BASE_PATH)
-assert BASE_SPEC is not None and BASE_SPEC.loader is not None
-BASE = importlib.util.module_from_spec(BASE_SPEC)
-BASE_SPEC.loader.exec_module(BASE)
-
+from ncc.harness_config import create_host106_attach_config, validate_environment
+from ncc.harness_imp import (
+    latest_watchdog,
+    mi_link_messages_from_bytes,
+    significant,
+    wait_for_log_marker,
+    wait_for_watchdog_devices_ready,
+    watchdog_devices_ready,
+    watchdog_reports_modem_dead,
+)
+from ncc.harness_manifest import append_manifest, read_manifest, sha256
+from ncc.harness_process import (
+    ImpProcess,
+    PtyProcess,
+    ensure_process_alive,
+    utc_now,
+)
 from ncc.interactive_telnet import (
     DEFAULT_COMMAND_TIMEOUT_SECONDS,
     DEFAULT_MAX_COMMAND_BYTES,
@@ -38,6 +48,17 @@ from ncc.interactive_telnet import (
     InteractiveTelnetStreamError,
     read_interactive_telnet_stream,
     validate_operator_command,
+)
+from ncc.pdp11_its_harness import (
+    DATE_PATTERN,
+    FATAL_SESSION,
+    FATAL_TRANSPORT,
+    SERVICE_PATTERN,
+    TIME_PATTERN,
+    UPTIME_PATTERN,
+    boot_pdp11,
+    stop_and_record,
+    wait_for_prompt,
 )
 from ncc.pdp11_its_journey import pdp11_its_modem_devices
 from ncc.shared_topology import shared_topology_from_mapping
@@ -50,8 +71,6 @@ from ncc.terminal_session import (
     read_terminal_session_stream,
 )
 
-
-SHARED = BASE.SHARED
 ITS_DDT_PROMPT = rb"\r\n\*"
 REMOTE_BANNER = re.compile(rb"MIT Dynamic[\s\S]*?Happy hacking!\r\n")
 NETWORK_UNIX_TELNET_BANNER = b"UNIX User Telnet -- Ver I.5"
@@ -301,7 +320,7 @@ def run_character_terminal(
         if output_bytes + len(available) > max_output_bytes:
             return "output-limit"
         recorder.bytes(
-            "pdp11-to-operator", available, observed_at=SHARED.utc_now()
+            "pdp11-to-operator", available, observed_at=utc_now()
         )
         output_bytes += len(available)
         position += len(available)
@@ -325,7 +344,7 @@ def run_character_terminal(
             flush_projection(force=True)
             return "input-eof"
         prepared = prepare_terminal_input(incoming)
-        observed_at = SHARED.utc_now()
+        observed_at = utc_now()
         if prepared.blocked_wru:
             recorder.control(
                 "blocked-simulator-wru",
@@ -442,9 +461,9 @@ def interactive_evidence_failures(
         position += match.end()
     if completed_commands < 1:
         failures.append("interactive session completed no prompt-framed command")
-    if BASE.FATAL_SESSION.search(pdp11_output):
+    if FATAL_SESSION.search(pdp11_output):
         failures.append("PDP-11 session reported a premature close or transport failure")
-    if re.search(BASE.SERVICE_PATTERN, its_output) is None:
+    if re.search(SERVICE_PATTERN, its_output) is None:
         failures.append("ITS lacks the incoming HST176 TELNET service job")
 
     for name, output, modem_device in (
@@ -456,23 +475,15 @@ def interactive_evidence_failures(
                 failures.append(
                     f"{name} lacks interactive {marker.decode('ascii')} evidence"
                 )
-        if BASE.FATAL_TRANSPORT.search(output):
+        if FATAL_TRANSPORT.search(output):
             failures.append(f"{name} reported a fatal transport condition")
-        if SHARED.watchdog_reports_modem_dead(output, modem_device):
+        if watchdog_reports_modem_dead(output, modem_device):
             failures.append(f"{name} reported an interactive modem-line-dead transition")
 
-    imp6_mi = SHARED.mi_link_messages_from_bytes(
-        imp6_output, device=imp6_mi_device
-    )
-    imp62_mi = SHARED.mi_link_messages_from_bytes(
-        imp62_output, device=imp62_mi_device
-    )
-    forward = SHARED.significant(imp6_mi[b"sent"]) & SHARED.significant(
-        imp62_mi[b"received"]
-    )
-    returned = SHARED.significant(imp62_mi[b"sent"]) & SHARED.significant(
-        imp6_mi[b"received"]
-    )
+    imp6_mi = mi_link_messages_from_bytes(imp6_output, device=imp6_mi_device)
+    imp62_mi = mi_link_messages_from_bytes(imp62_output, device=imp62_mi_device)
+    forward = significant(imp6_mi[b"sent"]) & significant(imp62_mi[b"received"])
+    returned = significant(imp62_mi[b"sent"]) & significant(imp6_mi[b"received"])
     if not forward:
         failures.append("missing correlated interactive IMP 6 to IMP 62 traffic")
     if not returned:
@@ -508,7 +519,7 @@ def terminal_connection_evidence_failures(
             failures.append(f"missing ordered {label} evidence")
             continue
         position += match.end()
-    if re.search(BASE.SERVICE_PATTERN, its_output) is None:
+    if re.search(SERVICE_PATTERN, its_output) is None:
         failures.append("ITS lacks the incoming HST176 TELNET service job")
 
     for name, output, modem_device in (
@@ -520,23 +531,15 @@ def terminal_connection_evidence_failures(
                 failures.append(
                     f"{name} lacks terminal {marker.decode('ascii')} evidence"
                 )
-        if BASE.FATAL_TRANSPORT.search(output):
+        if FATAL_TRANSPORT.search(output):
             failures.append(f"{name} reported a fatal transport condition")
-        if SHARED.watchdog_reports_modem_dead(output, modem_device):
+        if watchdog_reports_modem_dead(output, modem_device):
             failures.append(f"{name} reported a terminal modem-line-dead transition")
 
-    imp6_mi = SHARED.mi_link_messages_from_bytes(
-        imp6_output, device=imp6_mi_device
-    )
-    imp62_mi = SHARED.mi_link_messages_from_bytes(
-        imp62_output, device=imp62_mi_device
-    )
-    forward = SHARED.significant(imp6_mi[b"sent"]) & SHARED.significant(
-        imp62_mi[b"received"]
-    )
-    returned = SHARED.significant(imp62_mi[b"sent"]) & SHARED.significant(
-        imp6_mi[b"received"]
-    )
+    imp6_mi = mi_link_messages_from_bytes(imp6_output, device=imp6_mi_device)
+    imp62_mi = mi_link_messages_from_bytes(imp62_output, device=imp62_mi_device)
+    forward = significant(imp6_mi[b"sent"]) & significant(imp62_mi[b"received"])
+    returned = significant(imp62_mi[b"sent"]) & significant(imp6_mi[b"received"])
     if not forward:
         failures.append("missing correlated terminal IMP 6 to IMP 62 traffic")
     if not returned:
@@ -555,9 +558,9 @@ def historical_fidelity_facts(
         "remote_time": all(
             re.search(pattern, output_bytes) is not None
             for pattern in (
-                BASE.TIME_PATTERN,
-                BASE.DATE_PATTERN,
-                BASE.UPTIME_PATTERN,
+                TIME_PATTERN,
+                DATE_PATTERN,
+                UPTIME_PATTERN,
             )
         ),
         "ayt_yes": (
@@ -635,12 +638,12 @@ def run_operator_session(
             continue
 
         response_offset = pdp11.position()
-        command_id = recorder.command(command, observed_at=SHARED.utc_now())
+        command_id = recorder.command(command, observed_at=utc_now())
         started = time.monotonic()
         pdp11.send(command + "\r")
         try:
             event, match = pdp11.expect_any(
-                (ITS_DDT_PROMPT, BASE.FATAL_SESSION.pattern),
+                (ITS_DDT_PROMPT, FATAL_SESSION.pattern),
                 timeout=command_timeout,
             )
         except TimeoutError:
@@ -650,7 +653,7 @@ def run_operator_session(
             )
             recorder.result(
                 command_id,
-                observed_at=SHARED.utc_now(),
+                observed_at=utc_now(),
                 status="response-limit" if truncated else "timeout",
                 elapsed_ms=elapsed_ms,
                 captured=captured,
@@ -666,7 +669,7 @@ def run_operator_session(
             )
             recorder.result(
                 command_id,
-                observed_at=SHARED.utc_now(),
+                observed_at=utc_now(),
                 status="response-limit" if truncated else "interrupted",
                 elapsed_ms=elapsed_ms,
                 captured=captured,
@@ -682,7 +685,7 @@ def run_operator_session(
         if truncated:
             recorder.result(
                 command_id,
-                observed_at=SHARED.utc_now(),
+                observed_at=utc_now(),
                 status="response-limit",
                 elapsed_ms=elapsed_ms,
                 captured=captured,
@@ -694,7 +697,7 @@ def run_operator_session(
         if event != 0:
             recorder.result(
                 command_id,
-                observed_at=SHARED.utc_now(),
+                observed_at=utc_now(),
                 status="session-closed",
                 elapsed_ms=elapsed_ms,
                 captured=captured,
@@ -704,7 +707,7 @@ def run_operator_session(
             )
         recorder.result(
             command_id,
-            observed_at=SHARED.utc_now(),
+            observed_at=utc_now(),
             status="complete",
             elapsed_ms=elapsed_ms,
             captured=captured,
@@ -721,7 +724,7 @@ def run_operator_session(
 
 
 def run(args: argparse.Namespace) -> int:
-    SHARED.validate_environment()
+    validate_environment()
     for value, name in (
         (args.command_timeout, "command timeout"),
         (args.max_command_bytes, "maximum command bytes"),
@@ -741,13 +744,13 @@ def run(args: argparse.Namespace) -> int:
     shared_topology = shared_topology_from_mapping(topology_document)
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(shared_topology)
     attach_config = results_dir / "host106-attach-only.simh"
-    SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
-    SHARED.append_manifest(
-        manifest, "sha256.host106-attach-config", SHARED.sha256(attach_config)
+    create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    append_manifest(
+        manifest, "sha256.host106-attach-config", sha256(attach_config)
     )
-    SHARED.append_manifest(manifest, "path.host106-attach-config", attach_config)
+    append_manifest(manifest, "path.host106-attach-config", attach_config)
 
-    imp6 = SHARED.ImpProcess(
+    imp6 = ImpProcess(
         "imp6",
         args.h316.resolve(),
         args.imp6_config.resolve(),
@@ -755,7 +758,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    imp62 = SHARED.ImpProcess(
+    imp62 = ImpProcess(
         "imp62",
         args.h316.resolve(),
         args.imp62_config.resolve(),
@@ -763,7 +766,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir,
         manifest,
     )
-    host106 = SHARED.PtyProcess(
+    host106 = PtyProcess(
         "host106",
         args.pdp10_ka.resolve(),
         attach_config,
@@ -772,7 +775,7 @@ def run(args: argparse.Namespace) -> int:
         results_dir / "host106.sent.log",
         manifest,
     )
-    pdp11 = SHARED.PtyProcess(
+    pdp11 = PtyProcess(
         "pdp11",
         args.pdp11.resolve(),
         args.pdp11_config.resolve(),
@@ -802,8 +805,8 @@ def run(args: argparse.Namespace) -> int:
         display.milestone("START", "IMP backbone", "launching IMP 62 and IMP 6")
         imp6.launch()
         imp62.launch()
-        SHARED.wait_for_log_marker(imp6, "listening on port", 30)
-        SHARED.wait_for_log_marker(imp62, "listening on port", 30)
+        wait_for_log_marker(imp6, "listening on port", 30)
+        wait_for_log_marker(imp62, "listening on port", 30)
         display.milestone("READY", "IMP backbone", "both H316 transports listening")
 
         display.milestone(
@@ -818,10 +821,10 @@ def run(args: argparse.Namespace) -> int:
         )
 
         display.milestone("WAIT", "IMP trunk", "bringing up IMP 62 <-> IMP 6")
-        imp6_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
+        imp6_modem_up, _ = wait_for_watchdog_devices_ready(
             imp6, modem_device=imp6_mi_device, timeout=60
         )
-        imp62_modem_up, _ = SHARED.wait_for_watchdog_devices_ready(
+        imp62_modem_up, _ = wait_for_watchdog_devices_ready(
             imp62, modem_device=imp62_mi_device, timeout=60
         )
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + args.route_settle
@@ -841,9 +844,9 @@ def run(args: argparse.Namespace) -> int:
         display.milestone(
             "BOOT", "Network UNIX 176", "starting PDP-11 and launching NCP"
         )
-        BASE.boot_pdp11(pdp11)
+        boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
-        BASE.wait_for_prompt(pdp11, timeout=15)
+        wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
         display.milestone(
             "READY", "Network UNIX 176", "guest booted; NCP daemon launched"
@@ -852,13 +855,13 @@ def run(args: argparse.Namespace) -> int:
         display.milestone(
             "WAIT", "ARPANET route", "bringing up host links and settling routes"
         )
-        SHARED.wait_for_watchdog_devices_ready(
+        wait_for_watchdog_devices_ready(
             imp6,
             modem_device=imp6_mi_device,
             host_device="hi2",
             timeout=120,
         )
-        SHARED.wait_for_watchdog_devices_ready(
+        wait_for_watchdog_devices_ready(
             imp62,
             modem_device=imp62_mi_device,
             host_device="hi2",
@@ -872,15 +875,15 @@ def run(args: argparse.Namespace) -> int:
             (imp62, imp62_mi_device),
         ):
             imp.ensure_alive()
-            latest = SHARED.latest_watchdog(imp.debug_path)
-            if not SHARED.watchdog_devices_ready(
+            latest = latest_watchdog(imp.debug_path)
+            if not watchdog_devices_ready(
                 latest, modem_device=modem_device, host_device="hi2"
             ):
                 raise RuntimeError(
                     f"{imp.name} selected modem/host path is not ready: {latest}"
                 )
         for host in hosts:
-            BASE.ensure_process_alive(host)
+            ensure_process_alive(host)
             if host.state != "RUNNING":
                 raise RuntimeError(f"{host.name} is not RUNNING before TELNET")
         display.milestone(
@@ -896,10 +899,10 @@ def run(args: argparse.Namespace) -> int:
             ("pdp11-console", pdp11_offset),
             ("host106-console", host106_offset),
         ):
-            SHARED.append_manifest(manifest, f"application.offset.{name}", offset)
+            append_manifest(manifest, f"application.offset.{name}", offset)
 
         if args.mode == "terminal":
-            manifest_values = BASE.read_manifest(manifest)
+            manifest_values = read_manifest(manifest)
             transcript_path = results_dir / "terminal-session.jsonl"
             recorder = TerminalSessionRecorder(
                 transcript_path,
@@ -942,16 +945,16 @@ def run(args: argparse.Namespace) -> int:
                         max_output_bytes=args.max_terminal_output_bytes,
                     )
             except InterruptedError:
-                recorder.complete(observed_at=SHARED.utc_now(), reason="interrupted")
+                recorder.complete(observed_at=utc_now(), reason="interrupted")
                 transcript_terminal = True
                 raise
             except (OSError, RuntimeError, TerminalSessionStreamError):
-                recorder.complete(observed_at=SHARED.utc_now(), reason="failed")
+                recorder.complete(observed_at=utc_now(), reason="failed")
                 transcript_terminal = True
                 raise
             else:
                 recorder.complete(
-                    observed_at=SHARED.utc_now(), reason=session_reason
+                    observed_at=utc_now(), reason=session_reason
                 )
                 transcript_terminal = True
             finally:
@@ -990,7 +993,7 @@ def run(args: argparse.Namespace) -> int:
             message_mode = fidelity["message_mode"]
             character_mode = fidelity["character_mode"]
             fidelity_complete = fidelity["fidelity_complete"]
-            service_match = re.search(BASE.SERVICE_PATTERN, its_output)
+            service_match = re.search(SERVICE_PATTERN, its_output)
             service_user = (
                 service_match.group(1).decode("ascii")
                 if service_match is not None
@@ -1012,8 +1015,8 @@ def run(args: argparse.Namespace) -> int:
                     (imp6, imp6_mi_device),
                     (imp62, imp62_mi_device),
                 ):
-                    latest = SHARED.latest_watchdog(imp.debug_path)
-                    if not SHARED.watchdog_devices_ready(
+                    latest = latest_watchdog(imp.debug_path)
+                    if not watchdog_devices_ready(
                         latest, modem_device=modem_device, host_device="hi2"
                     ):
                         failures.append(f"{imp.name} did not remain host-link ready")
@@ -1025,58 +1028,58 @@ def run(args: argparse.Namespace) -> int:
                 raise RuntimeError("; ".join(failures))
 
             for name in ("imp6", "imp62"):
-                SHARED.append_manifest(
+                append_manifest(
                     manifest,
                     f"application.offset.end.{name}",
                     imp_end_offsets[name],
                 )
-            SHARED.append_manifest(manifest, "path.terminal-session", transcript_path)
-            SHARED.append_manifest(
+            append_manifest(manifest, "path.terminal-session", transcript_path)
+            append_manifest(
                 manifest,
                 "sha256.terminal-session",
-                SHARED.sha256(transcript_path),
+                sha256(transcript_path),
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "terminal.input-bytes", len(transcript.input_bytes)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "terminal.output-bytes", len(transcript.output_bytes)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "terminal.profile", "seven-bit-safe-teletype"
             )
-            SHARED.append_manifest(manifest, "terminal.simulator-wru-forwarded", 0)
-            SHARED.append_manifest(
+            append_manifest(manifest, "terminal.simulator-wru-forwarded", 0)
+            append_manifest(
                 manifest, "application.client-started", int(client_started)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "application.connection-open", int(connection_open)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "application.remote-time", int(remote_time)
             )
-            SHARED.append_manifest(manifest, "application.ayt-yes", int(ayt_yes))
-            SHARED.append_manifest(
+            append_manifest(manifest, "application.ayt-yes", int(ayt_yes))
+            append_manifest(
                 manifest, "application.message-mode", int(message_mode)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "application.character-mode", int(character_mode)
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest,
                 "application.historical-fidelity-complete",
                 int(fidelity_complete),
             )
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, "application.session-mode", "character-oriented"
             )
             if connection_open:
                 assert service_user is not None
-                SHARED.append_manifest(
+                append_manifest(
                     manifest, "application.client", "network-unix-telnet"
                 )
-                SHARED.append_manifest(manifest, "application.server", "TELSER")
-                SHARED.append_manifest(
+                append_manifest(manifest, "application.server", "TELSER")
+                append_manifest(
                     manifest, "application.service_user", service_user
                 )
 
@@ -1122,14 +1125,14 @@ def run(args: argparse.Namespace) -> int:
         )
         if event != 0:
             raise RuntimeError("guest TELNET reported Host is Unavailable")
-        service_match = host106.expect(BASE.SERVICE_PATTERN, timeout=120)
+        service_match = host106.expect(SERVICE_PATTERN, timeout=120)
         service_user = service_match.group(1).decode("ascii")
         pdp11.expect(rb"MIT Dynamic[\s\S]*?Modelling PDP-10", timeout=60)
         pdp11.expect(rb"TTY [0-9]+", timeout=60)
         pdp11.expect("Welcome to ITS!", timeout=60)
         pdp11.expect("Happy hacking!\r\n", timeout=30)
 
-        manifest_values = BASE.read_manifest(manifest)
+        manifest_values = read_manifest(manifest)
         transcript_path = results_dir / "interactive-telnet.jsonl"
         recorder = InteractiveTelnetRecorder(
             transcript_path,
@@ -1166,15 +1169,15 @@ def run(args: argparse.Namespace) -> int:
                 max_response_bytes=args.max_response_bytes,
             )
         except InterruptedError:
-            recorder.complete(observed_at=SHARED.utc_now(), reason="interrupted")
+            recorder.complete(observed_at=utc_now(), reason="interrupted")
             transcript_terminal = True
             raise
         except (InteractiveSessionFailure, OSError, RuntimeError, TimeoutError):
-            recorder.complete(observed_at=SHARED.utc_now(), reason="failed")
+            recorder.complete(observed_at=utc_now(), reason="failed")
             transcript_terminal = True
             raise
         else:
-            recorder.complete(observed_at=SHARED.utc_now(), reason=session_reason)
+            recorder.complete(observed_at=utc_now(), reason=session_reason)
             transcript_terminal = True
         finally:
             recorder.close()
@@ -1214,8 +1217,8 @@ def run(args: argparse.Namespace) -> int:
             (imp6, imp6_mi_device),
             (imp62, imp62_mi_device),
         ):
-            latest = SHARED.latest_watchdog(imp.debug_path)
-            if not SHARED.watchdog_devices_ready(
+            latest = latest_watchdog(imp.debug_path)
+            if not watchdog_devices_ready(
                 latest, modem_device=modem_device, host_device="hi2"
             ):
                 failures.append(f"{imp.name} did not remain host-link ready")
@@ -1223,25 +1226,25 @@ def run(args: argparse.Namespace) -> int:
             raise RuntimeError("; ".join(failures))
 
         for name in ("imp6", "imp62"):
-            SHARED.append_manifest(
+            append_manifest(
                 manifest, f"application.offset.end.{name}", imp_end_offsets[name]
             )
-        SHARED.append_manifest(manifest, "path.interactive-telnet", transcript_path)
-        SHARED.append_manifest(
-            manifest, "sha256.interactive-telnet", SHARED.sha256(transcript_path)
+        append_manifest(manifest, "path.interactive-telnet", transcript_path)
+        append_manifest(
+            manifest, "sha256.interactive-telnet", sha256(transcript_path)
         )
-        SHARED.append_manifest(
+        append_manifest(
             manifest,
             "application.interactive-commands",
             transcript.completed_commands,
         )
-        SHARED.append_manifest(
+        append_manifest(
             manifest, "application.prompt-framing", "its-ddt-star"
         )
-        SHARED.append_manifest(manifest, "application.client", "network-unix-telnet")
-        SHARED.append_manifest(manifest, "application.server", "TELSER")
-        SHARED.append_manifest(manifest, "application.service_user", service_user)
-        SHARED.append_manifest(
+        append_manifest(manifest, "application.client", "network-unix-telnet")
+        append_manifest(manifest, "application.server", "TELSER")
+        append_manifest(manifest, "application.service_user", service_user)
+        append_manifest(
             manifest, "application.session-mode", "interactive-line-oriented"
         )
 
@@ -1269,7 +1272,7 @@ def run(args: argparse.Namespace) -> int:
         if recorder is not None and not transcript_terminal:
             try:
                 recorder.complete(
-                    observed_at=SHARED.utc_now(),
+                    observed_at=utc_now(),
                     reason="interrupted" if interrupted else "failed",
                 )
             except (
@@ -1282,7 +1285,7 @@ def run(args: argparse.Namespace) -> int:
         display.milestone(
             "STOP", "Simulators", "stopping owned PDP-11, KA10, and H316 processes"
         )
-        BASE.stop_and_record(results_dir, hosts, imps, force=interrupted)
+        stop_and_record(results_dir, hosts, imps, force=interrupted)
         (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
         display.milestone("DONE", "Cleanup", "all owned simulator processes stopped")
         if outcome == "passed":

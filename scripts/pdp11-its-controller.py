@@ -16,9 +16,6 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-# Preserve the names used by the two dependent controllers until each moves to
-# ordinary imports in its own separately smoke-verified migration.
-import ncc.pdp11_its_harness as SHARED
 from ncc.harness_config import (
     PORT_VARIABLES,
     create_host106_attach_config,

@@ -5,31 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-# Several generic names remain imported here while the failover and interactive
-# controllers migrate from their historical ``BASE.SHARED`` access path. The
-# owning modules remain authoritative; this compatibility surface is temporary.
-from ncc.harness_config import (
-    PORT_VARIABLES,
-    create_host106_attach_config,
-    validate_environment,
-)
+from ncc.harness_config import create_host106_attach_config
 from ncc.harness_imp import (
-    latest_watchdog,
     mi_link_messages_from_bytes,
     significant,
-    wait_for_log_marker,
-    wait_for_watchdog_devices_ready,
-    watchdog_devices_ready,
     watchdog_reports_modem_dead,
 )
-from ncc.harness_manifest import append_manifest, read_manifest, sha256
-from ncc.harness_process import (
-    ImpProcess,
-    PtyProcess,
-    ensure_process_alive,
-    stop_all,
-    utc_now,
-)
+from ncc.harness_process import ImpProcess, PtyProcess, stop_all
 
 
 TIME_PATTERN = rb"The time is [0-9]{1,2}:[0-9]{2}:[0-9]{2} [A-Z]{2,5}\."

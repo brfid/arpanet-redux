@@ -1,5 +1,6 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "address_authority": "nic-32992-1975-07",
   "id": "topology:pdp11-its-telnet",
   "topology": {
     "components": [
@@ -68,6 +69,7 @@
       "host_id": "host:176",
       "host_endpoint": "host:176:1822",
       "host_number": 1,
+      "synthetic": true,
       "simh_device": "hi2",
       "imp_listen_environment": "BRFID_IMP62_HI_PORT",
       "host_listen_environment": "BRFID_HOST_B_IMP_PORT",
@@ -81,6 +83,7 @@
       "host_id": "host:106",
       "host_endpoint": "host:106:1822",
       "host_number": 1,
+      "site": "MIT-DMS",
       "simh_device": "hi2",
       "imp_listen_environment": "BRFID_IMP6_HI_PORT",
       "host_listen_environment": "BRFID_HOST_A_IMP_PORT",

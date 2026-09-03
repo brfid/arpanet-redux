@@ -32,7 +32,8 @@ from ncc.shared_topology import shared_topology_from_mapping
 
 def journey_topology_document() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "address_authority": "nic-32992-1975-07",
         "id": "topology:heterogeneous-message-journey",
         "topology": {
             "components": [
@@ -101,6 +102,7 @@ def journey_topology_document() -> dict[str, object]:
                 "host_id": "host:176",
                 "host_endpoint": "host:176:1822",
                 "host_number": 1,
+                "synthetic": True,
                 "simh_device": "hi2",
                 "imp_listen_environment": "BRFID_IMP62_HI_PORT",
                 "host_listen_environment": "BRFID_HOST176_HI_PORT",
@@ -114,6 +116,7 @@ def journey_topology_document() -> dict[str, object]:
                 "host_id": "host:106",
                 "host_endpoint": "host:106:1822",
                 "host_number": 1,
+                "site": "MIT-DMS",
                 "simh_device": "hi2",
                 "imp_listen_environment": "BRFID_IMP6_HI_PORT",
                 "host_listen_environment": "BRFID_HOST106_HI_PORT",

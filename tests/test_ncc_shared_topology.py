@@ -17,7 +17,8 @@ PROJECT_TOPOLOGY = ROOT / "config" / "topologies" / "imp5-ncc-host-interface.jso
 
 def imp5_host_interface_topology() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "address_authority": "nic-32992-1975-07",
         "id": "topology:imp5-ncc-host-interface-proof",
         "topology": {
             "components": [
@@ -72,6 +73,7 @@ def imp5_host_interface_topology() -> dict[str, object]:
                 "host_id": "host:ncc",
                 "host_endpoint": "host:ncc:1822",
                 "host_number": 0,
+                "synthetic": True,
                 "simh_device": "hi1",
                 "imp_listen_environment": "BRFID_IMP5_HI_PORT",
                 "host_listen_environment": "BRFID_NCC_HI_PORT",
@@ -186,6 +188,101 @@ class SharedTopologyTests(unittest.TestCase):
 
         with self.assertRaisesRegex(SharedTopologyValidationError, "integer in 1..5"):
             shared_topology_from_mapping(invalid)
+
+
+
+class SiteIdentityTests(unittest.TestCase):
+    """A host position either matches its dated authority, or says it is synthetic."""
+
+    @staticmethod
+    def _with_claim(**claim: object) -> dict[str, object]:
+        document = copy.deepcopy(imp5_host_interface_topology())
+        binding = document["interfaces"][0]  # type: ignore[index]
+        binding.pop("site", None)
+        binding.pop("synthetic", None)
+        binding.update(claim)
+        return document
+
+    @staticmethod
+    def _at_recorded_position(**claim: object) -> dict[str, object]:
+        """Move the binding to 1/5, which the authority records as BBN-11X."""
+
+        document = copy.deepcopy(imp5_host_interface_topology())
+        binding = document["interfaces"][0]  # type: ignore[index]
+        binding.pop("site", None)
+        binding.pop("synthetic", None)
+        binding["host_number"] = 1
+        binding["simh_device"] = "hi2"
+        binding["imp_endpoint"] = "imp:5:host:1"
+        binding.update(claim)
+        component = document["topology"]["components"][1]  # type: ignore[index]
+        component["endpoints"][0] = {"id": "imp:5:host:1", "label": "Host 1"}
+        document["topology"]["links"][0]["endpoints"][1] = "imp:5:host:1"  # type: ignore[index]
+        return document
+
+    def test_derives_the_address_rather_than_reading_one(self) -> None:
+        topology = shared_topology_from_mapping(imp5_host_interface_topology())
+
+        binding = topology.interface("binding:ncc-host0-imp5")
+        self.assertEqual(binding.imp_number, 5)
+        self.assertEqual(binding.host_number, 0)
+        self.assertEqual(binding.address_decimal, 5)
+        self.assertEqual(binding.address_octal, "5")
+
+    def test_the_configured_its_host_matches_its_authority_row(self) -> None:
+        topology = load_shared_topology(
+            ROOT / "config" / "topologies" / "pdp11-its-telnet.json"
+        )
+
+        binding = topology.interface("binding:imp6-hi2-host106")
+        self.assertEqual(binding.site, "MIT-DMS")
+        self.assertFalse(binding.synthetic)
+        self.assertEqual(binding.address_octal, "106")
+
+    def test_the_configured_pdp11_host_is_declared_synthetic(self) -> None:
+        topology = load_shared_topology(
+            ROOT / "config" / "topologies" / "pdp11-its-telnet.json"
+        )
+
+        binding = topology.interface("binding:host176-imp62-hi2")
+        self.assertIsNone(binding.site)
+        self.assertTrue(binding.synthetic)
+        self.assertEqual(binding.address_octal, "176")
+        self.assertFalse(topology.address_authority.within_network(binding.imp_number))
+
+    def test_accepts_a_site_the_authority_records_at_that_position(self) -> None:
+        topology = shared_topology_from_mapping(self._at_recorded_position(site="BBN-11X"))
+
+        binding = topology.interface("binding:ncc-host0-imp5")
+        self.assertEqual(binding.site, "BBN-11X")
+        self.assertEqual(binding.address_octal, "105")
+
+    def test_rejects_a_site_the_authority_places_elsewhere(self) -> None:
+        with self.assertRaisesRegex(SharedTopologyValidationError, "records 'BBN-11X'"):
+            shared_topology_from_mapping(self._at_recorded_position(site="MIT-DMS"))
+
+    def test_rejects_a_site_the_authority_never_recorded(self) -> None:
+        with self.assertRaisesRegex(SharedTopologyValidationError, "does not record"):
+            shared_topology_from_mapping(self._with_claim(site="BBN-NCC"))
+
+    def test_rejects_synthetic_for_a_position_the_authority_identifies(self) -> None:
+        with self.assertRaisesRegex(SharedTopologyValidationError, "declares synthetic"):
+            shared_topology_from_mapping(self._at_recorded_position(synthetic=True))
+
+    def test_rejects_a_binding_that_claims_both(self) -> None:
+        with self.assertRaisesRegex(SharedTopologyValidationError, "one or the other"):
+            shared_topology_from_mapping(self._with_claim(site="BBN-11X", synthetic=True))
+
+    def test_rejects_a_binding_that_claims_neither(self) -> None:
+        with self.assertRaisesRegex(SharedTopologyValidationError, "declare synthetic"):
+            shared_topology_from_mapping(self._with_claim())
+
+    def test_rejects_an_unknown_address_authority(self) -> None:
+        document = copy.deepcopy(imp5_host_interface_topology())
+        document["address_authority"] = "nic-00000-1999-01"
+
+        with self.assertRaisesRegex(SharedTopologyValidationError, "unusable"):
+            shared_topology_from_mapping(document)
 
 
 if __name__ == "__main__":

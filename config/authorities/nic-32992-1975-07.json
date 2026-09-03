@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "authority:nic-32992-1975-07",
+  "source": {
+    "title": "ARPANET Directory",
+    "identifier": "NIC 32992",
+    "dated": "1975-07",
+    "holding": "SRI/NIC records, Computer History Museum, accession 102805037",
+    "url": "https://archive.computerhistory.org/resources/access/text/2021/11/102805037-05-01-acc.pdf",
+    "sha256": "9b9bf95c75f7e04968fce426b589fa0338951fafb03a706c97ff28e90df0e89b",
+    "tables": [
+      "Host Addresses",
+      "IMP No./Host No.",
+      "Servers",
+      "Computer Systems"
+    ]
+  },
+  "address_rule": "decimal = imp_number + 64 * host_number",
+  "highest_imp_number": 58,
+  "coverage": "partial",
+  "coverage_note": "Rows are transcribed only for the IMPs this repository composes plus hosts cited in docs/research/2026-09-02-1975-host-addressing.md. A missing row is not evidence that a host did not exist; only highest_imp_number carries a negative claim.",
+  "source_notes": [
+    "The scanned IMP No./Host No. table prints MIT-ML's decimal address as 196; the Host Addresses table prints 198, and 3 * 64 + 6 = 198. Addresses are derived from imp_number and host_number here rather than transcribed, so the arithmetic settles it.",
+    "Hostnames are given in their Host Addresses spelling. The IMP No./Host No. scan renders four of them differently: ARC-RD as ARC-RO, SRI-AI as SRI-A I, UCSB-MOD75 as UCSB-M0075, and RAND-ISO as RAND-ISD.",
+    "Machine and operating-system fields are transcribed only where the Servers or Computer Systems tables state them. An absent field means the source was not read for that host, not that the host had none."
+  ],
+  "hosts": [
+    {"imp_number": 1, "host_number": 0, "hostname": "UCLA-ATS", "computer": "PDP-11/45", "operating_system": "ANTS, ELF, UCLA-VMM, UNIX", "status": "USER"},
+    {"imp_number": 1, "host_number": 1, "hostname": "UCLA-CCN", "status": "SERVER"},
+    {"imp_number": 1, "host_number": 2, "hostname": "UCLA-CCBS", "status": "SERVER, Limited"},
+
+    {"imp_number": 2, "host_number": 0, "hostname": "ARC-RD", "computer": "PDP-11/40", "operating_system": "ELF", "status": "USER"},
+    {"imp_number": 2, "host_number": 1, "hostname": "SRI-AI", "status": "SERVER, Limited"},
+    {"imp_number": 2, "host_number": 2, "hostname": "SRI-ARC", "computer": "PDP-11/40", "operating_system": "ELF", "status": "USER"},
+
+    {"imp_number": 3, "host_number": 0, "hostname": "UCSB-MOD75", "status": "SERVER"},
+    {"imp_number": 3, "host_number": 2, "hostname": "CHI I", "status": "SERVER, Limited"},
+
+    {"imp_number": 4, "host_number": 0, "hostname": "UTAH-10", "status": "SERVER, Limited"},
+    {"imp_number": 4, "host_number": 2, "hostname": "UTAH-TIP", "status": "TIP"},
+
+    {"imp_number": 5, "host_number": 1, "hostname": "BBN-11X", "computer": "PDP-11", "operating_system": "ELF", "status": "SERVER, Limited"},
+    {"imp_number": 5, "host_number": 2, "hostname": "BBN-11XB", "computer": "PDP-11", "operating_system": "ELF", "status": "USER"},
+    {"imp_number": 5, "host_number": 3, "hostname": "BBN-TENEXA", "status": "SERVER, Limited"},
+
+    {"imp_number": 6, "host_number": 0, "hostname": "MIT-DEVMULTICS", "computer": "H-68/80", "operating_system": "MULTICS", "status": "SERVER, Limited"},
+    {"imp_number": 6, "host_number": 1, "hostname": "MIT-DMS", "computer": "PDP-10", "operating_system": "ITS", "status": "SERVER"},
+    {"imp_number": 6, "host_number": 2, "hostname": "MIT-AI", "computer": "PDP-10", "operating_system": "ITS", "status": "SERVER, Limited"},
+    {"imp_number": 6, "host_number": 3, "hostname": "MIT-ML", "computer": "PDP-10", "operating_system": "ITS", "status": "SERVER, Limited"},
+
+    {"imp_number": 7, "host_number": 0, "hostname": "RAND-RCC", "computer": "IBM 370/158", "operating_system": "OS-MVT", "status": "SERVER"},
+    {"imp_number": 7, "host_number": 1, "hostname": "RAND-ISO", "computer": "PDP-11/45", "operating_system": "UNIX", "status": "SERVER"},
+
+    {"imp_number": 12, "host_number": 0, "hostname": "ILL-CAC", "computer": "PDP-11/20", "operating_system": "ANTS", "status": "USER"},
+    {"imp_number": 12, "host_number": 1, "hostname": "ILL-NTS", "status": "USER"},
+
+    {"imp_number": 34, "host_number": 0, "hostname": "LBL", "status": "SERVER"},
+    {"imp_number": 34, "host_number": 1, "hostname": "UCB", "computer": "PDP-11/40", "operating_system": "ELF, DOS, RSX11-M, UNIX", "status": "USER (VDH)"},
+
+    {"imp_number": 40, "host_number": 0, "hostname": "BBN-NCC", "status": "USER"},
+    {"imp_number": 40, "host_number": 2, "hostname": "NCC-TIP", "status": "TIP"},
+    {"imp_number": 40, "host_number": 3, "hostname": "BBN-1D", "status": "USER"}
+  ]
+}

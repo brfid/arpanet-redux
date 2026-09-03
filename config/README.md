@@ -9,6 +9,7 @@ The files under `config/` define only project-owned composition: node identities
 | `hosts/` | KA10 and PDP-11 host attachments and boot settings |
 | `imp/<composition>/` | H316 identity, host-interface, modem, debug, and external firmware-loading commands for one composition |
 | `topologies/` | Shared typed component, binding, route, position, and port identities used by controllers and NCC reducers |
+| `authorities/` | Dated primary-source address tables that a topology may name to justify a site identity |
 
 ## Select a composition
 
@@ -34,6 +35,16 @@ The harness leases loopback UDP ports and exports the `BRFID_*_PORT` variables u
 H316 compositions that load nested external command files also receive `BRFID_H316_MINI_ROOT`, the absolute path to the pinned external `mini/` directory. SIMH resolves nested command files relative to the project command file, so an explicit root is required.
 
 KA10 and PDP-11 host files retain octal `034` as the console WRU character for orderly controller shutdown. The historical terminal controller blocks that byte from operator input and never exposes `sim>`; only its cleanup path sends WRU. KA10 disk attachments preserve the prepared DSKDMP-to-RP03 order. IMP files retain interface debugging because formal evidence uses bounded post-probe trace windows.
+
+## Address authorities
+
+A file under `authorities/` is a transcribed extract of one dated primary source, not a project claim. It records the source's identity, retrieval URL, and hash; the source's own address rule; the highest IMP number the source shows; and one row per transcribed host position.
+
+Site numbering was reused as the network changed, so an authority is only meaningful with its date attached. Two authorities may disagree about one IMP number without either being wrong. A topology names exactly one authority and is validated against it.
+
+Addresses are always derived as `imp_number + 64 * host_number` and never transcribed, so a scan error cannot reach a configuration. Coverage is partial by default: a missing row means the source was not read for that position, not that no host existed. Only `highest_imp_number` carries a negative claim.
+
+Every host-interface binding must either name the `site` the authority records at its position, or declare `synthetic: true`. Naming a site the authority places elsewhere, or does not record, fails validation; so does declaring synthetic at a position the authority identifies. This makes a reconstruction's historical claims checkable rather than asserted in prose, and it makes a diagnostic endpoint's synthetic status structural rather than incidental.
 
 ## Shared topology rules
 

@@ -1,5 +1,6 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "address_authority": "nic-32992-1975-07",
   "id": "topology:imp5-ncc-host-interface-proof",
   "topology": {
     "components": [
@@ -89,6 +90,7 @@
       "host_id": "host:ncc",
       "host_endpoint": "host:ncc:1822",
       "host_number": 0,
+      "synthetic": true,
       "simh_device": "hi1",
       "imp_listen_environment": "BRFID_IMP5_HI_PORT",
       "host_listen_environment": "BRFID_NCC_HI_PORT",

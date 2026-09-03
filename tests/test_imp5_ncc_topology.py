@@ -131,6 +131,7 @@ class Imp5NccTopologyTests(unittest.TestCase):
                     "host_id": "host:ncc",
                     "host_endpoint": "host:ncc:1822",
                     "host_number": 0,
+                    "synthetic": True,
                     "simh_device": "hi1",
                     "imp_listen_environment": "BRFID_IMP5_HI_PORT",
                     "host_listen_environment": "BRFID_NCC_HI_PORT",

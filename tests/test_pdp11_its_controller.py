@@ -6,6 +6,25 @@ from types import SimpleNamespace
 import tempfile
 import unittest
 
+import ncc.pdp11_its_harness as PDP11_ITS_HARNESS
+from ncc.harness_config import PORT_VARIABLES
+from ncc.harness_manifest import read_manifest
+from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
+from ncc.pdp11_its_harness import (
+    DATE_PATTERN,
+    FATAL_SESSION,
+    FATAL_TRANSPORT,
+    SERVICE_PATTERN,
+    TIME_PATTERN,
+    UPTIME_PATTERN,
+    application_evidence_failures,
+    boot_pdp11,
+    create_host106_observation_config,
+    ordered_pattern_failures,
+    stop_and_record,
+    wait_for_prompt,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "scripts" / "pdp11-its-controller.py"
@@ -50,6 +69,31 @@ def failures(
 
 
 class Pdp11ItsEvidenceTests(unittest.TestCase):
+    def test_direct_controller_uses_the_importable_lifecycle_owners(self) -> None:
+        owners = {
+            "PORT_VARIABLES": PORT_VARIABLES,
+            "PtyProcess": PtyProcess,
+            "ImpProcess": ImpProcess,
+            "TIME_PATTERN": TIME_PATTERN,
+            "DATE_PATTERN": DATE_PATTERN,
+            "UPTIME_PATTERN": UPTIME_PATTERN,
+            "SERVICE_PATTERN": SERVICE_PATTERN,
+            "FATAL_SESSION": FATAL_SESSION,
+            "FATAL_TRANSPORT": FATAL_TRANSPORT,
+            "ordered_pattern_failures": ordered_pattern_failures,
+            "application_evidence_failures": application_evidence_failures,
+            "ensure_process_alive": ensure_process_alive,
+            "read_manifest": read_manifest,
+            "wait_for_prompt": wait_for_prompt,
+            "create_host106_observation_config": create_host106_observation_config,
+            "boot_pdp11": boot_pdp11,
+            "stop_and_record": stop_and_record,
+        }
+        self.assertIs(CONTROLLER.SHARED, PDP11_ITS_HARNESS)
+        for name, owner in owners.items():
+            with self.subTest(name=name):
+                self.assertIs(getattr(CONTROLLER, name), owner)
+
     def test_manifest_reader_preserves_values_and_rejects_ambiguous_lines(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
             path = Path(directory_name) / "run.env"

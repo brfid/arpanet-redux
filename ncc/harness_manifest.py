@@ -14,6 +14,20 @@ def append_manifest(path: Path, key: str, value: str | int) -> None:
         stream.write(f"{key}={value}\n")
 
 
+def read_manifest(path: Path) -> dict[str, str]:
+    """Read a line-oriented run manifest fail closed."""
+
+    values: dict[str, str] = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if "=" not in line:
+            raise ValueError(f"manifest line {number} has no '=' separator")
+        key, value = line.split("=", 1)
+        if not key or key in values:
+            raise ValueError(f"manifest line {number} has an invalid or duplicate key")
+        values[key] = value
+    return values
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:

@@ -282,6 +282,11 @@ class ImpProcess:
             self.debug_stream.close()
 
 
+def ensure_process_alive(process: PtyProcess) -> None:
+    if process.process is None or process.process.poll() is not None:
+        raise RuntimeError(f"{process.name} exited early")
+
+
 def stop_all(
     hosts: tuple[PtyProcess, ...], imps: tuple[ImpProcess, ...], force: bool
 ) -> None:

@@ -139,17 +139,22 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 - The registry names complete topology and configuration artifacts rather than composing topology fragments.
 - Make, doctor, runner, and documentation consumers agree on one validated scenario identity.
 
+## Resume in a fresh context
+
+Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md), the repository-maintenance row in [`docs/workstreams.md`](workstreams.md), [`docs/harness.md`](harness.md), and the applicable gates in [`docs/test-plan.md`](test-plan.md). Fetch `origin` and compare the clean maintenance branch with `origin/main` before editing. Fast-forward when the maintenance branch is an ancestor; if both sides have commits, rebase it onto `origin/main` and rerun the relevant checks. Treat **Selected** and **Next action** below as the complete immediate scope; do not begin **Following action** in the same change.
+
 ## Current checkpoint
 
 - **Last completed:** `Extract importable harness process owners` moves the characterized PTY and IMP child ownership into `ncc.harness_process` and its validated append dependency into `ncc.harness_manifest`. The two-ITS controller now imports those owners normally while preserving compatibility aliases for unmigrated dependent controllers, its public command, arguments, flow, logs, PID fields, state transitions, timeouts, and cleanup behavior.
 - **Selected:** RM-07, manifest and readiness primitives.
-- **Next action:** Characterize the remaining manifest hashing and generic log-readiness contracts in `scripts/two-its-controller.py`, move them into focused ordinary harness modules, then remove `scripts/pdp11-its-controller.py`'s dynamic sibling load in a separately verified migration.
+- **Next action:** Characterize the remaining manifest hashing and generic log-readiness contracts in `scripts/two-its-controller.py`, then move them into focused ordinary harness modules without changing controller behavior.
+- **Following action:** After that slice is committed, integrated, and smoke-verified, remove `scripts/pdp11-its-controller.py`'s dynamic sibling load in its own separately verified migration.
 - **Blockers:** None.
-- **Last verification:** The focused process and dependent-controller suites passed 42 tests; `make test` passed 293 discovered tests with the expected sandbox socket skips; formal run `two-its-telnet-maintenance-rm07-process-20260902` passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup.
+- **Last verification:** The focused process and dependent-controller suites passed 42 tests; formal run `two-its-telnet-maintenance-rm07-process-20260902` passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup; [GitHub Actions run 33696737623](https://github.com/brfid/arpanet-redux/actions/runs/33696737623) passed Linux on Python 3.11 and 3.14 plus macOS on Python 3.14. Handoff hardening then passed 294 discovered tests with the expected sandbox socket skips and completed the real external `lab-setup` path with exact clean pins and all three native simulator builds.
 
 ## Update protocol
 
-- At the start of work, confirm the recorded branch, worktree, baseline, selected item, and `git status --short --branch`.
+- At the start of work, fetch `origin`; confirm the recorded branch, worktree, baseline, selected item, and `git status --short --branch`; then compare the maintenance branch with `origin/main` as described above.
 - At the end of each bounded change, update the work-item status and this checkpoint with the commit subject, verification commands and results, next action, and genuine blockers.
 - Store only concise conclusions and artifact identities here. Raw command output and external run evidence stay outside the repository.
 - Record a lasting design decision in an ADR and link it here; do not let this plan become a substitute decision record.
@@ -164,3 +169,4 @@ Start RM-09 only when a new composition would otherwise add another copy of the 
 - **2026-09-02:** Exercise both the documented Python 3.11 lower bound and current stable 3.14 series on Linux, add a 3.14 macOS edge, and keep complete-history guarding in one non-shallow job.
 - **2026-09-02:** Use the Node 24-based version 6 majors of the official checkout and Python setup actions after the first expanded matrix run exposed Node 20 deprecation warnings from the older majors.
 - **2026-09-02:** Keep editor workspace configuration local and ignored, list only attached checkouts in `docs/workstreams.md`, and retain settled branch refs when removing their clean, main-merged worktrees.
+- **2026-09-02:** Pass the system zlib link explicitly to the pinned KA10 build on Darwin because its legacy Makefile recognizes physical `.dylib` files but not Apple's SDK stub; keep other platforms and simulator targets unchanged.

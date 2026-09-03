@@ -27,4 +27,4 @@ Before changing `ncc/`, an NCC data contract, or a visualization, read [`docs/nc
 
 ## Parallel workstreams
 
-Before beginning or integrating NCC, PDP-11 TELNET, or network-expansion work, read [`docs/workstreams.md`](docs/workstreams.md). Use the dedicated worktree and branch recorded there; keep `main` as the integration checkout and do not use recovery branches for development.
+Before beginning or integrating repository-maintenance, NCC, PDP-11 TELNET, or network-expansion work, read [`docs/workstreams.md`](docs/workstreams.md). Use the dedicated worktree and branch recorded there; keep `main` as the integration checkout and do not use recovery branches for development.

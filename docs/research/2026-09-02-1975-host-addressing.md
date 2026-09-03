@@ -124,7 +124,13 @@ Any rework has to touch four layers. Three are cheap and one is not.
 
 Addresses are currently spelled into roughly 1,100 identifiers across about 64 files: `host106_work`, `--host106-config`, `host106.console.log`, `host106-attach-only.simh`, `route:host176-to-host106`, `application.network-unix-host106-ready`, and similar, spanning controllers, NCC display modules, log filenames, JSONL event names, route ids and test fixtures. The topology is also declared twice — once in [`config/topologies/`](../../config/topologies/) and again as a literal dict in [`ncc/topology.py`](../../ncc/topology.py).
 
-The ITS re-address mechanism is the one genuinely undocumented step. The `pdp10-its` pin is checked out as `work/its-readdress-src` "for generic KA host 176", and [the two-ITS readiness note](../experiments/2026-08-28-two-its-readiness.md) records that image booting and self-identifying at `176` natively, without the runtime `IMPUS` override the earlier debugger-modified disk required. How the tree was re-addressed is not recorded anywhere in this repository; it exists only as a local modification in the external tree. Documenting it as a build parameter is a precondition for a clean rework.
+The ITS host number is an ordinary upstream build option, not a local modification. In the external laboratory at `/Users/brf/src/arpanet-redux-lab`, `work/its-readdress-src` sits at the pinned revision `0f7d679` with no tracked modifications at all, despite the checkout's name. `build/pdp10-ka/config.202` line 238 reads `DEFOPT IMPUS==176 ; ARPA net host number`, and that file is templated into the built system by the ITS Makefile at line 327. The same file carries `206` and `306` elsewhere, which are MIT-AI and MIT-ML — upstream's KA configuration is already historically addressed, and `176` is upstream's own stock value rather than anything this project chose.
+
+Two consequences. Re-addressing ITS is a one-line change to a documented upstream build option, so it needs recording rather than reverse-engineering. And a natively built MIT-DMS at `106` is equally one line away, which would let the project retire the prepared debugger-modified disk that [`its106-pair.simh`](../../config/hosts/its106-pair.simh) still boots — that file loads `NITS`, the pre-rename working name, where the natively built image loads `ITS`.
+
+Not every address-bearing name is internal. Topology component, binding, link and route identifiers, simulator process names, console and sent-log filenames, and manifest keys are all written into retained results and read back by the replay viewers. `route:host176-to-host106` appears in the release v0.2.0 failover run's `message-journey.jsonl`, `verdict.json` and `historical-events.jsonl`; `host106.console.log`, `host106.sent.log` and `host106-attach-only.simh` are files in accepted result directories. Renaming any of these breaks `make view-ncc` against results the project has already accepted, so they are part of the retained-evidence format rather than internal vocabulary, and they can only change when an address change supersedes those results anyway.
+
+What is safely renameable is therefore narrower than a raw reference count suggests: controller variables and function names, CLI flag names, and shell variables, none of which appear in any retained result. The PDP-11 side of the harness already names its role rather than its address and is the precedent for the rest.
 
 Evidence invalidation is the unavoidable cost. Acceptance is bound to exact runs with byte-level decodes and log hashes — [`imp11a-device.md`](imp11a-device.md) asserts the guest RST as `000106 000000 000010 000001 000014`, and [the KA10 ingress-grammar note](../experiments/2026-09-01-ka10-host-ingress-grammar.md) pins a debug-log SHA-256. Changing a destination address changes those leader bytes. Gates 3, 4, 4H, 4I, 4J, 5 and both NCC gates would need fresh accepted runs. Per [`AGENTS.md`](../../AGENTS.md) and the configuration boundary's intent-versus-observation rule, existing dated experiment notes must not be edited to match; a re-address is a new composition with new dated experiments.
 
@@ -177,10 +183,12 @@ A sketch of the topology change:
 
 Ordered so that every phase before the fifth is behaviour-preserving. Nothing needs re-running until phase 5.
 
+Phases 3 and 4 are implemented on the unmerged branch `research/historical-addressing-model` and are described below as done there, not on `main`.
+
 1. Pin NIC 32992 and land this note. No code, no re-runs.
-2. Document how ITS gets its address, so `make its` becomes the re-addressing tool, and retire the vestigial `IMPUS=` override in the host boot files. Documentation plus one confirming rebuild.
-3. Introduce the registry, the derived-address schema fields and the validation test; collapse the duplicate topology in `ncc/topology.py` onto the JSON. Keep every current number unchanged: the ITS host validates clean immediately and the PDP-11 is marked synthetic pending phase 5.
-4. Rename identifiers from addresses to roles. Wide and mechanical, covered by existing tests, and it makes the phase-5 diff readable.
+2. Record `DEFOPT IMPUS==` in `build/pdp10-ka/config.202` as the ITS addressing parameter, so `make its` is understood to be the re-addressing tool, and retire the vestigial `IMPUS=` override in the host boot files. Documentation plus one confirming rebuild.
+3. Introduce the authority extract, the derived-address schema fields and the validation test. Keep every current number unchanged: the ITS host validates clean immediately and every other host position declares synthetic pending phase 5. **Done on `research/historical-addressing-model`.**
+4. Rename the safely renameable identifiers — controller variables and function names, CLI flags, shell variables — from addresses to roles, leaving every name a retained result depends on for phase 5. **Done on `research/historical-addressing-model`.**
 5. Re-address the PDP-11 to RAND-ISO and re-run every affected gate, writing new dated experiments.
 6. Settle the remaining identities, then update the README and [`docs/architecture.md`](../architecture.md) and write the ADR recording the change of position.
 
@@ -195,6 +203,8 @@ Ordered so that every phase before the fifth is behaviour-preserving. Nothing ne
 
 - An initial reading suggested the University of Illinois CAC as the natural 1975 home for Network UNIX. The Directory lists ILL-CAC as a PDP-11/20 running ANTS, a terminal concentrator, and ILL-NTS at 1/12 as a separate host. Illinois is not the target; RAND-ISO is.
 - The project's `176` is octal. Decimal 176 is octal `260`, which is AFWL-TIP at 2/48 — unrelated, and worth stating because the two readings are easy to confuse when checking this note against the source.
+- An earlier revision of this note described the ITS re-address as an undocumented local modification and made documenting it a precondition for the rework. It is an upstream build option; the section above now records where. The external laboratory is at `/Users/brf/src/arpanet-redux-lab`, not the path the 2026-08-28 experiment note cites.
+- An earlier revision described `ncc/topology.py` as a second copy of a topology already declared in JSON. It is not a duplicate: it describes the two-ITS composition, which has no shared-topology file, and it differs from [`pdp11-its-telnet.json`](../../config/topologies/pdp11-its-telnet.json) in endpoint identifiers and labels even where the component numbering coincides.
 
 ## Related
 

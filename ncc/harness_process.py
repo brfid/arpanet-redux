@@ -280,3 +280,12 @@ class ImpProcess:
             self.console_stream.close()
         if self.debug_stream is not None:
             self.debug_stream.close()
+
+
+def stop_all(
+    hosts: tuple[PtyProcess, ...], imps: tuple[ImpProcess, ...], force: bool
+) -> None:
+    for host in hosts:
+        host.stop(force=force)
+    for imp in imps:
+        imp.stop()

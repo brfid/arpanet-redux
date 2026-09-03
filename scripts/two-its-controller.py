@@ -19,20 +19,26 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from ncc.harness_manifest import append_manifest
-from ncc.harness_process import ImpProcess, PtyProcess, utc_now
+from ncc.harness_config import (
+    PORT_VARIABLES,
+    create_host106_attach_config,
+    validate_environment,
+)
+from ncc.harness_imp import (
+    latest_watchdog,
+    mi_link_messages,
+    mi_link_messages_from_bytes,
+    significant,
+    wait_for_log_marker,
+    wait_for_watchdog_devices_ready,
+    watchdog_devices_ready,
+    watchdog_reports_modem_dead,
+    watchdog_states_from_bytes,
+)
+from ncc.harness_manifest import append_manifest, sha256
+from ncc.harness_process import ImpProcess, PtyProcess, stop_all, utc_now
 from ncc.live import LiveObservationPublisher
 from ncc.topology import two_its_topology
-
-
-PORT_VARIABLES = (
-    "BRFID_IMP6_MI_PORT",
-    "BRFID_IMP62_MI_PORT",
-    "BRFID_IMP6_HI_PORT",
-    "BRFID_HOST_A_IMP_PORT",
-    "BRFID_IMP62_HI_PORT",
-    "BRFID_HOST_B_IMP_PORT",
-)
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,130 +56,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--ncc-observation-stream", required=True, type=Path)
     return parser.parse_args()
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def validate_environment() -> None:
-    for name in PORT_VARIABLES:
-        value = os.environ.get(name, "")
-        if not value.isdigit() or not 1 <= int(value) <= 65535:
-            raise ValueError(f"{name} is not a valid UDP port")
-
-
-def create_host106_attach_config(source: Path, destination: Path) -> None:
-    text = source.read_text(encoding="ascii")
-    boot_expect = (
-        '# Boot the host-106 ITS image and connect its NCP interface to IMP 6.\n'
-        'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\n\n'
-    )
-    if not text.startswith(boot_expect) or not text.endswith("boot ptr\n"):
-        raise ValueError("host 106 configuration has an unexpected boot sequence")
-    destination.write_text(
-        text.removeprefix(boot_expect).removesuffix("boot ptr\n"),
-        encoding="ascii",
-    )
-
-
-def wait_for_log_marker(
-    imp: ImpProcess, marker: str, timeout: float, offset: int = 0
-) -> float:
-    deadline = time.monotonic() + timeout
-    encoded = marker.encode("latin-1")
-    while time.monotonic() < deadline:
-        imp.ensure_alive()
-        if imp.debug_path.exists() and encoded in imp.debug_path.read_bytes()[offset:]:
-            return time.monotonic()
-        time.sleep(0.1)
-    raise TimeoutError(f"{imp.name} did not report {marker!r} within {timeout}s")
-
-
-WATCHDOG_PATTERN = re.compile(rb"WDT LIGHTS: changed to ([0-7]{6})")
-WATCHDOG_MODEM_DEAD_BITS = {
-    "MI1": 0o100000,
-    "MI2": 0o040000,
-    "MI3": 0o020000,
-    "MI4": 0o010000,
-}
-WATCHDOG_HOST_DEAD_BITS = {
-    "HI1": 0o004000,
-    "HI2": 0o002000,
-    "HI3": 0o001000,
-    "HI4": 0o000400,
-}
-
-
-def watchdog_states_from_bytes(data: bytes) -> tuple[int, ...]:
-    return tuple(int(match, 8) for match in WATCHDOG_PATTERN.findall(data))
-
-
-def latest_watchdog(path: Path) -> str | None:
-    states = watchdog_states_from_bytes(path.read_bytes())
-    return f"{states[-1]:06o}" if states else None
-
-
-def watchdog_devices_ready(
-    state: str | None, *, modem_device: str, host_device: str | None = None
-) -> bool:
-    """Test only the selected firmware line/host dead bits.
-
-    The recovered 1973 LITT table assigns one active-high dead bit to each of
-    modem channels 1-4 and host channels 1-4. A whole light word is therefore
-    topology-dependent and cannot be used as a fixed readiness sentinel.
-    """
-
-    modem = modem_device.upper()
-    if modem not in WATCHDOG_MODEM_DEAD_BITS:
-        raise ValueError(f"unsupported watchdog modem device {modem_device!r}")
-    mask = WATCHDOG_MODEM_DEAD_BITS[modem]
-    if host_device is not None:
-        host = host_device.upper()
-        if host not in WATCHDOG_HOST_DEAD_BITS:
-            raise ValueError(f"unsupported watchdog host device {host_device!r}")
-        mask |= WATCHDOG_HOST_DEAD_BITS[host]
-    if state is None or re.fullmatch(r"[0-7]{6}", state) is None:
-        return False
-    return int(state, 8) & mask == 0
-
-
-def wait_for_watchdog_devices_ready(
-    imp: ImpProcess,
-    *,
-    modem_device: str,
-    host_device: str | None = None,
-    timeout: float,
-) -> tuple[float, str]:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        imp.ensure_alive()
-        state = latest_watchdog(imp.debug_path) if imp.debug_path.exists() else None
-        if watchdog_devices_ready(
-            state, modem_device=modem_device, host_device=host_device
-        ):
-            assert state is not None
-            return time.monotonic(), state
-        time.sleep(0.1)
-    selected = modem_device.upper()
-    if host_device is not None:
-        selected += f" and {host_device.upper()}"
-    raise TimeoutError(
-        f"{imp.name} did not report {selected} ready within {timeout}s; "
-        f"latest watchdog state is {latest_watchdog(imp.debug_path)}"
-    )
-
-
-def watchdog_reports_modem_dead(data: bytes, modem_device: str) -> bool:
-    modem = modem_device.upper()
-    if modem not in WATCHDOG_MODEM_DEAD_BITS:
-        raise ValueError(f"unsupported watchdog modem device {modem_device!r}")
-    dead_bit = WATCHDOG_MODEM_DEAD_BITS[modem]
-    return any(state & dead_bit for state in watchdog_states_from_bytes(data))
 
 
 def assert_imp_application_evidence(imp: ImpProcess, offset: int) -> None:
@@ -227,69 +109,6 @@ def assert_client_application_evidence(output: bytes) -> None:
         )
     if re.search(rb"(?:^|[\r\n])(?:CLOSED|ERROR)\b", output, re.IGNORECASE):
         raise RuntimeError("UT reported a close or error before proof completed")
-
-
-# Below this many words, a matched MI packet (e.g. a bare ready/ack) is too
-# generic to rule out independent coincidence on each side of the link; the
-# smallest observed application-bearing packet was 5 words.
-MIN_CORRELATED_MI_WORDS = 4
-
-
-def mi_link_messages_from_bytes(
-    data: bytes, *, device: str = "MI1"
-) -> dict[bytes, set[bytes]]:
-    """Reconstruct one exact modem-interface's packet contents by direction."""
-
-    normalized_device = device.upper()
-    if re.fullmatch(r"MI[1-5]", normalized_device) is None:
-        raise ValueError(f"unsupported H316 modem device {device!r}")
-    encoded_device = re.escape(normalized_device.encode("ascii"))
-    header_pattern = re.compile(
-        encoded_device + rb" MSG: message (sent|received) \(length=(\d+)\)"
-    )
-    body_pattern = re.compile(encoded_device + rb" MSG: - (.*)")
-    messages: dict[bytes, set[bytes]] = {b"sent": set(), b"received": set()}
-    direction: bytes | None = None
-    remaining = 0
-    words: list[bytes] = []
-    for line in data.splitlines():
-        header = header_pattern.search(line)
-        if header is not None:
-            direction, remaining = header.group(1), int(header.group(2))
-            words = []
-            continue
-        if direction is None or remaining <= 0:
-            continue
-        body = body_pattern.search(line)
-        if body is None:
-            direction = None
-            continue
-        chunk = body.group(1).split()
-        words.extend(chunk)
-        remaining -= len(chunk)
-        if remaining <= 0:
-            messages[direction].add(b" ".join(words))
-            direction = None
-    return messages
-
-
-def mi_link_messages(
-    path: Path, offset: int, *, device: str = "MI1"
-) -> dict[bytes, set[bytes]]:
-    return mi_link_messages_from_bytes(path.read_bytes()[offset:], device=device)
-
-
-def significant(contents: set[bytes]) -> set[bytes]:
-    return {content for content in contents if len(content.split()) >= MIN_CORRELATED_MI_WORDS}
-
-
-def stop_all(
-    hosts: tuple[PtyProcess, ...], imps: tuple[ImpProcess, ...], force: bool
-) -> None:
-    for host in hosts:
-        host.stop(force=force)
-    for imp in imps:
-        imp.stop()
 
 
 def run(args: argparse.Namespace) -> int:

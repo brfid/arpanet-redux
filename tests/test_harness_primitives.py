@@ -8,6 +8,25 @@ from unittest.mock import patch
 import tempfile
 import unittest
 
+from ncc.harness_config import (
+    PORT_VARIABLES,
+    create_host106_attach_config,
+    validate_environment,
+)
+from ncc.harness_imp import (
+    latest_watchdog,
+    mi_link_messages,
+    mi_link_messages_from_bytes,
+    significant,
+    wait_for_log_marker,
+    wait_for_watchdog_devices_ready,
+    watchdog_devices_ready,
+    watchdog_reports_modem_dead,
+    watchdog_states_from_bytes,
+)
+from ncc.harness_manifest import sha256
+from ncc.harness_process import stop_all
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTROLLER_PATH = ROOT / "scripts" / "two-its-controller.py"
@@ -39,6 +58,27 @@ class RecordingProcess:
 
 
 class HarnessPrimitiveContractTests(unittest.TestCase):
+    def test_two_its_controller_uses_the_importable_primitive_owners(self) -> None:
+        owners = {
+            "PORT_VARIABLES": PORT_VARIABLES,
+            "create_host106_attach_config": create_host106_attach_config,
+            "latest_watchdog": latest_watchdog,
+            "mi_link_messages": mi_link_messages,
+            "mi_link_messages_from_bytes": mi_link_messages_from_bytes,
+            "sha256": sha256,
+            "significant": significant,
+            "stop_all": stop_all,
+            "validate_environment": validate_environment,
+            "wait_for_log_marker": wait_for_log_marker,
+            "wait_for_watchdog_devices_ready": wait_for_watchdog_devices_ready,
+            "watchdog_devices_ready": watchdog_devices_ready,
+            "watchdog_reports_modem_dead": watchdog_reports_modem_dead,
+            "watchdog_states_from_bytes": watchdog_states_from_bytes,
+        }
+        for name, owner in owners.items():
+            with self.subTest(name=name):
+                self.assertIs(getattr(CONTROLLER, name), owner)
+
     def test_sha256_streams_the_complete_file(self) -> None:
         content = b"a" * (1024 * 1024 + 17) + b"tail"
         with tempfile.TemporaryDirectory() as directory_name:

@@ -223,7 +223,7 @@ Its staged guest media is not evidence. The manifest hashes each image when the 
 
 Base media stays under `$LAB_ROOT/work`, and [`pins/`](../pins/) records its provenance, so a pruned composition remains reproducible by rerunning it.
 
-Delete a run directory outright only when it produced no `outcome.txt`, meaning it never completed and has no verdict to preserve.
+Never delete a directory that an ADR or a dated record cites, whatever it contains. Otherwise a smoke-run directory that produced no `outcome.txt` never completed and may be deleted outright, having no verdict to preserve. Build receipts and read-only trace captures have no outcome by design and are not covered by that rule.
 
 ## Use read-only diagnostics
 

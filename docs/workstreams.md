@@ -21,13 +21,11 @@ The external laboratory is `/Users/brf/src/arpanet-redux-lab`; it holds third-pa
 
 ## Branch safety
 
-`codex/ncc-telemetry` and `codex/ncc-run-summary` preserve integrated history and are not development branches. These refs are recovery anchors, not development branches:
+`origin/main` is the archive. Its history is linear, so an integrated branch ref preserves nothing that `origin/main` does not already hold; delete such a branch once its work is on `origin/main`. Dated experiment records and ADRs cite the commit identities that matter, and tags pin release points.
 
-- `backup/pre-ncc-integration-20260830` at `d16b5d9`
-- `backup/ncc-pre-rebase-20260830` at `bee5c91`
-- `backup/main-pre-squash-20260903` at `0db5d00`, local only; it preserves `main` before two documentation commits were squashed into `4961d70`. Delete it once that rewrite is settled.
+Keep a recovery anchor only while a specific rewrite is unsettled, meaning `main` has not yet been verified and built upon. Record it here with its ref, SHA, and the rewrite it protects, then delete it when that rewrite settles. There are no open anchors.
 
-Do not delete, rebase, merge into, or develop on a recovery ref. Prefer reverting the relevant commit on `main` for an ordinary rollback. Never switch, remove, or repurpose a worktree with uncommitted changes.
+Prefer reverting the relevant commit on `main` for an ordinary rollback. Never switch, remove, or repurpose a worktree with uncommitted changes.
 
 ## Current handoffs
 

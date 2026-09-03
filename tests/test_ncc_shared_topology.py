@@ -285,5 +285,67 @@ class SiteIdentityTests(unittest.TestCase):
             shared_topology_from_mapping(document)
 
 
+class RetainedSchemaCompatibilityTests(unittest.TestCase):
+    """Results accepted before the authority existed must stay replayable.
+
+    Retained streams embed the topology they ran against, and the replay
+    viewers revalidate that embedded document. A version-1 document therefore
+    has to keep parsing, making no site claim either way.
+    """
+
+    @staticmethod
+    def _version_one() -> dict[str, object]:
+        document = copy.deepcopy(imp5_host_interface_topology())
+        document["schema_version"] = 1
+        del document["address_authority"]
+        binding = document["interfaces"][0]  # type: ignore[index]
+        binding.pop("site", None)
+        binding.pop("synthetic", None)
+        return document
+
+    def test_a_pre_authority_document_still_parses(self) -> None:
+        topology = shared_topology_from_mapping(self._version_one())
+
+        self.assertIsNone(topology.address_authority)
+        binding = topology.interface("binding:ncc-host0-imp5")
+        self.assertIsNone(binding.site)
+        self.assertFalse(binding.synthetic)
+
+    def test_a_pre_authority_document_still_derives_its_address(self) -> None:
+        topology = shared_topology_from_mapping(self._version_one())
+
+        self.assertEqual(topology.interface("binding:ncc-host0-imp5").address_octal, "5")
+
+    def test_a_pre_authority_document_may_not_claim_a_site(self) -> None:
+        document = self._version_one()
+        document["interfaces"][0]["site"] = "BBN-11X"  # type: ignore[index]
+
+        with self.assertRaisesRegex(SharedTopologyValidationError, "schema_version 2"):
+            shared_topology_from_mapping(document)
+
+    def test_an_unsupported_version_is_still_refused(self) -> None:
+        document = copy.deepcopy(imp5_host_interface_topology())
+        document["schema_version"] = 3
+
+        with self.assertRaisesRegex(SharedTopologyValidationError, "schema_version must be"):
+            shared_topology_from_mapping(document)
+
+    def test_every_tracked_topology_is_current_and_names_an_authority(self) -> None:
+        tracked = sorted((ROOT / "config" / "topologies").glob("*.json"))
+        self.assertTrue(tracked)
+        for path in tracked:
+            with self.subTest(topology=path.name):
+                topology = load_shared_topology(path)
+                self.assertIsNotNone(
+                    topology.address_authority,
+                    "authored configuration must name a dated address authority",
+                )
+                for binding in topology.interfaces:
+                    self.assertTrue(
+                        bool(binding.site) ^ binding.synthetic,
+                        f"{binding.id} must name a site or declare synthetic",
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()

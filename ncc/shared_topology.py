@@ -26,6 +26,12 @@ from .run_summary import RunSummaryValidationError, validate_normalized_topology
 
 
 SHARED_TOPOLOGY_SCHEMA_VERSION = 2
+
+# Version 1 predates the address authority and makes no site claim. Retained
+# results embed the topology they ran against, so streams accepted before this
+# mechanism existed must stay readable; only authored configuration under
+# config/topologies/ is held to the current version.
+SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2})
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*\Z")
 _ENVIRONMENT_NAME = re.compile(r"BRFID_[A-Z0-9_]+_PORT\Z")
 _SIMH_CONFIG = re.compile(r"config/[A-Za-z0-9._/-]+\.simh\Z")
@@ -92,7 +98,7 @@ class SharedTopology:
     """A validated nominal topology plus launcher/receiver interface bindings."""
 
     id: str
-    address_authority: AddressAuthority
+    address_authority: AddressAuthority | None
     topology: Mapping[str, Any]
     interfaces: tuple[HostInterfaceBinding, ...]
     modem_interfaces: tuple[ModemInterfaceBinding, ...]
@@ -126,39 +132,39 @@ def shared_topology_from_mapping(document: object) -> SharedTopology:
     """Validate a mapping and return an immutable, project-owned binding view."""
 
     root = _mapping(document, "shared topology")
+    version = root.get("schema_version")
+    if isinstance(version, bool) or version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise SharedTopologyValidationError(
+            "shared topology.schema_version must be one of "
+            f"{', '.join(str(value) for value in sorted(SUPPORTED_SCHEMA_VERSIONS))}"
+        )
     _fields(
         root,
         "shared topology",
         required={
-            "address_authority",
             "schema_version",
             "id",
             "topology",
             "interfaces",
             "modem_interfaces",
             "proof",
-        },
+        }
+        | ({"address_authority"} if version >= 2 else set()),
     )
-    if (
-        isinstance(root["schema_version"], bool)
-        or root["schema_version"] != SHARED_TOPOLOGY_SCHEMA_VERSION
-    ):
-        raise SharedTopologyValidationError(
-            "shared topology.schema_version must be "
-            f"{SHARED_TOPOLOGY_SCHEMA_VERSION}"
-        )
     topology_id = _identifier(root["id"], "shared topology.id")
-    authority_name = root["address_authority"]
-    if not isinstance(authority_name, str):
-        raise SharedTopologyValidationError(
-            "shared topology.address_authority must name a dated authority document"
-        )
-    try:
-        authority = address_authority(authority_name)
-    except AddressAuthorityError as error:
-        raise SharedTopologyValidationError(
-            f"shared topology.address_authority is unusable: {error}"
-        ) from error
+    authority: AddressAuthority | None = None
+    if version >= 2:
+        authority_name = root["address_authority"]
+        if not isinstance(authority_name, str):
+            raise SharedTopologyValidationError(
+                "shared topology.address_authority must name a dated authority document"
+            )
+        try:
+            authority = address_authority(authority_name)
+        except AddressAuthorityError as error:
+            raise SharedTopologyValidationError(
+                f"shared topology.address_authority is unusable: {error}"
+            ) from error
     topology = _mapping(root["topology"], "shared topology.topology")
     try:
         component_ids, endpoint_owners, _, _ = validate_normalized_topology(topology)
@@ -208,7 +214,7 @@ def _interfaces(
     value: object,
     component_ids: set[str],
     endpoint_owners: Mapping[str, str],
-    authority: AddressAuthority,
+    authority: AddressAuthority | None,
 ) -> tuple[tuple[HostInterfaceBinding, ...], set[str]]:
     interfaces = _list(value, "shared topology.interfaces")
     if not interfaces:
@@ -311,24 +317,33 @@ def _interfaces(
     return tuple(bindings), environment_names
 
 
-
 def _site_claim(
     binding: Mapping[str, Any],
     location: str,
     imp_number: int,
     host_number: int,
-    authority: AddressAuthority,
+    authority: AddressAuthority | None,
 ) -> tuple[str | None, bool]:
     """Resolve one host position's identity claim against the dated authority.
 
     A binding either names the site the authority records at that position, or
     declares itself synthetic.  Declaring both, or neither, leaves a reader
     unable to tell a reconstructed host from an invented one.
+
+    A version-1 document predates this mechanism and makes no claim either way,
+    so it may not carry these fields and is reported as unclaimed.
     """
 
     site = binding.get("site")
     synthetic = binding.get("synthetic", False)
-    if isinstance(synthetic, bool) is False:
+    if authority is None:
+        if site is not None or synthetic is not False:
+            raise SharedTopologyValidationError(
+                f"{location} claims a site identity, which requires "
+                "schema_version 2 and a named address_authority"
+            )
+        return None, False
+    if not isinstance(synthetic, bool):
         raise SharedTopologyValidationError(f"{location}.synthetic must be true or false")
     if site is not None and synthetic:
         raise SharedTopologyValidationError(

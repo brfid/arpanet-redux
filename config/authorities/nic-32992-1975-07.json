@@ -18,7 +18,7 @@
   "address_rule": "decimal = imp_number + 64 * host_number",
   "highest_imp_number": 58,
   "coverage": "partial",
-  "coverage_note": "Rows are transcribed only for the IMPs this repository composes plus hosts cited in docs/research/2026-09-02-1975-host-addressing.md. A missing row is not evidence that a host did not exist; only highest_imp_number carries a negative claim.",
+  "coverage_note": "Rows are transcribed only for the IMPs this repository composes plus hosts cited in docs/research/2026-09-02-1975-host-addressing.md. A missing row is not evidence that a host did not exist. highest_imp_number is the highest IMP appearing in the source's host tables, read from both the address-sorted and IMP-sorted tables; a node carrying no hosts would not appear in either, so it bounds host positions rather than nodes. BBN Report 3063 independently counts 56 nodes in early April 1975, which corroborates it as a network bound.",
   "source_notes": [
     "The scanned IMP No./Host No. table prints MIT-ML's decimal address as 196; the Host Addresses table prints 198, and 3 * 64 + 6 = 198. Addresses are derived from imp_number and host_number here rather than transcribed, so the arithmetic settles it.",
     "Hostnames are given in their Host Addresses spelling. The IMP No./Host No. scan renders four of them differently: ARC-RD as ARC-RO, SRI-AI as SRI-A I, UCSB-MOD75 as UCSB-M0075, and RAND-ISO as RAND-ISD.",

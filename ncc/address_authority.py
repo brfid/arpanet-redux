@@ -85,11 +85,14 @@ class AddressAuthority:
         return None
 
     def within_network(self, imp_number: int) -> bool:
-        """Report whether an IMP number existed when this source was published.
+        """Report whether an IMP number is inside this source's host tables.
 
-        This is the one negative claim a partial transcription can carry: the
-        source's highest IMP number bounds the network, even where individual
-        rows were not read.
+        ``highest_imp_number`` is the highest IMP appearing in those tables, so
+        strictly it bounds the IMPs that *had hosts*: a node carrying none
+        would not appear at all.  For deciding where a host may sit that
+        distinction does not matter, since a hostless IMP could not host one
+        either way.  Treat it as a bound on host positions, not as proof that
+        no higher-numbered node existed.
         """
 
         return 1 <= imp_number <= self.highest_imp_number

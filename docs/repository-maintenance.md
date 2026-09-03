@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Characterize remaining two-ITS harness primitives` pins full-file SHA-256 hashing, accepted UDP-port environment values, offset-aware log-marker readiness, timeout and liveness behavior, and host-before-IMP cleanup ordering before those responsibilities move out of the controller.
-- **Selected:** RM-07, manifest and readiness primitives.
-- **Next action:** Move the characterized manifest hashing, environment/configuration, log-readiness, modem-interface evidence, and aggregate cleanup primitives into focused ordinary harness modules without changing two-ITS controller behavior.
-- **Following action:** After that slice is committed, integrated, and smoke-verified, remove `scripts/pdp11-its-controller.py`'s dynamic sibling load in its own separately verified migration.
+- **Last completed:** `Extract shared two-ITS harness primitives` moves the characterized artifact hashing, UDP-port environment contract, attach-only configuration, log and watchdog readiness, modem-message correlation, and aggregate shutdown into focused ordinary `ncc` modules. The two-ITS controller retains its command, arguments, timing, evidence, and cleanup behavior while exporting the same names for its not-yet-migrated dependents.
+- **Selected:** RM-07, direct PDP-11 controller migration.
+- **Next action:** Characterize the direct controller's strict manifest reader and reusable PDP-11/ITS lifecycle helpers, move them into an ordinary underscore-named module, and remove its dynamic load of `scripts/two-its-controller.py` without changing the Gate 4H flow.
+- **Following action:** After that slice is committed and smoke-verified, migrate the failover controller away from its dynamic direct-controller load.
 - **Blockers:** None.
-- **Last verification:** The focused primitive, process, and two-ITS evidence suites passed 16 tests at repository revision `447fa91`; the synchronized baseline passed all 294 discovered tests with the expected sandbox socket skips. Formal run `two-its-telnet-maintenance-rm07-process-20260902` remains the last external acceptance result and passed Gates 4 and 5 at the pinned external sources and simulator binaries with clean repository identity and complete cleanup; [GitHub Actions run 33696737623](https://github.com/brfid/arpanet-redux/actions/runs/33696737623) passed Linux on Python 3.11 and 3.14 plus macOS on Python 3.14.
+- **Last verification:** All 300 discovered tests passed with one expected UDP sandbox skip. Formal run `two-its-telnet-maintenance-rm07-primitives-20260903b` passed Gates 4 and 5 at repository revision `a8c670d`, exact clean external pins, and the receipt-bound simulator binaries; its manifest records `outcome=passed`, `exit_status=0`, and the smoke verified complete owned-process cleanup.
 
 ## Update protocol
 

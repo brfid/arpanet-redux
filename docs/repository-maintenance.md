@@ -1,9 +1,9 @@
 # Repository maintenance plan
 
 - **Status:** Active
-- **Updated:** 2026-09-02
+- **Updated:** 2026-09-03
 - **Baseline:** `6baf5d041f5ddf62045b4c16bf905b526ac715e2`
-- **Active phase:** Phase 3 — harness boundary
+- **Active phase:** Phase 4 — navigation
 - **Worktree:** `/Users/brf/src/arpanet-redux-worktrees/maintenance`
 - **Branch:** `codex/repository-maintenance`
 
@@ -46,7 +46,7 @@ Priority is `(impact + risk) × (6 - effort)`, with each input rated from 1 to 5
 | RM-03 | Infrastructure debt | Make CI exercise pull requests and the documented Python and operating-system support edges | 3 | 4 | 2 | 28 | Half to one day | Completed |
 | RM-05 | Code debt | Extract neutral passive-HTTP transport mechanics while retaining separate display applications | 4 | 4 | 3 | 24 | Two to four days | Completed |
 | RM-04 | Documentation debt | Reconcile active-worktree documentation and local editor-workspace policy | 2 | 2 | 1 | 20 | Less than half a day | Completed |
-| RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | In progress |
+| RM-07 | Architecture debt | Move reusable process, PTY, manifest, readiness, and cleanup behavior into an importable harness package | 5 | 4 | 4 | 18 | Four to eight days | Completed |
 | RM-06 | Code debt | Share the fault and loopback smoke lifecycle without sharing their evaluators or verdict rules | 4 | 4 | 4 | 16 | Two to four days | Completed |
 | RM-08 | Documentation debt | Add concise ADR and experiment indexes organized by claim and successor | 2 | 2 | 2 | 16 | Half to one day | Not started |
 | RM-09 | Architecture debt | Introduce a scenario registry only when another composition needs the duplicated wiring | 3 | 3 | 4 | 12 | Two to four days | Deferred until triggered |
@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Use importable harness in PDP-11 failover` removes the failover controller's dynamic direct-controller load and replaces its `BASE` and `SHARED` indirection with ordinary imports from the focused harness owners. Its command, arguments, cut acknowledgement, same-session proof, evidence, timeouts, and cleanup contracts remain unchanged.
-- **Selected:** RM-07, interactive PDP-11/ITS controller migration and compatibility cleanup.
-- **Next action:** Replace `scripts/pdp11-its-interactive-controller.py`'s dynamic direct-controller load with ordinary focused imports, remove the direct controller's temporary compatibility alias and no-longer-needed compatibility exports, and add a source-level regression guard against production sibling-script loading.
-- **Following action:** Commit and run `make test`, the deterministic `telnet-check` Gate 4I smoke, and the narrowest automatable terminal-mode exercise justified by the existing Gate 4J contract; then close RM-07 if all acceptance criteria hold.
+- **Last completed:** `Complete controller harness imports` removes the interactive controller's dynamic direct-controller load and the now-unused compatibility layer. All four production controllers import focused ordinary owners, and a source-level regression test rejects future sibling-script loading while focused identity tests pin each controller to those owners.
+- **Selected:** RM-08, concise ADR and experiment indexes.
+- **Next action:** Add `docs/adr/README.md` and `docs/experiments/README.md`, organized by claim and successor, with one concise status or evidentiary-scope entry for every existing document and no duplicated conclusions.
+- **Following action:** Run local-link, Markdown soft-wrap, and full source-only checks; then close the maintenance plan and remove its active handoff. Keep RM-09 deferred unless a new composition actually triggers it.
 - **Blockers:** None.
-- **Last verification:** All 305 discovered tests passed with one expected UDP sandbox skip. Formal run `ncc-pdp11-its-application-failover-maintenance-rm07-failover-20260903` passed the same-session cutover gate at repository revision `0c12940`; all 13 verdict checks pass, the consumed-RRP readiness marker precedes the open, the cut is acknowledged, the alternate journey contains 14 observations, outer cleanup passes, and no owned process survives. The direct Gate 4H and two-ITS formal results also remain passing at revisions `b43b04a` and `a8c670d` respectively.
+- **Last verification:** All 307 discovered tests passed with one expected UDP sandbox skip at repository revision `e6110a2`. Formal run `pdp11-its-interactive-maintenance-rm07-interactive-line-20260903` passed Gate 4I with one prompt-framed `:TIME`, correlated traffic in both IMP directions, and no survivors. Terminal-mode run `pdp11-its-terminal-maintenance-rm07-interactive-terminal-20260903` reached the real Network UNIX root shell in a PTY, retained a bounded character-session transcript, correctly made no TELNET claim, and completed outer and owned-process cleanup. The failover, direct Gate 4H, and two-ITS migrations remain backed by passing formal runs at revisions `0c12940`, `b43b04a`, and `a8c670d` respectively.
 
 ## Update protocol
 

@@ -1,11 +1,10 @@
 # Repository maintenance plan
 
-- **Status:** Active
+- **Status:** Complete
 - **Updated:** 2026-09-03
 - **Baseline:** `6baf5d041f5ddf62045b4c16bf905b526ac715e2`
-- **Active phase:** Phase 4 — navigation
-- **Worktree:** `/Users/brf/src/arpanet-redux-worktrees/maintenance`
-- **Branch:** `codex/repository-maintenance`
+- **Outcome:** RM-01 through RM-08 are complete. RM-09 stays deferred until a new composition triggers it; its trigger and acceptance are recorded below.
+- **Retired on completion:** worktree `/Users/brf/src/arpanet-redux-worktrees/maintenance` and branch `codex/repository-maintenance`
 
 ## Purpose
 
@@ -15,7 +14,7 @@ The objective is to make the implementation reflect the repository's already-str
 
 ## Invariants
 
-- Keep `main` as the integration checkout and perform development in the worktree recorded above.
+- Keep `main` as the integration checkout and perform development in a dedicated worktree.
 - Preserve every existing Make target and executable script path unless a separately reviewed compatibility decision says otherwise.
 - Do not change configured-fact, direct-evidence, harness-evidence, inference, missing-evidence, or verdict authority while reorganizing code.
 - Treat accepted ADRs and dated findings as settled unless new exact-run evidence contradicts them.
@@ -146,8 +145,8 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 ## Current checkpoint
 
 - **Last completed:** `Add ADR and experiment indexes` gives `docs/adr/` and `docs/experiments/` one concise index each, grouped by claim and carrying an explicit successor column. Every one of the 16 decisions and 21 evidence records has exactly one entry naming its subject, affected composition, and status or evidentiary scope; neither index restates a decision's reasoning or a record's observations.
-- **Selected:** None. RM-08 completes the last unconditional item.
-- **Next action:** Close the maintenance plan and remove its active handoff from `docs/workstreams.md`. Keep RM-09 deferred unless a new composition actually triggers it.
+- **Selected:** None. The plan is closed.
+- **Next action:** None. Reopen only by starting RM-09 when a new composition triggers it.
 - **Following action:** None. Git history is the archive once the plan is closed.
 - **Blockers:** None.
 - **Last verification:** Both new indexes pass Markdown soft-wrap, and all 81 of their local file and heading-anchor links resolve. `make check-source-only` passes and all 307 discovered tests passed with no skips at the RM-08 working tree. Earlier: all 307 discovered tests passed with one expected UDP sandbox skip at repository revision `e6110a2`. Formal run `pdp11-its-interactive-maintenance-rm07-interactive-line-20260903` passed Gate 4I with one prompt-framed `:TIME`, correlated traffic in both IMP directions, and no survivors. Terminal-mode run `pdp11-its-terminal-maintenance-rm07-interactive-terminal-20260903` reached the real Network UNIX root shell in a PTY, retained a bounded character-session transcript, correctly made no TELNET claim, and completed outer and owned-process cleanup. The failover, direct Gate 4H, and two-ITS migrations remain backed by passing formal runs at revisions `0c12940`, `b43b04a`, and `a8c670d` respectively.

@@ -145,12 +145,12 @@ Start in the recorded maintenance worktree and read [`AGENTS.md`](../AGENTS.md),
 
 ## Current checkpoint
 
-- **Last completed:** `Make the direct PDP-11 harness importable` moves strict manifest reads and generic liveness into their focused owners, moves shared Network UNIX boot, prompt, evidence, observation-configuration, and cleanup-record behavior into `ncc.pdp11_its_harness`, and removes the direct controller's dynamic two-ITS sibling load. The script retains its Gate 4H command, arguments, sequence, timeouts, artifacts, and temporary aliases for its two not-yet-migrated dependents.
-- **Selected:** RM-07, PDP-11/ITS failover controller migration.
-- **Next action:** Replace `scripts/pdp11-its-failover-controller.py`'s dynamic direct-controller load with ordinary imports from the focused harness modules, preserving its application-cut flow and evidence contracts.
-- **Following action:** After the failover migration is committed and smoke-verified, migrate the interactive controller and remove the temporary compatibility exports.
+- **Last completed:** `Use importable harness in PDP-11 failover` removes the failover controller's dynamic direct-controller load and replaces its `BASE` and `SHARED` indirection with ordinary imports from the focused harness owners. Its command, arguments, cut acknowledgement, same-session proof, evidence, timeouts, and cleanup contracts remain unchanged.
+- **Selected:** RM-07, interactive PDP-11/ITS controller migration and compatibility cleanup.
+- **Next action:** Replace `scripts/pdp11-its-interactive-controller.py`'s dynamic direct-controller load with ordinary focused imports, remove the direct controller's temporary compatibility alias and no-longer-needed compatibility exports, and add a source-level regression guard against production sibling-script loading.
+- **Following action:** Commit and run `make test`, the deterministic `telnet-check` Gate 4I smoke, and the narrowest automatable terminal-mode exercise justified by the existing Gate 4J contract; then close RM-07 if all acceptance criteria hold.
 - **Blockers:** None.
-- **Last verification:** All 304 discovered tests passed with one expected UDP sandbox skip. Formal run `pdp11-its-telnet-maintenance-rm07-direct-20260903` passed Gate 4H at repository revision `b43b04a`, exact clean external pins, and the receipt-bound PDP-11 build; it records structured remote time, the expected 11-observation journey ending at the known reply boundary, `outcome=passed`, `exit_status=0`, and zero surviving owned processes. Formal two-ITS run `two-its-telnet-maintenance-rm07-primitives-20260903b` also remains passing at revision `a8c670d`.
+- **Last verification:** All 305 discovered tests passed with one expected UDP sandbox skip. Formal run `ncc-pdp11-its-application-failover-maintenance-rm07-failover-20260903` passed the same-session cutover gate at repository revision `0c12940`; all 13 verdict checks pass, the consumed-RRP readiness marker precedes the open, the cut is acknowledged, the alternate journey contains 14 observations, outer cleanup passes, and no owned process survives. The direct Gate 4H and two-ITS formal results also remain passing at revisions `b43b04a` and `a8c670d` respectively.
 
 ## Update protocol
 

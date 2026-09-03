@@ -179,6 +179,29 @@ class LabSetupTests(unittest.TestCase):
             ),
         )
 
+    def test_ka10_build_links_system_zlib_only_on_macos(self) -> None:
+        setup = load_script("lab-setup.py")
+        checkout = Path("/external/lab/work/ka10-simh")
+
+        self.assertEqual(
+            setup.simulator_build_arguments(
+                "ka10-simh", "pdp10-ka", checkout, "darwin"
+            ),
+            ["make", "-C", checkout, "LDFLAGS_O=-lz", "pdp10-ka"],
+        )
+        self.assertEqual(
+            setup.simulator_build_arguments(
+                "ka10-simh", "pdp10-ka", checkout, "linux"
+            ),
+            ["make", "-C", checkout, "pdp10-ka"],
+        )
+        self.assertEqual(
+            setup.simulator_build_arguments(
+                "h316-simh", "h316", checkout, "darwin"
+            ),
+            ["make", "-C", checkout, "h316"],
+        )
+
     def test_checkout_uses_an_exact_local_pin_and_refuses_tracked_changes(self) -> None:
         setup = load_script("lab-setup.py")
         with tempfile.TemporaryDirectory() as directory_name:

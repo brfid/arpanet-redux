@@ -49,6 +49,8 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab doctor
 
 `make lab-setup-plan` describes those writes without performing them. Setup is idempotent for exact clean checkouts and refuses dirty or unrelated directories. It does not acquire the prepared Network UNIX base images; follow the [base-media step](getting-started.md#supply-the-pdp-11-base-media), then rerun the doctor.
 
+On macOS, setup passes `LDFLAGS_O=-lz` only to the pinned `ka10-simh` `pdp10-ka` build. That source's legacy dependency probe can find Homebrew `libpng` without recognizing Apple's system zlib stub, which otherwise leaves `zlibVersion` undefined at link time. The explicit system-library link does not modify the external checkout; `make LAB_ROOT=/absolute/path/to/arpanet-redux-lab verify-binaries` confirms the resulting simulator embeds the pinned revision.
+
 Supported smokes require the appropriate subset of these external inputs:
 
 - a native H316 simulator built from the pinned source;

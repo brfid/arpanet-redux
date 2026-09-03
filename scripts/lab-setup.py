@@ -226,12 +226,31 @@ def prepare_venv(repo_root: Path, lab_root: Path, *, plan: bool = False) -> Path
     return python
 
 
+def simulator_build_arguments(
+    source_name: str, target: str, checkout: Path, platform_name: str
+) -> list[os.PathLike[str] | str]:
+    arguments: list[os.PathLike[str] | str] = ["make", "-C", checkout]
+    if (
+        source_name == "ka10-simh"
+        and target == "pdp10-ka"
+        and platform_name == "darwin"
+    ):
+        # The pinned legacy probe looks for a physical libz.dylib, while Apple
+        # provides zlib to the linker through its SDK stub and shared cache.
+        arguments.append("LDFLAGS_O=-lz")
+    arguments.append(target)
+    return arguments
+
+
 def build_simulators(
     checkouts: dict[str, Path], *, plan: bool = False
 ) -> None:
     for source_name, target, relative_binary in SIMULATOR_BUILDS:
         checkout = checkouts[source_name]
-        run(["make", "-C", checkout, target], plan=plan)
+        run(
+            simulator_build_arguments(source_name, target, checkout, sys.platform),
+            plan=plan,
+        )
         binary = checkout / relative_binary
         if not plan and (not binary.is_file() or not os.access(binary, os.X_OK)):
             raise ValueError(f"{source_name} build did not produce {binary}")

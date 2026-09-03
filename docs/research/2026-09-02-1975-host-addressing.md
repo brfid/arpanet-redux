@@ -34,6 +34,8 @@ This is the constraint that shapes any rework. Site numbering was reused as node
 
 The evidence is in two documents already held locally. The July 1975 Directory gives IMP 3 as UCSB. BBN TIR 90's sample ARPA NETWORK SUMMARY of November 1976 gives SITE 3 as NUC, alongside SITE 1 UCLA, SITE 2 SRI-5, SITE 4 UTAH and SITE 5 BBN. The same TIR 90 line table shows a RAND-to-NELC circuit that does not correspond to anything in the July 1975 Directory, where NELC has no host at all.
 
+That TIR 90 reading rests on one inference: that its "SITE *n*" is the IMP number. Four of its five sampled sites match the 1975 Directory's IMP numbers exactly, which is what supports the inference, and the fifth is the discrepancy itself. Whether IMP 3 was renumbered or UCSB's node was decommissioned and its number reissued to NUC, the consequence for this project is identical — a number alone does not identify a site without a date.
+
 A rework must therefore name one dated snapshot as its authority in the schema itself, not merely in prose. July 1975 (NIC 32992) is the natural choice for this project because it is contemporary with the recovered 1973 IMP firmware's operating era, sits inside the pre-1976 short-leader regime the project depends on, and is the only located source carrying address, site, machine, operating system and service status together.
 
 ## Per-host findings
@@ -43,6 +45,8 @@ A rework must therefore name one dated snapshot as its authority in the schema i
 Host `106` on IMP 6, host slot 1, decimal 70, is MIT-DMS. The Directory's Servers table gives it as a PDP-10 running ITS, accounts contact S. Pitkin, described as a research facility providing MDL. The same entry notes that MIT-DMS ran SURVEY, which monitored network host availability and response time — so pairing this host with a monitoring surface, as the project's NCC compositions do, has a historical warrant rather than being only an aesthetic choice.
 
 The promoted guest image already greets with `MIT Dynamic Modelling PDP-10`. Address, machine, operating system and greeting all agree with the source. No change is required, and none should be made.
+
+The greeting is corroboration of a weaker kind than it first appears, and the distinction is worth keeping. Upstream's KA build sets the host number and the banner together, so the two agree because one upstream decision produced both, not because two independent witnesses converge. What the Directory adds is the confirmation that upstream's choice matches the July 1975 record.
 
 | Host/IMP | Decimal | Octal | Hostname | Computer | Op sys | Status |
 |---|---|---|---|---|---|---|
@@ -65,7 +69,9 @@ The Directory lists exactly three PDP-11s with UNIX among their operating system
 | 0/1 | 1 | 1 | UCLA-ATS | PDP-11/45 | ANTS, ELF, UCLA-VMM, UNIX | Network analysis and modeling |
 | 1/34 | 98 | 142 | UCB | PDP-11/40 | ELF, DOS, RSX11-M, UNIX | Speech and graphics protocol research |
 
-**RAND-ISO, host 1 on IMP 7, octal `107`** is the recommended target. It is the only entry whose sole listed operating system is UNIX, it is a PDP-11/45, and it is listed under Servers — which matches what the project's guest actually is, since it both originates and accepts TELNET.
+**RAND-ISO, host 1 on IMP 7, octal `107`** is the recommended target. It is the only entry whose sole listed operating system is UNIX, it is a PDP-11/45, and it appears in the Servers table, which matches what the project's guest does, since it both originates and accepts TELNET.
+
+Three caveats belong with that recommendation rather than in a footnote. The Directory annotates RAND-ISO "Not yet up as a Server", so in July 1975 it was not yet doing what the project would have it do; a reconstruction at this address depicts an intended rather than an achieved service. UCB is disqualified for a different reason worth recording: it is marked `USER (VDH)`, a Very Distant Host, which is not the local host interface this project simulates. And RAND is not the lineage of the preserved source — see the next section — so choosing it settles which 1975 host had a PDP-11 running UNIX, not whose UNIX the project is running.
 
 Two properties make the move cheap. The PDP-11 does not know its own address: [`docs/research/imp11a-device.md`](imp11a-device.md) records that `176` is simply the address IMP 62's `hi2` has carried since an ITS guest occupied that port, and the guest never self-identifies. And IMP 7 is already instantiated in the project's NCC compositions, so the number is not new to the topology — it merely stops being arbitrary. The functional change is one line in the IMP configuration the PDP-11 attaches to; no guest media rebuild is involved.
 
@@ -73,7 +79,9 @@ Two properties make the move cheap. The PDP-11 does not know its own address: [`
 
 The pin in [`pins/sources.lock.toml`](../../pins/sources.lock.toml) describes `network-unix-v6` as "SRI/NOSC Network UNIX V6". That naming post-dates the target year. NOSC took that name in 1977. Neither NOSC nor NELC appears as a host in the July 1975 Directory; NUC (Naval Undersea Center) appears only as an organization, with a liaison whose network mailbox was on `UTAH-10`. By November 1976 a RAND-to-NELC line exists in BBN's line table, so the Navy association is real but later than 1975.
 
-The provenance of the preserved source code and the identity of the 1975 host that should run it are independent. A rework should keep them separate and not let the pin's name drive the address.
+The Directory does point at the software's lineage, just not at RAND. Its list of interest groups names a UNIX Interest Group whose contact is `HOLMGREN@BBN` — Steve Holmgren, one of the Illinois CAC authors of Network UNIX, by then at BBN. So in July 1975 the NCP UNIX lineage runs Illinois to BBN, and onward to the Navy sites later; BBN's own ARPANET PDP-11s are listed as ELF, not UNIX, and RAND appears nowhere in it.
+
+The provenance of the preserved source code and the identity of the 1975 host that should run it are therefore independent, and no available assignment makes them agree. A rework should keep them separate, not let the pin's name drive the address, and say plainly that the address answers "which 1975 host ran a PDP-11 UNIX" while the pin answers "whose UNIX this is".
 
 ### Remaining configured addresses
 

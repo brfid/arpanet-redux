@@ -7,6 +7,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ncc.harness_imp import latest_watchdog, wait_for_log_marker
+from ncc.harness_manifest import append_manifest, read_manifest, sha256
+from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
+from ncc.pdp11_its_harness import (
+    application_evidence_failures,
+    boot_pdp11,
+    stop_and_record,
+    wait_for_prompt,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTROLLER_PATH = ROOT / "scripts" / "pdp11-its-failover-controller.py"
 
@@ -26,6 +36,27 @@ class Pdp11ItsFailoverControllerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.controller = load_controller()
+
+    def test_controller_uses_importable_lifecycle_owners(self) -> None:
+        owners = {
+            "PtyProcess": PtyProcess,
+            "ImpProcess": ImpProcess,
+            "append_manifest": append_manifest,
+            "read_manifest": read_manifest,
+            "sha256": sha256,
+            "latest_watchdog": latest_watchdog,
+            "wait_for_log_marker": wait_for_log_marker,
+            "ensure_process_alive": ensure_process_alive,
+            "application_evidence_failures": application_evidence_failures,
+            "boot_pdp11": boot_pdp11,
+            "stop_and_record": stop_and_record,
+            "wait_for_prompt": wait_for_prompt,
+        }
+        self.assertFalse(hasattr(self.controller, "BASE"))
+        self.assertFalse(hasattr(self.controller, "SHARED"))
+        for name, owner in owners.items():
+            with self.subTest(name=name):
+                self.assertIs(getattr(self.controller, name), owner)
 
     def test_post_cut_evidence_requires_the_second_structured_response(self) -> None:
         pdp11 = (

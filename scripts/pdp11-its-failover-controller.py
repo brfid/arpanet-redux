@@ -4,22 +4,40 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
+from pathlib import Path
 import re
 import signal
+import sys
 import time
 import traceback
-from pathlib import Path
 
-BASE_PATH = Path(__file__).with_name("pdp11-its-controller.py")
-BASE_SPEC = importlib.util.spec_from_file_location("pdp11_its_controller", BASE_PATH)
-assert BASE_SPEC is not None and BASE_SPEC.loader is not None
-BASE = importlib.util.module_from_spec(BASE_SPEC)
-BASE_SPEC.loader.exec_module(BASE)
-SHARED = BASE.SHARED
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from ncc.harness_config import create_host106_attach_config, validate_environment
+from ncc.harness_imp import (
+    latest_watchdog,
+    wait_for_log_marker,
+    watchdog_devices_ready,
+    watchdog_reports_modem_dead,
+)
+from ncc.harness_manifest import append_manifest, read_manifest, sha256
+from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
 from ncc.message_journey import ObservationProvenance
+from ncc.pdp11_its_harness import (
+    DATE_PATTERN,
+    FATAL_SESSION,
+    SERVICE_PATTERN,
+    TIME_PATTERN,
+    UPTIME_PATTERN,
+    application_evidence_failures,
+    boot_pdp11,
+    stop_and_record,
+    wait_for_prompt,
+)
 from ncc.pdp11_its_failover_journey import (
     pdp11_its_failover_modem_devices,
     write_pdp11_its_failover_journey_stream,
@@ -31,8 +49,6 @@ from ncc.pdp11_its_journey import (
 )
 from ncc.shared_topology import shared_topology_from_mapping
 
-PtyProcess = BASE.PtyProcess
-ImpProcess = BASE.ImpProcess
 _FATAL_POST_CUT_TRANSPORT = re.compile(
     rb"bind error|Can't open Datagram socket|UNRECOVERABLE I/O ERROR|"
     rb"tmxr_put_packet_ln\(\) failed|HARDWARE ERROR",
@@ -94,7 +110,7 @@ def devices_ready(
     host_device: str | None = None,
 ) -> bool:
     return all(
-        SHARED.watchdog_devices_ready(
+        watchdog_devices_ready(
             state,
             modem_device=device,
             host_device=host_device,
@@ -113,15 +129,13 @@ def wait_for_imp_devices_ready(
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         imp.ensure_alive()
-        state = (
-            SHARED.latest_watchdog(imp.debug_path) if imp.debug_path.exists() else None
-        )
+        state = latest_watchdog(imp.debug_path) if imp.debug_path.exists() else None
         if devices_ready(state, modem_devices, host_device=host_device):
             return
         time.sleep(0.1)
     raise TimeoutError(
         f"{imp.name} did not report {', '.join(modem_devices)} ready; "
-        f"latest watchdog state is {SHARED.latest_watchdog(imp.debug_path)}"
+        f"latest watchdog state is {latest_watchdog(imp.debug_path)}"
     )
 
 
@@ -133,11 +147,11 @@ def wait_for_trace_devices_ready(
 ) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        state = SHARED.latest_watchdog(path) if path.exists() else None
+        state = latest_watchdog(path) if path.exists() else None
         if devices_ready(state, modem_devices):
             return
         time.sleep(0.1)
-    state = SHARED.latest_watchdog(path) if path.exists() else None
+    state = latest_watchdog(path) if path.exists() else None
     raise TimeoutError(
         f"outer IMP trace did not report {', '.join(modem_devices)} ready; "
         f"latest watchdog state is {state}"
@@ -154,12 +168,12 @@ def wait_for_post_cut_state(
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         imp.ensure_alive()
-        state = SHARED.latest_watchdog(imp.debug_path)
-        direct_dead = not SHARED.watchdog_devices_ready(
+        state = latest_watchdog(imp.debug_path)
+        direct_dead = not watchdog_devices_ready(
             state,
             modem_device=direct_device,
         )
-        alternate_ready = SHARED.watchdog_devices_ready(
+        alternate_ready = watchdog_devices_ready(
             state,
             modem_device=alternate_device,
             host_device="hi2",
@@ -169,7 +183,7 @@ def wait_for_post_cut_state(
         time.sleep(0.1)
     raise TimeoutError(
         f"{imp.name} did not reach direct-dead/alternate-ready state; "
-        f"latest watchdog state is {SHARED.latest_watchdog(imp.debug_path)}"
+        f"latest watchdog state is {latest_watchdog(imp.debug_path)}"
     )
 
 
@@ -203,13 +217,13 @@ def post_cut_application_failures(
 ) -> list[str]:
     failures: list[str] = []
     for label, pattern in (
-        ("remote time", BASE.TIME_PATTERN),
-        ("remote date", BASE.DATE_PATTERN),
-        ("remote uptime", BASE.UPTIME_PATTERN),
+        ("remote time", TIME_PATTERN),
+        ("remote date", DATE_PATTERN),
+        ("remote uptime", UPTIME_PATTERN),
     ):
         if re.search(pattern, pdp11_output, re.DOTALL) is None:
             failures.append(f"missing post-cut {label} evidence")
-    if BASE.FATAL_SESSION.search(pdp11_output):
+    if FATAL_SESSION.search(pdp11_output):
         failures.append("PDP-11 TELNET session closed or failed after the cut")
     for name, output, devices in (
         ("imp6", imp6_output, (imp6_alternate_device,)),
@@ -219,7 +233,7 @@ def post_cut_application_failures(
         if _FATAL_POST_CUT_TRANSPORT.search(output):
             failures.append(f"{name} reported a fatal post-cut transport condition")
         for device in devices:
-            if SHARED.watchdog_reports_modem_dead(output, device):
+            if watchdog_reports_modem_dead(output, device):
                 failures.append(f"{name} reported alternate device {device} dead")
     for name, output in (("imp6", imp6_output), ("imp62", imp62_output)):
         for marker in (b"HI2 MSG: message received", b"HI2 MSG: message sent"):
@@ -248,7 +262,7 @@ def _window(
 
 
 def run(args: argparse.Namespace) -> int:
-    SHARED.validate_environment()
+    validate_environment()
     results_dir = args.results_dir.resolve()
     manifest = args.manifest.resolve()
     topology_path = args.topology.resolve()
@@ -269,13 +283,13 @@ def run(args: argparse.Namespace) -> int:
         )
 
     attach_config = results_dir / "host106-attach-only.simh"
-    SHARED.create_host106_attach_config(args.host106_config.resolve(), attach_config)
-    SHARED.append_manifest(
+    create_host106_attach_config(args.host106_config.resolve(), attach_config)
+    append_manifest(
         manifest,
         "sha256.host106-attach-config",
-        SHARED.sha256(attach_config),
+        sha256(attach_config),
     )
-    SHARED.append_manifest(manifest, "path.host106-attach-config", attach_config)
+    append_manifest(manifest, "path.host106-attach-config", attach_config)
     imp6 = ImpProcess(
         "imp6",
         args.h316.resolve(),
@@ -327,8 +341,8 @@ def run(args: argparse.Namespace) -> int:
     try:
         imp6.launch()
         imp62.launch()
-        SHARED.wait_for_log_marker(imp6, "listening on port", 30)
-        SHARED.wait_for_log_marker(imp62, "listening on port", 30)
+        wait_for_log_marker(imp6, "listening on port", 30)
+        wait_for_log_marker(imp62, "listening on port", 30)
         wait_for_trace_devices_ready(
             imp7_debug,
             (imp7_in, imp7_out),
@@ -359,12 +373,12 @@ def run(args: argparse.Namespace) -> int:
         host106.state = "BOOTING"
         host106.mark_running_after_banner()
         host106.enter_ddt_and_prove_local_time()
-        BASE.boot_pdp11(pdp11)
+        boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
-        BASE.wait_for_prompt(pdp11, timeout=15)
+        wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
         wait_for_network_unix_host106_ready(pdp11, args.ncp_ready_timeout)
-        SHARED.append_manifest(
+        append_manifest(
             manifest,
             "application.network-unix-host106-ready",
             "host-host-rrp-consumed",
@@ -386,7 +400,7 @@ def run(args: argparse.Namespace) -> int:
         if remaining > 0:
             time.sleep(remaining)
         for host in hosts:
-            BASE.ensure_process_alive(host)
+            ensure_process_alive(host)
             if host.state != "RUNNING":
                 raise RuntimeError(f"{host.name} is not RUNNING before TELNET")
 
@@ -400,15 +414,15 @@ def run(args: argparse.Namespace) -> int:
         )
         if event != 0:
             raise RuntimeError("guest TELNET reported Host is Unavailable")
-        service_match = host106.expect(BASE.SERVICE_PATTERN, timeout=120)
+        service_match = host106.expect(SERVICE_PATTERN, timeout=120)
         service_user = service_match.group(1).decode("ascii")
         pdp11.expect(rb"MIT Dynamic[\s\S]*?Modelling PDP-10", timeout=60)
         pdp11.expect(rb"TTY [0-9]+", timeout=60)
         pdp11.expect("Welcome to ITS!", timeout=60)
         pdp11.send(":time\r")
-        pdp11.expect(BASE.TIME_PATTERN, timeout=60)
-        pdp11.expect(BASE.DATE_PATTERN, timeout=30)
-        pdp11.expect(BASE.UPTIME_PATTERN, timeout=30)
+        pdp11.expect(TIME_PATTERN, timeout=60)
+        pdp11.expect(DATE_PATTERN, timeout=30)
+        pdp11.expect(UPTIME_PATTERN, timeout=30)
         time.sleep(3)
 
         pre_end = {imp.name: imp.debug_path.stat().st_size for imp in imps}
@@ -416,7 +430,7 @@ def run(args: argparse.Namespace) -> int:
         pre_imp62 = imp62.debug_path.read_bytes()[
             pre_offsets["imp62"] : pre_end["imp62"]
         ]
-        pre_failures = BASE.application_evidence_failures(
+        pre_failures = application_evidence_failures(
             pdp11.output_from(pre_pdp11_offset),
             host106.output_from(pre_host106_offset),
             pre_imp6,
@@ -427,7 +441,7 @@ def run(args: argparse.Namespace) -> int:
         if pre_failures:
             raise RuntimeError("pre-cut baseline failed: " + "; ".join(pre_failures))
 
-        manifest_values = BASE.read_manifest(manifest)
+        manifest_values = read_manifest(manifest)
         provenance = (
             ObservationProvenance(
                 "source:controller",
@@ -472,8 +486,8 @@ def run(args: argparse.Namespace) -> int:
 
         cut_request.write_text("cut application link\n", encoding="ascii")
         cut_state = wait_for_cut_state(cut_state_path)
-        SHARED.append_manifest(manifest, "application.cut-requested", 1)
-        SHARED.append_manifest(
+        append_manifest(manifest, "application.cut-requested", 1)
+        append_manifest(
             manifest,
             "application.fault-started-at",
             str(cut_state["fault_started_at"]),
@@ -505,12 +519,12 @@ def run(args: argparse.Namespace) -> int:
         post_offsets = {name: path.stat().st_size for name, path in post_paths.items()}
         post_pdp11_offset = pdp11.position()
         pdp11.send(":time\r")
-        pdp11.expect(BASE.TIME_PATTERN, timeout=90)
-        pdp11.expect(BASE.DATE_PATTERN, timeout=30)
-        pdp11.expect(BASE.UPTIME_PATTERN, timeout=30)
+        pdp11.expect(TIME_PATTERN, timeout=90)
+        pdp11.expect(DATE_PATTERN, timeout=30)
+        pdp11.expect(UPTIME_PATTERN, timeout=30)
         time.sleep(3)
         for host in hosts:
-            BASE.ensure_process_alive(host)
+            ensure_process_alive(host)
         post_end = {name: path.stat().st_size for name, path in post_paths.items()}
         post_traces = {
             name: path.read_bytes()[post_offsets[name] : post_end[name]]
@@ -555,19 +569,19 @@ def run(args: argparse.Namespace) -> int:
             ("pre-cut-message-journey", pre_journey_path),
             ("message-journey", journey_path),
         ):
-            SHARED.append_manifest(manifest, f"path.{label}", path)
-            SHARED.append_manifest(manifest, f"sha256.{label}", SHARED.sha256(path))
-        SHARED.append_manifest(
+            append_manifest(manifest, f"path.{label}", path)
+            append_manifest(manifest, f"sha256.{label}", sha256(path))
+        append_manifest(
             manifest,
             "message-journey.observations",
             len(journey.observations),
         )
-        SHARED.append_manifest(
+        append_manifest(
             manifest,
             "message-journey.state",
             journey.diagnosis.state.value,
         )
-        SHARED.append_manifest(
+        append_manifest(
             manifest,
             "message-journey.first-boundary",
             journey.diagnosis.first_boundary_id or "none",
@@ -589,10 +603,10 @@ def run(args: argparse.Namespace) -> int:
             evidence,
             encoding="ascii",
         )
-        SHARED.append_manifest(manifest, "application.client", "network-unix-telnet")
-        SHARED.append_manifest(manifest, "application.server", "TELSER")
-        SHARED.append_manifest(manifest, "application.service_user", service_user)
-        SHARED.append_manifest(manifest, "application.session-survived-cut", 1)
+        append_manifest(manifest, "application.client", "network-unix-telnet")
+        append_manifest(manifest, "application.server", "TELSER")
+        append_manifest(manifest, "application.service_user", service_user)
+        append_manifest(manifest, "application.session-survived-cut", 1)
         outcome = "passed"
         print(
             "PASS: the Network UNIX TELNET session reached ITS after the "
@@ -600,7 +614,7 @@ def run(args: argparse.Namespace) -> int:
         )
         return 0
     finally:
-        BASE.stop_and_record(results_dir, hosts, imps, force=interrupted)
+        stop_and_record(results_dir, hosts, imps, force=interrupted)
         (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
         signal.signal(signal.SIGTERM, old_term)
         signal.signal(signal.SIGINT, old_int)

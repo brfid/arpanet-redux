@@ -59,7 +59,7 @@ TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/
 
 .NOTPARALLEL:
 
-.PHONY: help lab-setup lab-setup-plan doctor install-pdp11-base select-pdp11-build select-ncc-result select-ncc-failover-result check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+.PHONY: help lab-setup lab-setup-plan doctor prune-media install-pdp11-base select-pdp11-build select-ncc-result select-ncc-failover-result check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
 
 help:
 	@printf 'ARPANET Redux\n\n'
@@ -70,6 +70,8 @@ help:
 	@printf 'Prepare user-supplied historical media:\n'
 	@printf '  make install-pdp11-base PDP11_BASE_SOURCE_ROOT=/path/root.rl01 PDP11_BASE_SOURCE_SWAP=/path/swap.rl01\n'
 	@printf '  make build-pdp11-telnet build and select receipt-bound guest media\n\n'
+	@printf 'Laboratory maintenance:\n'
+	@printf '  make prune-media       preview removable staged media (never deletes)\n\n'
 	@printf 'Start:\n'
 	@printf '  make telnet            foreground historical Network UNIX terminal\n'
 	@printf '  make ncc               live passive NCC operator console\n'
@@ -87,6 +89,9 @@ lab-setup-plan:
 
 doctor:
 	$(PYTHON) ./scripts/lab-doctor.py "$(LAB_ROOT)" --python "$(PYTHON)" --arpanet-root "$(ARPANET_ROOT)" --linux-ncp-root "$(LINUX_NCP_ROOT)" --h316-root "$(H316_ROOT)" --ka10-root "$(KA10_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --base-root "$(PDP11_BASE_ROOT)" --base-swap "$(PDP11_BASE_SWAP)" --results-root "$(RESULTS_ROOT)" $(PDP11_DOCTOR_BUILD_ARGUMENT)
+
+prune-media:
+	$(BOOTSTRAP_PYTHON) ./scripts/prune-media.py "$(LAB_ROOT)" --results-root "$(RESULTS_ROOT)"
 
 install-pdp11-base:
 	@test -n "$(PDP11_BASE_SOURCE_ROOT)" -a -n "$(PDP11_BASE_SOURCE_SWAP)" || { printf '%s\n' 'Set PDP11_BASE_SOURCE_ROOT and PDP11_BASE_SOURCE_SWAP to your user-supplied images.' >&2; exit 64; }

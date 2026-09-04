@@ -221,7 +221,19 @@ A retained result holds two different kinds of file. Its evidence — the `runti
 
 Its staged guest media is not evidence. The manifest hashes each image when the run stages it, the simulator then writes to that image for the length of the run, and the retained file therefore matches neither its own manifest entry nor the pristine base it was cloned from. It is reproducible working state, and no accepted result cites it. Prune it when the laboratory needs space: remove the staged `rp03.*` images and leave a short note in the run directory recording what was removed and when. Keep `dskdmp.rim`, which the guest does not write and which still matches its manifest entry. Never prune a build receipt: its `*.rk05`, `*.rl01`, and `*.rl02` files are the built PDP-11 guest media that later runs consume through `select-pdp11-build`, so they are a build product rather than staged working state.
 
-Base media stays under `$LAB_ROOT/work`, and [`pins/`](../pins/) records its provenance, so a pruned composition remains reproducible by rerunning it. The laboratory-side helper `$LAB_ROOT/prune-media.sh` applies this rule; run it with `--dry-run` first and read the listing before pruning.
+Base media stays under `$LAB_ROOT/work`, and [`pins/`](../pins/) records its provenance, so a pruned composition remains reproducible by rerunning it. Preview the tracked helper's exact removal set before changing the laboratory:
+
+```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab prune-media
+```
+
+Preview is the default and never deletes. After reading the listing, explicitly apply the same policy with:
+
+```sh
+./scripts/prune-media.py /absolute/path/to/arpanet-redux-lab --apply
+```
+
+For a nondefault results directory inside the laboratory, pass `--results-root /absolute/path` to the script or `RESULTS_ROOT=/absolute/path` to the preview target. The helper rejects unknown arguments, symlinked roots and result entries, and staged-media changes detected between its scan and removal; it excludes active or incomplete runs and every directory containing a build receipt. Before unlinking any selected file, it writes and flushes `media-pruned.txt` in every affected result; an existing or unwritable note aborts the whole removal without changing media.
 
 Never delete a directory that an ADR or a dated record cites, whatever it contains. Otherwise a smoke-run directory that produced no `outcome.txt` never completed and may be deleted outright, having no verdict to preserve. Build receipts and read-only trace captures have no outcome by design and are not covered by that rule.
 

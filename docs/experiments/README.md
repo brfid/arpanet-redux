@@ -6,6 +6,12 @@ Entries are grouped by claim and ordered by dependency within each group, not by
 
 Per [`AGENTS.md`](../../AGENTS.md), an evidence record is settled. A retained failing manifest keeps its recorded outcome and must not be relabelled after the fact; extending a record's reach requires a new exact run under the current pins.
 
+## Laboratory lifecycle
+
+| Record | Subject | Composition | Standing | Successor |
+|---|---|---|---|---|
+| [Launcher cleanup](2026-09-04-launcher-cleanup.md) | Retained failures, handled interruptions, and controller shutdown ownership | Network UNIX to ITS; NCC line loopback | Exact interruption exposed and verified a controller-deadline repair; normal application and manual-finalization runs passed | — |
+
 ## Baseline guest path
 
 | Record | Subject | Composition | Standing | Successor |

@@ -85,7 +85,9 @@ def git_output(checkout: Path, *arguments: str) -> str:
 
 def is_git_checkout(path: Path) -> bool:
     try:
-        return git_output(path, "rev-parse", "--is-inside-work-tree") == "true"
+        # An uninitialized submodule directory is *inside* its parent's Git
+        # tree. It must be cloned, never used to switch the parent's revision.
+        return Path(git_output(path, "rev-parse", "--show-toplevel")).resolve() == path.resolve()
     except (OSError, subprocess.CalledProcessError):
         return False
 

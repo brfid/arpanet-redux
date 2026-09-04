@@ -23,8 +23,9 @@ ITS_BUILD_RECEIPT ?= $(ITS_ROOT)/.brfid-build-receipt.json
 ifndef RUN_ID
 RUN_ID := $(shell python3 -c 'import datetime, uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + str(uuid.uuid4()))')
 endif
-PDP11_BASE_ROOT ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_root.rl01
-PDP11_BASE_SWAP ?= $(LAB_ROOT)/work/unix-v6-install/images/ncp_swap.rl01
+PDP11_BASE_IMAGE_DIR := $(shell "$(BOOTSTRAP_PYTHON)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from pathlib import Path; from pdp11_base import default_image_dir; print(default_image_dir(Path(sys.argv[2])))' "$(REPOSITORY_ROOT)/scripts" "$(LAB_ROOT)")
+PDP11_BASE_ROOT ?= $(PDP11_BASE_IMAGE_DIR)/ncp_root.rl01
+PDP11_BASE_SWAP ?= $(PDP11_BASE_IMAGE_DIR)/ncp_swap.rl01
 PDP11_BUILD_ROOT ?= $(RESULTS_ROOT)/pdp11-telnet-build-$(RUN_ID)
 PDP11_BUILD_RECEIPT ?= $(PDP11_BUILD_ROOT)/pdp11-build-receipt.json
 PDP11_SELECTED_BUILD_ROOT := $(shell "$(PYTHON)" "$(REPOSITORY_ROOT)/scripts/lab-state.py" resolve "$(LAB_ROOT)" pdp11-build --results-root "$(RESULTS_ROOT)" 2>/dev/null)
@@ -70,7 +71,8 @@ help:
 	@printf '  make lab-setup         fetch pinned runtime sources and build host tools\n'
 	@printf '  make doctor            report readiness and exact next actions\n\n'
 	@printf '  make diagnose-run RESULT=/path/to/result  explain a retained run\n\n'
-	@printf 'Prepare user-supplied historical media:\n'
+	@printf 'Prepare historical media:\n'
+	@printf '  make build-pdp11-base  fetch pinned archives and reconstruct base disks\n'
 	@printf '  make install-pdp11-base PDP11_BASE_SOURCE_ROOT=/path/root.rl01 PDP11_BASE_SOURCE_SWAP=/path/swap.rl01\n'
 	@printf '  make build-pdp11-telnet build and select receipt-bound guest media\n\n'
 	@printf 'Laboratory maintenance:\n'
@@ -90,6 +92,13 @@ lab-setup:
 
 lab-setup-plan:
 	$(BOOTSTRAP_PYTHON) ./scripts/lab-setup.py "$(LAB_ROOT)" --plan
+
+.PHONY: build-pdp11-base build-pdp11-base-plan
+build-pdp11-base:
+	$(BOOTSTRAP_PYTHON) ./scripts/pdp11_base.py build "$(LAB_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)"
+
+build-pdp11-base-plan:
+	$(BOOTSTRAP_PYTHON) ./scripts/pdp11_base.py build "$(LAB_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --plan
 
 doctor:
 	$(PYTHON) ./scripts/lab-doctor.py "$(LAB_ROOT)" --python "$(PYTHON)" --arpanet-root "$(ARPANET_ROOT)" --linux-ncp-root "$(LINUX_NCP_ROOT)" --h316-root "$(H316_ROOT)" --ka10-root "$(KA10_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --base-root "$(PDP11_BASE_ROOT)" --base-swap "$(PDP11_BASE_SWAP)" --results-root "$(RESULTS_ROOT)" $(PDP11_DOCTOR_BUILD_ARGUMENT)

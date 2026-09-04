@@ -16,6 +16,8 @@ import sys
 import tempfile
 import tomllib
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdp11_base import verify_pair  # noqa: E402
 
 FORMAT_VERSION = 1
 IMAGE_NAMES = ("ncp_root.rl01", "ncp_swap.rl01")
@@ -191,6 +193,7 @@ def current_project_builders() -> dict[str, dict[str, str]]:
 
 
 def build_document(args: argparse.Namespace) -> dict[str, object]:
+    verify_pair(args.base_root, args.base_swap)
     network_identity = git_identity(args.network_unix_root)
     imp11a_identity = git_identity(args.imp11a_root)
     validate_source_identity("network-unix-v6", network_identity)
@@ -330,6 +333,7 @@ def verify_receipt(receipt: Path) -> None:
         )
     }
     validate_build_logs(paths["telnet_build_log"], paths["ncpd_build_log"])
+    verify_pair(paths["base_root"], paths["base_swap"])
 
     expected_provenance = {
         "telnet_input_root": "base_root",

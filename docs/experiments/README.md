@@ -11,6 +11,7 @@ Per [`AGENTS.md`](../../AGENTS.md), an evidence record is settled. A retained fa
 | Record | Subject | Composition | Standing | Successor |
 |---|---|---|---|---|
 | [Launcher cleanup](2026-09-04-launcher-cleanup.md) | Retained failures, handled interruptions, and controller shutdown ownership | Network UNIX to ITS; NCC line loopback | Exact interruption exposed and verified a controller-deadline repair; normal application and manual-finalization runs passed | — |
+| [Base reconstruction](2026-09-04-pdp11-base-reconstruction.md) | Deterministic base media and fresh public-input setup | Network UNIX to ITS | Two identical assemblies, independent guest filesystem checks, fresh guest compilation and passing direct Gate 4H; nested-checkout setup bug repaired | — |
 
 ## Baseline guest path
 

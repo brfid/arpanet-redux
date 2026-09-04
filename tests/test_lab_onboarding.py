@@ -255,6 +255,20 @@ class LabSetupTests(unittest.TestCase):
                 run("git", "-C", checkout, "rev-parse", "HEAD").stdout.strip(),
                 revision,
             )
+            # Empty nested checkout directories belong to the parent until
+            # initialized. Setup must clone the child and leave the parent HEAD.
+            child_path = checkout / "nested"
+            child_path.mkdir()
+            self.assertFalse(setup.is_git_checkout(child_path))
+            (upstream / "input.txt").write_text("child revision\n", encoding="ascii")
+            self.assertEqual(run("git", "-C", upstream, "add", "input.txt").returncode, 0)
+            self.assertEqual(run("git", "-C", upstream, "commit", "-m", "child").returncode, 0)
+            child_revision = run("git", "-C", upstream, "rev-parse", "HEAD").stdout.strip()
+            child_source = dict(source, name="nested-test", checkout="work/local-test/nested", revision=child_revision)
+            child = setup.ensure_checkout(lab.resolve(), child_source)
+            self.assertEqual(Path(run("git", "-C", child, "rev-parse", "--show-toplevel").stdout.strip()), child)
+            self.assertEqual(run("git", "-C", child, "rev-parse", "HEAD").stdout.strip(), child_revision)
+            self.assertEqual(run("git", "-C", checkout, "rev-parse", "HEAD").stdout.strip(), revision)
             (checkout / "input.txt").write_text("changed\n", encoding="ascii")
             with self.assertRaisesRegex(ValueError, "refusing to change dirty"):
                 setup.ensure_checkout(lab.resolve(), source)

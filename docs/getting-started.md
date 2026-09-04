@@ -29,11 +29,17 @@ Use `make lab-setup-plan` to inspect the destinations and source identities with
 
 The source URLs are acquisition references, not redistribution grants. The ARPANET-in-a-Box bundle, its recovered firmware and prepared ITS media, `linux-ncp`, and Network UNIX do not all have a clear bundle-wide license; the simulator forks also retain their own upstream terms. Invoking setup fetches those inputs from their original public locations into your private external lab, but does not relicense them. Read [`NOTICE.md`](../NOTICE.md) before sharing a lab, image, container, source bundle, or result.
 
-## Supply the PDP-11 base media
+## Reconstruct the PDP-11 base media
 
-The final prerequisite is an exact pair of prepared RL images. They are not in Git and `make lab-setup` deliberately does not download or synthesize them. A generic UNIX V6 image is not a substitute: the accepted build starts from the prepared Network UNIX root and swap identities recorded in [`pins/pdp11-base-assets.sha256`](../pins/pdp11-base-assets.sha256).
+Build the base disks directly from pinned historical inputs:
 
-If you already possess that pair from a private lab or have reconstructed it from the cited historical inputs and the method recorded in [`docs/research/imp11a-device.md`](research/imp11a-device.md), install it without manually choosing the destination:
+```sh
+make build-pdp11-base
+```
+
+This downloads two small TUHS archives, verifies their compressed and uncompressed identities, and combines the original V6 root filesystem, an RL-native bootstrap, and the pinned NOSC kernel and daemons. It creates a deterministic, unbooted root disk and zeroed swap disk under `$LAB_ROOT/work/pdp11-base/`, with exact output hashes and a construction receipt. No private prepared disk is needed. `make build-pdp11-base-plan` previews the inputs and destination without writes; a repeated build verifies the existing result and refuses changed media or provenance. The [base-media contract](pdp11-base.md) covers the recipe, offline use, and recovery.
+
+If an existing laboratory already has the accepted legacy pair, it remains usable. The optional installer accepts the exact identities in [`pins/pdp11-base-assets.sha256`](../pins/pdp11-base-assets.sha256):
 
 ```sh
 make \
@@ -42,7 +48,7 @@ make \
   install-pdp11-base
 ```
 
-The installer verifies both SHA-256 identities before writing, installs them under `$LAB_ROOT/work/unix-v6-install/images/`, treats an already-correct pair as a no-op, and refuses to overwrite a mismatch. This is a placement and identity check for media the operator already has; it is not a statement that the media may be redistributed.
+The legacy installer verifies both SHA-256 identities before writing, installs them under `$LAB_ROOT/work/unix-v6-install/images/`, and refuses to overwrite a mismatch. Make prefers a reconstructed pair when present and otherwise uses that legacy directory. Both profiles require a complete matching pair; a generic V6 disk or a mixture of profiles is rejected. All historical material retains its own terms under [NOTICE](../NOTICE.md).
 
 Build the guest TELNET client and NCP daemon inside a new immutable external result directory:
 

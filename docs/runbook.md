@@ -2,7 +2,7 @@
 
 ## Scope
 
-Use this runbook to check the source tree, prepare or verify an external laboratory, run supported compositions, and inspect retained results. Make targets are the supported operator surface; the standalone scripts documented under [read-only diagnostics](#use-read-only-diagnostics) are the supported inspection surface. The [fresh-clone guide](getting-started.md) is the shortest path to TELNET or NCC. Several inputs have unresolved redistribution terms, so the setup helper fetches source only from its recorded upstream URLs and requires the operator to supply the exact PDP-11 base media separately.
+Use this runbook to check the source tree, prepare or verify an external laboratory, run supported compositions, and inspect retained results. Make targets are the supported operator surface; the standalone scripts documented under [read-only diagnostics](#use-read-only-diagnostics) are the supported inspection surface. The [fresh-clone guide](getting-started.md) is the shortest path to TELNET or NCC. Source setup and base-media reconstruction acquire pinned inputs directly into the external laboratory; several inputs retain unresolved redistribution terms.
 
 ## Run source checks
 
@@ -35,6 +35,7 @@ parent/
   arpanet-redux/
   arpanet-redux-lab/
     work/       # third-party checkouts and native builds
+    cache/      # verified historical archives for local reconstruction
     results/    # immutable per-run evidence
 ```
 
@@ -47,7 +48,7 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab lab-setup
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab doctor
 ```
 
-`make lab-setup-plan` describes those writes without performing them. Setup is idempotent for exact clean checkouts and refuses dirty or unrelated directories. It does not acquire the prepared Network UNIX base images; follow the [base-media step](getting-started.md#supply-the-pdp-11-base-media), then rerun the doctor.
+`make lab-setup-plan` describes those writes without performing them. Setup is idempotent for exact clean checkouts and refuses dirty or unrelated directories. Empty nested checkout directories are cloned independently; setup verifies each directory's own Git root before selecting its pin. Follow the [base-media reconstruction step](getting-started.md#reconstruct-the-pdp-11-base-media), then rerun the doctor.
 
 On macOS, setup passes `LDFLAGS_O=-lz` to the pinned `ka10-simh` `pdp10-ka` and `imp11a-simh` `pdp11` builds. Those legacy dependency probes can find Homebrew `libpng` without recognizing Apple's system zlib stub, which otherwise leaves `zlibVersion` undefined at link time. The explicit system-library link does not modify either external checkout; `make LAB_ROOT=/absolute/path/to/arpanet-redux-lab verify-binaries` confirms the resulting simulators embed their pinned revisions.
 
@@ -81,9 +82,10 @@ make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-its
 
 The target performs the pinned build and a no-op rebuild under one lease, verifies clean source and recursive submodules, and hashes the five promoted runtime files. The smoke verifies the receipt and boots independent media copies.
 
-For PDP-11 compositions, the convenient path creates one new external build directory, verifies its receipt, and selects it for later TELNET and NCC invocations:
+For PDP-11 compositions, first reconstruct the base disks if this laboratory has no accepted pair. The next target creates one new external guest build directory, verifies its receipt, and selects it for later TELNET and NCC invocations:
 
 ```sh
+make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-pdp11-base
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab build-pdp11-telnet
 ```
 
@@ -94,7 +96,7 @@ build_root=/absolute/path/to/arpanet-redux-lab/results/pdp11-telnet-build-UNIQUE
 make LAB_ROOT=/absolute/path/to/arpanet-redux-lab PYTHON=/absolute/path/to/venv/bin/python3 PDP11_BUILD_ROOT="$build_root" build-pdp11-telnet
 ```
 
-The build directory is never overwritten. Its receipt binds the base media, staged TELNET and daemon sources, intermediate and final media, build logs, builder hashes, source revisions, and PDP-11 executable identity. Override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` if the laboratory does not use the default images under `work/unix-v6-install/images/`. A successful build records its stable external selection under `$LAB_ROOT/state`; select another retained receipt with `make LAB_ROOT="$lab" PDP11_BUILD_ROOT="$build_root" select-pdp11-build`.
+The build directory is never overwritten. Its receipt binds the base media, staged TELNET and daemon sources, intermediate and final media, build logs, builder hashes, source revisions, and PDP-11 executable identity. Preflight and receipt verification require a complete pinned base pair. Make uses `work/pdp11-base/images/` when reconstructed media are present and otherwise accepts the legacy `work/unix-v6-install/images/` pair; override `PDP11_BASE_ROOT` and `PDP11_BASE_SWAP` together for another location. The [base-media contract](pdp11-base.md) owns reconstruction and recovery details. A successful guest build records its stable external selection under `$LAB_ROOT/state`; select another retained receipt with `make LAB_ROOT="$lab" PDP11_BUILD_ROOT="$build_root" select-pdp11-build`.
 
 ## Run integration smokes
 

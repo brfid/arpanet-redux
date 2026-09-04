@@ -27,6 +27,7 @@ for required in "$pdp11_bin" "$base_root" "$base_swap"; do
   fi
 done
 
+"$python_program" "$repo_root/scripts/pdp11_base.py" verify "$base_root" "$base_swap"
 brfid_acquire_exclusive_lease "$build_root_input.lock"
 "$repo_root/scripts/verify-simulator-binaries.py" --pdp11 "$pdp11_bin"
 brfid_create_results_dir "$build_root_input"

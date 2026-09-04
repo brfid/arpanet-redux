@@ -20,14 +20,16 @@ make test
 
 This command downloads no historical software and starts no simulator. To use an existing external laboratory, follow the [runbook](docs/runbook.md).
 
-For either supported foreground experience, let the repository prepare the external source checkouts and host tools, then ask the read-only doctor for the remaining exact media/build step:
+For either supported foreground experience, prepare the external sources and simulators, reconstruct the base disks, and build the guest applications:
 
 ```sh
 make lab-setup
+make build-pdp11-base
+make build-pdp11-telnet
 make doctor
 ```
 
-The project cannot redistribute or silently acquire the prepared PDP-11 base images, but it now verifies and installs a user-supplied pair, builds and remembers the receipt-bound guest media, and prints every next command in order. Once `make doctor` reports ready, start either surface with `make telnet` or `make ncc`; use `make telnet-failover` to operate one guest session across the link cut, or `make ncc-failover` for the longer passive-report proof. See the [fresh-clone guide](docs/getting-started.md) for the complete path and `make help` for the command summary.
+The base reconstruction acquires pinned historical inputs directly into the external lab and produces identical unbooted disks on every build; it needs no private prepared image. Existing accepted disk pairs remain usable. Guest compilation writes a receipt and remembers the selected build. Once `make doctor` reports ready, start either surface with `make telnet` or `make ncc`; use `make telnet-failover` to operate one guest session across the link cut, or `make ncc-failover` for the longer passive-report proof. See the [fresh-clone guide](docs/getting-started.md) for the complete path and `make help` for the command summary.
 
 To understand an existing successful, failed, or unfinished run, use `make diagnose-run RESULT=/absolute/path/to/result`. It reports retained outcomes, the last recorded checkpoint, cleanup evidence, and bounded diagnostic excerpts without starting a simulator or changing the result. See [run diagnostics](docs/runbook.md#diagnose-a-retained-run) for its evidence limits and JSON output.
 

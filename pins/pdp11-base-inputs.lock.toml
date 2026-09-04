@@ -1,0 +1,22 @@
+version = 1
+
+# Acquired directly into the external laboratory; never redistributed here.
+[[archive]]
+name = "v6.tape.gz"
+url = "https://www.tuhs.org/Archive/Distributions/Research/Ken_Wellsch_v6/v6.tape.gz"
+size = 2135262
+sha256 = "f29a328e03c91ceac378061d8571b81f1a6ca8e72866a327012f8542021b3ba4"
+uncompressed_size = 6195200
+uncompressed_sha256 = "18e3cff96933f7a2ced81050ca101507eed55a2d137d1fcfd7745ebaf1d4c2a5"
+purpose = "Original V6 root filesystem: 4000 512-byte blocks after the 100-block bootstrap area"
+redistribution = "review-caldera-ancient-unix-terms"
+
+[[archive]]
+name = "unix_v6.rl02.gz"
+url = "https://www.tuhs.org/Archive/Distributions/Research/Tim_Shoppa_v6/unix_v6.rl02.gz"
+size = 3009750
+sha256 = "d6fdb22bcbafaf479e0426ce23afcceec31a18866d86ee2b6130a8dba47351a1"
+uncompressed_size = 10485760
+uncompressed_sha256 = "bd022e9352ef38f425fac92385a6233a8a81413ddf24c96b20535ab1e89e4be6"
+purpose = "First 512 bytes only: RL-native disk bootstrap for the preserved green kernel"
+redistribution = "unresolved-image-wide"

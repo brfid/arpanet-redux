@@ -1,0 +1,3 @@
+# Deterministic, unbooted pair; see docs/pdp11-base.md.
+98c1773c90270504fbd12e5858acac98746405fefe8a784fdbc5d1823cf777db  work/pdp11-base/images/ncp_root.rl01
+c036cbb7553a909f8b8877d4461924307f27ecb66cff928eeeafd569c3887e29  work/pdp11-base/images/ncp_swap.rl01

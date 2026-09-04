@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tomllib
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdp11_base import default_image_dir, verify_pair  # noqa: E402
 
 RUNTIME_SOURCE_NAMES = (
     "arpanet-in-a-box",
@@ -280,11 +282,11 @@ def resolved_paths(args: argparse.Namespace) -> dict[str, Path]:
         "pdp11": (args.pdp11 or imp11a_root / "BIN" / "pdp11").expanduser().resolve(),
         "base_root": (
             args.base_root
-            or lab / "work" / "unix-v6-install" / "images" / "ncp_root.rl01"
+            or default_image_dir(lab) / "ncp_root.rl01"
         ).expanduser().resolve(),
         "base_swap": (
             args.base_swap
-            or lab / "work" / "unix-v6-install" / "images" / "ncp_swap.rl01"
+            or default_image_dir(lab) / "ncp_swap.rl01"
         ).expanduser().resolve(),
         "results": (args.results_root or lab / "results").expanduser().resolve(),
         "python": Path(os.path.abspath(python_input.expanduser())),
@@ -340,27 +342,8 @@ def main() -> int:
     setup_problem |= not assets_ok
 
     try:
-        base_records = load_hash_manifest(
-            repo_root / "pins" / "pdp11-base-assets.sha256"
-        )
-        expected_by_name = {
-            relative.name: expected for expected, relative in base_records
-        }
-        base_checks = []
-        for label, path, name in (
-            ("PDP-11 base root", paths["base_root"], "ncp_root.rl01"),
-            ("PDP-11 base swap", paths["base_swap"], "ncp_swap.rl01"),
-        ):
-            if not path.is_file():
-                ok, details = False, f"not found at {path}"
-            else:
-                actual = sha256(path)
-                expected = expected_by_name[name]
-                ok = actual == expected
-                details = "exact SHA-256 identity" if ok else f"SHA-256 is {actual}; expected {expected}"
-            base_checks.append(ok)
-            report(ok, label, details)
-        bases_ok = all(base_checks)
+        profile = verify_pair(paths["base_root"], paths["base_swap"])
+        bases_ok = report(True, "PDP-11 base media", f"exact pinned pair ({profile})")
     except (OSError, ValueError, KeyError) as error:
         bases_ok = False
         report(False, "PDP-11 base media", str(error))
@@ -415,8 +398,9 @@ def main() -> int:
         if setup_problem:
             print(f"  make {lab_argument} lab-setup")
         if base_problem:
+            print(f"  make {lab_argument} build-pdp11-base")
             print(
-                "  make "
+                "  Or install an existing legacy pair: make "
                 f"{lab_argument} "
                 "PDP11_BASE_SOURCE_ROOT=/path/to/ncp_root.rl01 "
                 "PDP11_BASE_SOURCE_SWAP=/path/to/ncp_swap.rl01 "

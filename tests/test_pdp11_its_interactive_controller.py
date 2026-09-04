@@ -26,6 +26,15 @@ from ncc.harness_process import (
     ensure_process_alive,
     utc_now,
 )
+from ncc.historical_terminal import (
+    BootDisplay,
+    HistoricalConsoleProjection,
+    SafeTeletypeRenderer,
+    network_unix_prompt_offset,
+    operator_terminal_mode,
+    prepare_terminal_input,
+    run_character_terminal,
+)
 from ncc.interactive_telnet import (
     InteractiveTelnetRecorder,
     read_interactive_telnet_stream,
@@ -140,6 +149,13 @@ class InteractiveControllerTests(unittest.TestCase):
             "boot_pdp11": boot_pdp11,
             "stop_and_record": stop_and_record,
             "wait_for_prompt": wait_for_prompt,
+            "BootDisplay": BootDisplay,
+            "HistoricalConsoleProjection": HistoricalConsoleProjection,
+            "SafeTeletypeRenderer": SafeTeletypeRenderer,
+            "network_unix_prompt_offset": network_unix_prompt_offset,
+            "operator_terminal_mode": operator_terminal_mode,
+            "prepare_terminal_input": prepare_terminal_input,
+            "run_character_terminal": run_character_terminal,
         }
         self.assertFalse(hasattr(CONTROLLER, "BASE"))
         self.assertFalse(hasattr(CONTROLLER, "SHARED"))

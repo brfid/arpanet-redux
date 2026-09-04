@@ -22,8 +22,19 @@ brfid_runtime_init
 brfid_install_cleanup_traps
 
 python_command=${PYTHON:-python3}
+failover_mode=${BRFID_FAILOVER_MODE:-formal}
 receiver_duration=${BRFID_NCC_RECEIVER_DURATION:-300}
 relay_duration=${BRFID_APPLICATION_RELAY_DURATION:-420}
+max_terminal_input_bytes=${BRFID_TELNET_MAX_INPUT_BYTES:-1048576}
+max_terminal_output_bytes=${BRFID_TELNET_MAX_OUTPUT_BYTES:-8388608}
+max_terminal_chunk_bytes=${BRFID_TELNET_MAX_CHUNK_BYTES:-4096}
+case $failover_mode in
+  formal|terminal) ;;
+  *)
+    echo "unsupported application-failover mode: $failover_mode" >&2
+    exit 64
+    ;;
+esac
 for setting in "$receiver_duration" "$relay_duration"; do
   case $setting in
     ''|*[!0-9]*)
@@ -33,6 +44,18 @@ for setting in "$receiver_duration" "$relay_duration"; do
   esac
   if [ "$setting" -le 0 ]; then
     echo "receiver and relay durations must be positive" >&2
+    exit 64
+  fi
+done
+for setting in "$max_terminal_input_bytes" "$max_terminal_output_bytes" "$max_terminal_chunk_bytes"; do
+  case $setting in
+    ''|*[!0-9]*)
+      echo "terminal byte limits must be positive integers" >&2
+      exit 64
+      ;;
+  esac
+  if [ "$setting" -le 0 ]; then
+    echo "terminal byte limits must be positive" >&2
     exit 64
   fi
 done
@@ -78,7 +101,12 @@ runtime_dir="$results_dir/runtime"
 mkdir -p "$runtime_dir"
 cut_request="$runtime_dir/application-link-cut.request"
 cut_state="$results_dir/application-link-cut-state.json"
-brfid_manifest_init "$runtime_dir/run.env" ncc-pdp11-its-application-failover "$repo_root"
+if [ "$failover_mode" = terminal ]; then
+  run_kind=pdp11-its-interactive-failover
+else
+  run_kind=ncc-pdp11-its-application-failover
+fi
+brfid_manifest_init "$runtime_dir/run.env" "$run_kind" "$repo_root"
 brfid_manifest_add_git arpanet-in-a-box "$arpanet_root"
 brfid_manifest_add_git network-unix-v6 "$network_unix_root"
 brfid_manifest_add_git h316-simh "$(git -C "$(dirname "$h316_bin")" rev-parse --show-toplevel)"
@@ -106,6 +134,10 @@ brfid_manifest_add_file source-pins "$repo_root/pins/sources.lock.toml" "$repo_r
 brfid_manifest_add_file asset-pins "$repo_root/pins/arpanet-assets.sha256" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_append experiment.receiver-duration-seconds "$receiver_duration"
 brfid_manifest_append experiment.relay-duration-seconds "$relay_duration"
+brfid_manifest_append interactive.failover-mode "$failover_mode"
+brfid_manifest_append terminal.max-input-bytes "$max_terminal_input_bytes"
+brfid_manifest_append terminal.max-output-bytes "$max_terminal_output_bytes"
+brfid_manifest_append terminal.max-chunk-bytes "$max_terminal_chunk_bytes"
 brfid_manifest_append runtime.python-version "$($python_command --version 2>&1)"
 
 host106_work="$results_dir/host106"
@@ -195,63 +227,85 @@ brfid_start_process application_relay "$repo_root" "$results_dir/application-rel
     --output "$results_dir/application-relay.json"
 relay_pid=$BRFID_LAST_PID
 
-brfid_start_process receiver "$repo_root" "$results_dir/receiver.stdout.log" "$results_dir/receiver.stderr.log" \
-  "$python_command" "$receiver" \
-    --topology "$topology" \
-    --interface-id binding:ncc-host0-imp5 \
-    --duration "$receiver_duration" \
-    --require-trouble-report \
-    --require-throughput-report \
-    --event-record "$results_dir/historical-events.jsonl" \
-    --run-id "$run_id" \
-    --output "$results_dir/receiver.json"
-receiver_pid=$BRFID_LAST_PID
+receiver_pid=
+if [ "$failover_mode" = formal ]; then
+  brfid_start_process receiver "$repo_root" "$results_dir/receiver.stdout.log" "$results_dir/receiver.stderr.log" \
+    "$python_command" "$receiver" \
+      --topology "$topology" \
+      --interface-id binding:ncc-host0-imp5 \
+      --duration "$receiver_duration" \
+      --require-trouble-report \
+      --require-throughput-report \
+      --event-record "$results_dir/historical-events.jsonl" \
+      --run-id "$run_id" \
+      --output "$results_dir/receiver.json"
+  receiver_pid=$BRFID_LAST_PID
+fi
 
 brfid_start_process imp5 "$mini_dir" "$results_dir/imp5.console.log" "$results_dir/imp5.debug.log" "$h316_bin" "$imp5_config"
 brfid_start_process imp7 "$mini_dir" "$results_dir/imp7.console.log" "$results_dir/imp7.debug.log" "$h316_bin" "$imp7_config"
 
-brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log" "$results_dir/controller.stderr.log" \
+set -- \
   "$python_command" "$controller" \
-    --h316 "$h316_bin" \
-    --pdp10-ka "$pdp10_bin" \
-    --pdp11 "$pdp11_bin" \
-    --mini-root "$mini_dir" \
-    --host106-work "$host106_work" \
-    --pdp11-work "$pdp11_work" \
-    --imp6-config "$imp6_config" \
-    --imp62-config "$imp62_config" \
-    --imp7-debug "$results_dir/imp7.debug.log" \
-    --host106-config "$host106_config" \
-    --pdp11-config "$pdp11_config" \
-    --topology "$topology" \
-    --results-dir "$results_dir" \
-    --manifest "$runtime_dir/run.env" \
-    --cut-request "$cut_request" \
-    --cut-state "$cut_state"
-controller_pid=$BRFID_LAST_PID
-
-if wait "$controller_pid"; then
-  controller_status=0
+  --h316 "$h316_bin" \
+  --pdp10-ka "$pdp10_bin" \
+  --pdp11 "$pdp11_bin" \
+  --mini-root "$mini_dir" \
+  --host106-work "$host106_work" \
+  --pdp11-work "$pdp11_work" \
+  --imp6-config "$imp6_config" \
+  --imp62-config "$imp62_config" \
+  --imp7-debug "$results_dir/imp7.debug.log" \
+  --host106-config "$host106_config" \
+  --pdp11-config "$pdp11_config" \
+  --topology "$topology" \
+  --results-dir "$results_dir" \
+  --manifest "$runtime_dir/run.env" \
+  --cut-request "$cut_request" \
+  --cut-state "$cut_state"
+if [ "$failover_mode" = terminal ]; then
+  set -- "$@" \
+    --mode terminal \
+    --max-terminal-input-bytes "$max_terminal_input_bytes" \
+    --max-terminal-output-bytes "$max_terminal_output_bytes" \
+    --max-terminal-chunk-bytes "$max_terminal_chunk_bytes"
+  if (CDPATH= cd -- "$repo_root" && "$@"); then
+    controller_status=0
+  else
+    controller_status=$?
+  fi
 else
-  controller_status=$?
+  brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log" "$results_dir/controller.stderr.log" "$@"
+  controller_pid=$BRFID_LAST_PID
+  if wait "$controller_pid"; then
+    controller_status=0
+  else
+    controller_status=$?
+  fi
+  brfid_unregister_pid "$controller_pid"
 fi
-brfid_unregister_pid "$controller_pid"
 brfid_manifest_append process.controller.exit-status "$controller_status"
 if [ "$controller_status" -ne 0 ]; then
-  echo "application-failover controller failed; see $results_dir/controller.stderr.log" >&2
+  if [ "$failover_mode" = terminal ]; then
+    echo "interactive application-failover controller failed; retained result: $results_dir" >&2
+  else
+    echo "application-failover controller failed; see $results_dir/controller.stderr.log" >&2
+  fi
   exit "$controller_status"
 fi
 
-if wait "$receiver_pid"; then
-  receiver_status=0
-else
-  receiver_status=$?
-fi
-brfid_unregister_pid "$receiver_pid"
-brfid_manifest_append process.receiver.exit-status "$receiver_status"
-if [ "$receiver_status" -ne 0 ]; then
-  echo "application-failover NCC receiver failed" >&2
-  exit "$receiver_status"
+if [ "$failover_mode" = formal ]; then
+  if wait "$receiver_pid"; then
+    receiver_status=0
+  else
+    receiver_status=$?
+  fi
+  brfid_unregister_pid "$receiver_pid"
+  brfid_manifest_append process.receiver.exit-status "$receiver_status"
+  if [ "$receiver_status" -ne 0 ]; then
+    echo "application-failover NCC receiver failed" >&2
+    exit "$receiver_status"
+  fi
 fi
 
 kill -TERM "$relay_pid"
@@ -277,19 +331,39 @@ brfid_assert_no_transport_errors \
 brfid_cleanup
 brfid_manifest_append cleanup.outer-runtime passed
 
-"$python_command" "$evaluator" \
-  --topology "$topology" \
-  --receiver "$results_dir/receiver.json" \
-  --relay "$results_dir/application-relay.json" \
-  --cut-state "$cut_state" \
-  --application-evidence "$results_dir/application-evidence.txt" \
-  --message-journey "$results_dir/message-journey.jsonl" \
-  --cleanup-evidence "$results_dir/cleanup-evidence.txt" \
-  --outcome "$results_dir/outcome.txt" \
-  --manifest "$runtime_dir/run.env" \
-  --run-id "$run_id" \
-  --output "$results_dir/verdict.json"
+if [ "$failover_mode" = terminal ]; then
+  "$python_command" "$evaluator" \
+    --profile interactive-terminal \
+    --topology "$topology" \
+    --relay "$results_dir/application-relay.json" \
+    --cut-state "$cut_state" \
+    --application-evidence "$results_dir/application-evidence.txt" \
+    --message-journey "$results_dir/message-journey.jsonl" \
+    --terminal-session "$results_dir/terminal-session.jsonl" \
+    --cleanup-evidence "$results_dir/cleanup-evidence.txt" \
+    --outcome "$results_dir/outcome.txt" \
+    --manifest "$runtime_dir/run.env" \
+    --run-id "$run_id" \
+    --output "$results_dir/verdict.json"
+else
+  "$python_command" "$evaluator" \
+    --topology "$topology" \
+    --receiver "$results_dir/receiver.json" \
+    --relay "$results_dir/application-relay.json" \
+    --cut-state "$cut_state" \
+    --application-evidence "$results_dir/application-evidence.txt" \
+    --message-journey "$results_dir/message-journey.jsonl" \
+    --cleanup-evidence "$results_dir/cleanup-evidence.txt" \
+    --outcome "$results_dir/outcome.txt" \
+    --manifest "$runtime_dir/run.env" \
+    --run-id "$run_id" \
+    --output "$results_dir/verdict.json"
+fi
 brfid_manifest_add_file verdict "$results_dir/verdict.json" "$repo_root/scripts/sha256-file.sh"
 
-echo "PASS: one Network UNIX TELNET session reached ITS before and after the direct application-link cut through IMP 7."
+if [ "$failover_mode" = terminal ]; then
+  echo "PASS: one human-operated Network UNIX TELNET session reached ITS before and after the direct application-link cut through IMP 7."
+else
+  echo "PASS: one Network UNIX TELNET session reached ITS before and after the direct application-link cut through IMP 7."
+fi
 brfid_mark_run_passed

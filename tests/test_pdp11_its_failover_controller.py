@@ -10,6 +10,12 @@ from pathlib import Path
 from ncc.harness_imp import latest_watchdog, wait_for_log_marker
 from ncc.harness_manifest import append_manifest, read_manifest, sha256
 from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
+from ncc.historical_terminal import (
+    BootDisplay,
+    network_unix_prompt_offset,
+    operator_terminal_mode,
+    run_character_terminal,
+)
 from ncc.pdp11_its_harness import (
     application_evidence_failures,
     boot_pdp11,
@@ -51,6 +57,10 @@ class Pdp11ItsFailoverControllerTests(unittest.TestCase):
             "boot_pdp11": boot_pdp11,
             "stop_and_record": stop_and_record,
             "wait_for_prompt": wait_for_prompt,
+            "BootDisplay": BootDisplay,
+            "network_unix_prompt_offset": network_unix_prompt_offset,
+            "operator_terminal_mode": operator_terminal_mode,
+            "run_character_terminal": run_character_terminal,
         }
         self.assertFalse(hasattr(self.controller, "BASE"))
         self.assertFalse(hasattr(self.controller, "SHARED"))
@@ -91,6 +101,77 @@ class Pdp11ItsFailoverControllerTests(unittest.TestCase):
             imp62_alternate_device="mi2",
         )
         self.assertTrue(any("post-cut remote date" in item for item in failures))
+
+    def test_interactive_cut_requires_one_historical_connection_and_time(self) -> None:
+        pdp11 = (
+            b"UNIX User Telnet -- Ver I.5\r\n"
+            b"Connection open\r\n"
+            b"MIT Dynamic Modelling PDP-10\r\n"
+            b"KA ITS.1652. DDT.1549.\r\n"
+            b"TTY 53\r\nWelcome to ITS!\r\n"
+            b"The time is 12:34:56 EDT.\r\n"
+            b"Today is Tuesday, the 1st of September, 2026.\r\n"
+            b"KA ITS 1652 has run for 1:23:45.\r\n"
+        )
+        imp6 = (
+            b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+            b"MI1 MSG: message sent (length=5)\n"
+            b"MI1 MSG: - 000377 003003 000347 000000 174033 \n"
+            b"MI1 MSG: message received (length=5)\n"
+            b"MI1 MSG: - 000000 037001 005000 177777 134201 \n"
+        )
+        imp62 = (
+            b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+            b"MI1 MSG: message received (length=5)\n"
+            b"MI1 MSG: - 000377 003003 000347 000000 174033 \n"
+            b"MI1 MSG: message sent (length=5)\n"
+            b"MI1 MSG: - 000000 037001 005000 177777 134201 \n"
+        )
+        its = b"LOGIN  53TLNT 0 HST176 12:34:55\r\n"
+
+        self.assertEqual(
+            self.controller.interactive_pre_cut_failures(
+                pdp11,
+                its,
+                imp6,
+                imp62,
+                imp6_direct_device="mi1",
+                imp62_direct_device="mi1",
+            ),
+            [],
+        )
+        failures = self.controller.interactive_pre_cut_failures(
+            pdp11 + b"Connection open\r\n",
+            its,
+            imp6,
+            imp62,
+            imp6_direct_device="mi1",
+            imp62_direct_device="mi1",
+        )
+        self.assertTrue(any("exactly one" in item for item in failures))
+
+    def test_interactive_post_cut_refuses_a_reconnected_session(self) -> None:
+        post = (
+            b"The time is 12:34:56 EDT.\r\n"
+            b"Today is Tuesday, the 1st of September, 2026.\r\n"
+            b"KA ITS 1652 has run for 1:23:45.\r\n"
+        )
+        imp6 = b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+        imp62 = b"HI2 MSG: message received\nHI2 MSG: message sent\n"
+
+        failures = self.controller.interactive_post_cut_failures(
+            b"Connection open\r\nConnection open\r\n" + post,
+            post,
+            imp6,
+            b"",
+            imp62,
+            imp6_alternate_device="mi2",
+            imp7_in_device="mi3",
+            imp7_out_device="mi2",
+            imp62_alternate_device="mi2",
+        )
+
+        self.assertTrue(any("exactly one" in item for item in failures))
 
     def test_network_unix_readiness_waits_for_guest_consumed_rrp(self) -> None:
         class FakeGuest:

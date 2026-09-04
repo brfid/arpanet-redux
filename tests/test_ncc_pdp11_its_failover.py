@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 EVALUATOR_PATH = ROOT / "scripts" / "ncc-evaluate-pdp11-its-failover.py"
@@ -122,6 +123,35 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
         self.assertIn('--cut-state "$cut_state"', source)
         self.assertIn('--imp7-debug "$results_dir/imp7.debug.log"', source)
         self.assertIn("ncc-evaluate-pdp11-its-failover.py", source)
+        self.assertIn('failover_mode=${BRFID_FAILOVER_MODE:-formal}', source)
+        self.assertIn("--profile interactive-terminal", source)
+        self.assertIn(
+            '--terminal-session "$results_dir/terminal-session.jsonl"',
+            source,
+        )
+
+    def test_interactive_profile_closes_over_terminal_cut_and_route_evidence(self) -> None:
+        result = self.evaluate_interactive()
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["kind"], "pdp11-its-interactive-failover-verdict")
+        self.assertTrue(result["checks"]["terminal-owned-cut"])
+        self.assertNotIn("ncc-reports-after-cut-from-all-imps", result["checks"])
+
+    def test_interactive_profile_rejects_repeated_cut_or_reconnect_semantics(self) -> None:
+        terminal = self.terminal()
+        terminal.controls = (("application-link-cut-requested", 2),)
+        application = self.interactive_application()
+        application["session_survived_cut"] = "0"
+
+        result = self.evaluate_interactive(
+            terminal=terminal,
+            application=application,
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["terminal-owned-cut"])
+        self.assertFalse(result["checks"]["same-session-post-cut-time"])
 
     def evaluate(
         self,
@@ -163,6 +193,76 @@ class ApplicationFailoverEvaluatorTests(unittest.TestCase):
                 "journey_run_id": "failover-run",
             },
         )
+
+    def evaluate_interactive(
+        self,
+        *,
+        terminal: SimpleNamespace | None = None,
+        application: dict[str, str] | None = None,
+    ):
+        manifest = self.manifest()
+        manifest.update(
+            {
+                "repository.revision": "1" * 40,
+                "sha256.terminal-session": "a" * 64,
+                "interactive.failover-mode": "terminal",
+                "terminal.application-link-cut": "control-caret",
+                "application.session-mode": "interactive-failover",
+                "application.session-survived-cut": "1",
+            }
+        )
+        return self.evaluator.evaluate_interactive(
+            relay={
+                "cut_mode": "request-file",
+                "fault_started_at": "2026-09-01T12:01:00Z",
+                "directions": {
+                    "a-to-b": {"forwarded": 10, "dropped": 20},
+                    "b-to-a": {"forwarded": 11, "dropped": 21},
+                },
+                "unexpected_sources": [],
+            },
+            cut_state={
+                "state": "cut",
+                "fault_started_at": "2026-09-01T12:01:00Z",
+            },
+            application=application or self.interactive_application(),
+            journey=self.journey(),
+            cleanup={"surviving_owned_processes": "0"},
+            outcome="passed",
+            manifest=manifest,
+            terminal=terminal or self.terminal(),
+            identities={
+                "topology_id": "topology:ncc-pdp11-its-application-failover",
+                "run_id": "failover-run",
+                "journey_run_id": "failover-run",
+                "terminal_run_id": "failover-run",
+                "terminal_revision": "1" * 40,
+                "terminal_digest": "a" * 64,
+            },
+        )
+
+    @staticmethod
+    def terminal() -> SimpleNamespace:
+        return SimpleNamespace(
+            is_terminal=True,
+            end_reason="operator-exit",
+            has_incomplete_final_record=False,
+            controls=(("application-link-cut-requested", 1),),
+            header={"schema_version": 2},
+        )
+
+    @staticmethod
+    def interactive_application() -> dict[str, str]:
+        return {
+            "connection_open": "1",
+            "session_mode": "interactive-failover",
+            "terminal_profile": "seven-bit-safe-teletype",
+            "operator_cut_control": "control-caret",
+            "pre_cut_remote_time": "structured",
+            "cut_acknowledged": "1",
+            "session_survived_cut": "1",
+            "post_cut_remote_time": "structured",
+        }
 
     @staticmethod
     def receiver() -> dict[str, object]:

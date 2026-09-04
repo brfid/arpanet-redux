@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -21,6 +22,7 @@ from ncc.pdp11_its_failover_journey import (
     PDP11_ITS_FAILOVER_ROUTE_ID,
 )
 from ncc.shared_topology import load_shared_topology
+from ncc.terminal_session import read_terminal_session_stream
 
 EXPECTED_TOPOLOGY_ID = "topology:ncc-pdp11-its-application-failover"
 _LINE_SUBJECT = re.compile(r"imp:([1-9][0-9]*):line:([1-5])\Z")
@@ -28,12 +30,18 @@ _LINE_SUBJECT = re.compile(r"imp:([1-9][0-9]*):line:([1-5])\Z")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile",
+        choices=("formal-ncc", "interactive-terminal"),
+        default="formal-ncc",
+    )
     parser.add_argument("--topology", required=True, type=Path)
-    parser.add_argument("--receiver", required=True, type=Path)
+    parser.add_argument("--receiver", type=Path)
     parser.add_argument("--relay", required=True, type=Path)
     parser.add_argument("--cut-state", required=True, type=Path)
     parser.add_argument("--application-evidence", required=True, type=Path)
     parser.add_argument("--message-journey", required=True, type=Path)
+    parser.add_argument("--terminal-session", type=Path)
     parser.add_argument("--cleanup-evidence", required=True, type=Path)
     parser.add_argument("--outcome", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
@@ -288,10 +296,116 @@ def evaluate(
     }
 
 
+def evaluate_interactive(
+    *,
+    relay: Mapping[str, Any],
+    cut_state: Mapping[str, Any],
+    application: Mapping[str, str],
+    journey: Mapping[str, Any],
+    cleanup: Mapping[str, str],
+    outcome: str,
+    manifest: Mapping[str, str],
+    terminal: Any,
+    identities: Mapping[str, str],
+) -> dict[str, Any]:
+    """Evaluate the terminal-owned subset without claiming NCC report evidence."""
+
+    if relay.get("cut_mode") != "request-file":
+        raise ValueError("interactive failover requires the request-file relay mode")
+    fault_started_at = relay.get("fault_started_at")
+    if (
+        cut_state.get("state") != "cut"
+        or cut_state.get("fault_started_at") != fault_started_at
+    ):
+        raise ValueError("relay result and atomic cut acknowledgement disagree")
+    timestamp(fault_started_at, "relay.fault_started_at")
+    unexpected = relay.get("unexpected_sources")
+    if not isinstance(unexpected, list):
+        raise TypeError("relay.unexpected_sources must be a list")
+    cut_controls = sum(
+        count
+        for control, count in terminal.controls
+        if control == "application-link-cut-requested"
+    )
+    clean_keys = (
+        "repository.tracked_dirty",
+        "source.arpanet-in-a-box.tracked_dirty",
+        "source.network-unix-v6.tracked_dirty",
+        "source.h316-simh.tracked_dirty",
+        "source.ka10-simh.tracked_dirty",
+        "source.imp11a-simh.tracked_dirty",
+    )
+    checks = {
+        "identity-chain": (
+            identities.get("topology_id") == EXPECTED_TOPOLOGY_ID
+            and identities.get("run_id") == identities.get("journey_run_id")
+            and identities.get("run_id") == identities.get("terminal_run_id")
+            and identities.get("terminal_revision")
+            == manifest.get("repository.revision")
+            and identities.get("terminal_digest")
+            == manifest.get("sha256.terminal-session")
+        ),
+        "terminal-owned-cut": (
+            terminal.is_terminal
+            and terminal.end_reason in {"operator-exit", "input-eof"}
+            and not terminal.has_incomplete_final_record
+            and terminal.header.get("schema_version") == 2
+            and cut_controls == 1
+        ),
+        "relay-forwarded-before-cut": all(
+            _direction_count(relay, direction, "forwarded") > 0
+            for direction in ("a-to-b", "b-to-a")
+        ),
+        "relay-dropped-after-cut": all(
+            _direction_count(relay, direction, "dropped") > 0
+            for direction in ("a-to-b", "b-to-a")
+        ),
+        "relay-no-unexpected-source": not unexpected,
+        "same-session-post-cut-time": (
+            application.get("connection_open") == "1"
+            and application.get("session_mode") == "interactive-failover"
+            and application.get("terminal_profile") == "seven-bit-safe-teletype"
+            and application.get("operator_cut_control") == "control-caret"
+            and application.get("pre_cut_remote_time") == "structured"
+            and application.get("cut_acknowledged") == "1"
+            and application.get("session_survived_cut") == "1"
+            and application.get("post_cut_remote_time") == "structured"
+        ),
+        "network-unix-host-ready-before-open": manifest.get(
+            "application.network-unix-host106-ready"
+        )
+        == "host-host-rrp-consumed",
+        "typed-alternate-journey": (
+            journey.get("journey_id") == PDP11_ITS_FAILOVER_JOURNEY_ID
+            and journey.get("route_id") == PDP11_ITS_FAILOVER_ROUTE_ID
+            and journey.get("observation_count") == 14
+            and journey.get("state") == "missing-boundary"
+            and journey.get("first_boundary") == "boundary:request:8"
+        ),
+        "clean-owned-processes": cleanup.get("surviving_owned_processes") == "0",
+        "clean-pinned-inputs": all(manifest.get(key) == "0" for key in clean_keys),
+        "application-outcome-passed": outcome == "passed",
+        "outer-runtime-cleanup": manifest.get("cleanup.outer-runtime") == "passed",
+        "declared-interactive-profile": (
+            manifest.get("interactive.failover-mode") == "terminal"
+            and manifest.get("terminal.application-link-cut") == "control-caret"
+            and manifest.get("application.session-mode") == "interactive-failover"
+            and manifest.get("application.session-survived-cut") == "1"
+        ),
+    }
+    return {
+        "version": 1,
+        "kind": "pdp11-its-interactive-failover-verdict",
+        "passed": all(checks.values()),
+        "checks": checks,
+        "fault_started_at": fault_started_at,
+        "journey": dict(journey),
+    }
+
+
 def main() -> int:
     args = parse_args()
     topology = load_shared_topology(args.topology)
-    receiver = json.loads(args.receiver.read_text(encoding="utf-8"))
     relay = json.loads(args.relay.read_text(encoding="utf-8"))
     cut_state = json.loads(args.cut_state.read_text(encoding="utf-8"))
     application = key_values(args.application_evidence)
@@ -308,22 +422,55 @@ def main() -> int:
         "state": stream.diagnosis.state.value,
         "first_boundary": stream.diagnosis.first_boundary_id,
     }
-    result = evaluate(
-        receiver=receiver,
-        relay=relay,
-        cut_state=cut_state,
-        application=application,
-        journey=journey,
-        cleanup=cleanup,
-        outcome=outcome,
-        manifest=manifest,
-        identities={
-            "topology_id": topology.id,
-            "receiver_topology_id": str(receiver.get("topology_id", "")),
-            "run_id": args.run_id,
-            "journey_run_id": stream.run_id,
-        },
-    )
+    if args.profile == "interactive-terminal":
+        if args.terminal_session is None:
+            raise ValueError("interactive-terminal profile requires --terminal-session")
+        terminal = read_terminal_session_stream(args.terminal_session)
+        terminal_run = terminal.header.get("run")
+        if not isinstance(terminal_run, Mapping):
+            raise ValueError("terminal session lacks run identity")
+        result = evaluate_interactive(
+            relay=relay,
+            cut_state=cut_state,
+            application=application,
+            journey=journey,
+            cleanup=cleanup,
+            outcome=outcome,
+            manifest=manifest,
+            terminal=terminal,
+            identities={
+                "topology_id": topology.id,
+                "run_id": args.run_id,
+                "journey_run_id": stream.run_id,
+                "terminal_run_id": str(terminal_run.get("id", "")),
+                "terminal_revision": str(
+                    terminal_run.get("repository_revision", "")
+                ),
+                "terminal_digest": hashlib.sha256(
+                    args.terminal_session.read_bytes()
+                ).hexdigest(),
+            },
+        )
+    else:
+        if args.receiver is None:
+            raise ValueError("formal-ncc profile requires --receiver")
+        receiver = json.loads(args.receiver.read_text(encoding="utf-8"))
+        result = evaluate(
+            receiver=receiver,
+            relay=relay,
+            cut_state=cut_state,
+            application=application,
+            journey=journey,
+            cleanup=cleanup,
+            outcome=outcome,
+            manifest=manifest,
+            identities={
+                "topology_id": topology.id,
+                "receiver_topology_id": str(receiver.get("topology_id", "")),
+                "run_id": args.run_id,
+                "journey_run_id": stream.run_id,
+            },
+        )
     args.output.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

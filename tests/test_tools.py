@@ -337,6 +337,25 @@ printf '%s\n' \\
         self.assertIn('BRFID_TELNET_MAX_INPUT_BYTES="2048"', operated.stdout)
         self.assertIn("pdp11-its-terminal-interactive-demo", operated.stdout)
 
+        failover = run(
+            "make",
+            "-n",
+            "RUN_ID=interactive-demo",
+            "PDP11_BUILD_ROOT=/tmp/pdp11-build",
+            "TELNET_FAILOVER_RELAY_DURATION=901",
+            "TELNET_MAX_INPUT_BYTES=2048",
+            "telnet-failover",
+            cwd=ROOT,
+        )
+        self.assertEqual(failover.returncode, 0, failover.stderr)
+        self.assertIn("verify-ncc-pdp11-its-failover", failover.stdout)
+        self.assertIn("ARPANET REDUX // INTERACTIVE NETWORK FAILOVER", failover.stdout)
+        self.assertIn("scripts/smoke-ncc-pdp11-its-failover.sh", failover.stdout)
+        self.assertIn("BRFID_FAILOVER_MODE=terminal", failover.stdout)
+        self.assertIn('BRFID_APPLICATION_RELAY_DURATION="901"', failover.stdout)
+        self.assertIn('BRFID_TELNET_MAX_INPUT_BYTES="2048"', failover.stdout)
+        self.assertIn("pdp11-its-interactive-failover-interactive-demo", failover.stdout)
+
         checked = run(
             "make",
             "-n",

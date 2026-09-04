@@ -39,6 +39,7 @@ NCC_LOOPBACK_DURATION ?= 130
 NCC_PDP11_ITS_DURATION ?= 150
 NCC_PDP11_ITS_FAILOVER_DURATION ?= 300
 NCC_APPLICATION_RELAY_DURATION ?= 420
+TELNET_FAILOVER_RELAY_DURATION ?= 3600
 NCC_DIRECT_FORWARD_SECONDS ?= 45
 NCC_LAB_ROOT ?= $(LAB_ROOT)
 NCC_SELECTED_RESULT := $(shell "$(PYTHON)" "$(REPOSITORY_ROOT)/scripts/lab-state.py" resolve "$(NCC_LAB_ROOT)" ncc-coexistence --results-root "$(RESULTS_ROOT)" 2>/dev/null)
@@ -59,7 +60,7 @@ TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/
 
 .NOTPARALLEL:
 
-.PHONY: help lab-setup lab-setup-plan doctor prune-media install-pdp11-base select-pdp11-build select-ncc-result select-ncc-failover-result check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
+.PHONY: help lab-setup lab-setup-plan doctor prune-media install-pdp11-base select-pdp11-build select-ncc-result select-ncc-failover-result check-source-only check-source-history test test-simh-env verify-assets verify-sources verify-binaries verify-ncp-source verify-pdp11-source build-ncp build-its build-pdp11-telnet verify verify-router verify-mixed verify-two-its verify-pdp11-its verify-ncc-alternate-path verify-ncc-line-loopback verify-ncc-pdp11-its verify-ncc-pdp11-its-failover smoke-router smoke-mixed smoke-two-its smoke-pdp11-its smoke-ncc-alternate-path smoke-ncc-line-loopback smoke-ncc-pdp11-its smoke-ncc-pdp11-its-failover telnet telnet-failover telnet-check ncc ncc-failover run-ncc watch-ncc view-ncc view-ncc-failover
 
 help:
 	@printf 'ARPANET Redux\n\n'
@@ -74,6 +75,7 @@ help:
 	@printf '  make prune-media       preview removable staged media (never deletes)\n\n'
 	@printf 'Start:\n'
 	@printf '  make telnet            foreground historical Network UNIX terminal\n'
+	@printf '  make telnet-failover   foreground terminal with a controller-owned link cut\n'
 	@printf '  make ncc               live passive NCC operator console\n'
 	@printf '  make ncc-failover      live console with application-link failover\n\n'
 	@printf 'Replay:\n'
@@ -219,6 +221,18 @@ telnet:
 	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-pdp11-its $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" doctor || true; exit $$status; }
 	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
 	@BRFID_TELNET_MODE=terminal BRFID_TELNET_MAX_INPUT_BYTES="$(TELNET_MAX_INPUT_BYTES)" BRFID_TELNET_MAX_OUTPUT_BYTES="$(TELNET_MAX_OUTPUT_BYTES)" BRFID_TELNET_MAX_CHUNK_BYTES="$(TELNET_MAX_CHUNK_BYTES)" ./scripts/telnet-pdp11-its.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-terminal-$(RUN_ID)"
+
+telnet-failover:
+	@printf '\nARPANET REDUX // INTERACTIVE NETWORK FAILOVER\n'
+	@printf '  [PDP-11] Network UNIX 176\n'
+	@printf '       |\n'
+	@printf '  [H316] IMP 62 === cut === [H316] IMP 6\n'
+	@printf '          \\                 /       |\n'
+	@printf '           +--- [H316] IMP 7 --+  [KA10] ITS 106 / TELSER\n\n'
+	@printf '  [preflight] verifying the accepted failover topology and pinned inputs ...\n'
+	@$(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" verify-ncc-pdp11-its-failover $(TELNET_PREFLIGHT_REDIRECT) || { status=$$?; printf '\n  [preflight] not ready; running the laboratory doctor ...\n\n' >&2; $(MAKE) -s --no-print-directory PDP11_BUILD_ROOT="$(PDP11_INTERACTIVE_BUILD_ROOT)" doctor || true; exit $$status; }
+	@printf '  [preflight] ready; detailed simulator output will stay in the retained result\n\n'
+	@BRFID_FAILOVER_MODE=terminal BRFID_APPLICATION_RELAY_DURATION="$(TELNET_FAILOVER_RELAY_DURATION)" BRFID_TELNET_MAX_INPUT_BYTES="$(TELNET_MAX_INPUT_BYTES)" BRFID_TELNET_MAX_OUTPUT_BYTES="$(TELNET_MAX_OUTPUT_BYTES)" BRFID_TELNET_MAX_CHUNK_BYTES="$(TELNET_MAX_CHUNK_BYTES)" PYTHON="$(PYTHON)" ./scripts/smoke-ncc-pdp11-its-failover.sh "$(ARPANET_ROOT)" "$(NETWORK_UNIX_ROOT)" "$(IMP11A_ROOT)" "$(H316_BIN)" "$(PDP10_KA_BIN)" "$(PDP11_BIN)" "$(PDP11_INTERACTIVE_BUILD_ROOT)" "$(RESULTS_ROOT)/pdp11-its-interactive-failover-$(RUN_ID)"
 
 telnet-check:
 	@printf '\nARPANET REDUX // PROMPT-FRAMED TELNET CHECK\n'

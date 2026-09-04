@@ -163,6 +163,16 @@ The controller owns standard input and every simulator PTY but does not parse or
 
 Each run retains and reads back a strict `terminal-session.jsonl` with exact directional bytes, local safety decisions, cumulative digests, finite limits, and terminal reason. A run that exits before connecting remains a valid terminal lifecycle but records `connection_open=0` and makes no application claim. When a connection opens, the controller requires the no-argument historical client interface, ordered ITS greeting, TELSER job, correlated traffic through both IMPs, stable selected links, and cleanup. `TELNET_MAX_INPUT_BYTES`, `TELNET_MAX_OUTPUT_BYTES`, and `TELNET_MAX_CHUNK_BYTES` are diagnostic limit overrides.
 
+To operate the same preserved client across the accepted application-link fault and alternate route, use the separate four-IMP terminal target:
+
+```sh
+make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_root" telnet-failover
+```
+
+Allow roughly five minutes for the larger composition to boot and settle. Invoke `/usr/bin/telnet`, enter `connect - -h 106`, wait for the ITS greeting, enter `:TIME`, and wait for the complete time, date, uptime, and DDT prompt. Press Control-^ once. That byte is a local cut request only in this target and is never sent to Network UNIX. The foreground controller first checks the connected pre-cut transaction, then cuts its run-owned direct relay, waits for the atomic acknowledgement and direct-dead/alternate-ready state, and prints that the IMP 7 route is ready. Enter another `:TIME`, wait for its complete response, and press Control-] to validate and clean up. Do not type during the controller's cut-and-settle interval.
+
+The cut is refused without changing the relay if the first connection and structured `:TIME` are not yet evidenced. The target passes only with exactly one `Connection open`, one accepted cut, a structured `:TIME` on each side of the cut, bidirectional relay and IMP evidence, the ten-observation direct journey, the fourteen-observation alternate journey, clean pinned inputs, and zero surviving owned processes. Its version-2 `terminal-session.jsonl` names both routes and records accepted, refused, or repeated cut controls; its evaluator intentionally makes no NCC-report or report-line claim. `TELNET_FAILOVER_RELAY_DURATION` is a diagnostic upper-bound override, not an acceptance shortcut.
+
 Make uses the explicitly selected receipt-bound build, or discovers the newest directory containing a receipt when no selection exists. The current builder's staged guest source repairs the preserved client's missing `break` after a valid `DONT` negotiation, so the ITS greeting is no longer interrupted by the false `Possible protocol error! command = 376, option = 3.` diagnostic. Explicit older builds remain valid historical evidence and may still print that nonfatal message.
 
 The deterministic line-oriented proof remains separately available:
@@ -173,7 +183,7 @@ make LAB_ROOT="$lab" RUN_ID=UNIQUE-RUN-ID PDP11_INTERACTIVE_BUILD_ROOT="$build_r
 
 `make telnet-check` automatically invokes `/usr/bin/telnet - -h 106`, presents the synthetic local `its>` line prompt after connection, and retains the strict ADR-014 `interactive-telnet.jsonl` command/result stream. Enter a prompt-returning command such as `:TIME`; use `/help` for local instructions and `/quit` after at least one command completes. `TELNET_COMMAND_TIMEOUT`, `TELNET_MAX_COMMAND_BYTES`, `TELNET_MAX_COMMANDS`, and `TELNET_MAX_RESPONSE_BYTES` apply only to this deterministic mode.
 
-A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media); the successful build is selected automatically. Pass another directory as `PDP11_INTERACTIVE_BUILD_ROOT` for a one-off run. Human mode supports character-at-a-time seven-bit teletype interaction and asynchronous output, but it does not yet claim a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The session emits no message journey, claims no unresolved guest-ingress grammar, and gives the browser no input or simulator authority.
+A new laboratory must first create a verified PDP-11 build as described under [build guest media](#build-guest-media); the successful build is selected automatically. Pass another directory as `PDP11_INTERACTIVE_BUILD_ROOT` for a one-off run. Both human modes support character-at-a-time seven-bit teletype interaction and asynchronous output, but neither claims a cursor-addressed terminal type or safe behavior for full-screen and paged ITS programs. The direct session emits no message journey; the failover session reuses only the already accepted direct and alternate journey grammars. Neither claims a new guest-ingress grammar or gives the browser input or simulator authority.
 
 ## Run the NCC operator console
 
@@ -208,6 +218,7 @@ Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manif
 | `pdp11-its-telnet-` | Application and cleanup evidence, receipt binding, and `message-journey.jsonl` |
 | `pdp11-its-interactive-` | Application and cleanup evidence plus the strict `interactive-telnet.jsonl` command/result stream |
 | `pdp11-its-terminal-` | Historical terminal lifecycle, application evidence when observed, and exact `terminal-session.jsonl` directional bytes |
+| `pdp11-its-interactive-failover-` | Version-2 directional terminal stream, relay and cut acknowledgement, direct and alternate journeys, application evidence, and interactive verdict |
 | `ncc-alternate-path-fault-` | `receiver.json`, `historical-events.jsonl`, `direct-relay.json`, and `verdict.json` |
 | `ncc-line-loopback-` | `receiver.json`, `historical-events.jsonl`, `direct-reflector.json`, and `verdict.json` |
 | `ncc-pdp11-its-coexistence-` | PDP-11 application artifacts plus NCC receiver, historical events, and composition verdict |

@@ -14,6 +14,7 @@ from typing import Any, Mapping
 
 
 TERMINAL_SESSION_SCHEMA_VERSION = 1
+TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION = 2
 TERMINAL_SESSION_KIND = "historical-terminal-session"
 TERMINAL_SESSION_RECORD_ORDER = "controller-sequence"
 DEFAULT_MAX_INPUT_BYTES = 1024 * 1024
@@ -25,6 +26,11 @@ _ABSOLUTE_MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 _ABSOLUTE_MAX_CHUNK_BYTES = 65536
 _DIRECTIONS = {"operator-to-pdp11", "pdp11-to-operator"}
 _CONTROLS = {"blocked-simulator-wru", "rejected-non-seven-bit"}
+_FAILOVER_CONTROLS = _CONTROLS | {
+    "application-link-cut-requested",
+    "application-link-cut-not-ready",
+    "application-link-cut-already-requested",
+}
 _END_REASONS = {
     "operator-exit",
     "input-eof",
@@ -74,6 +80,7 @@ class TerminalSessionRecorder:
         max_input_bytes: int = DEFAULT_MAX_INPUT_BYTES,
         max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
         max_chunk_bytes: int = DEFAULT_MAX_CHUNK_BYTES,
+        failover: bool = False,
     ) -> None:
         self.path = Path(path)
         self.max_input_bytes = _bounded_positive_integer(
@@ -95,44 +102,17 @@ class TerminalSessionRecorder:
             raise TerminalSessionStreamError(
                 "terminal max_chunk_bytes exceeds both directional limits"
             )
-        header = {
-            "schema_version": TERMINAL_SESSION_SCHEMA_VERSION,
-            "kind": TERMINAL_SESSION_KIND,
-            "record_order": TERMINAL_SESSION_RECORD_ORDER,
-            "record_type": "session-start",
-            "sequence": 0,
-            "run": {
-                "id": run_id,
-                "started_at": started_at,
-                "repository_revision": repository_revision,
-            },
-            "available_route": {
-                "client_id": "host:176",
-                "server_id": "host:106",
-                "route_id": "route:host176-to-host106",
-            },
-            "ownership": {
-                "controller": "pdp11-its-interactive-controller",
-                "input_source": "operator-terminal",
-                "response_source": "pdp11-console",
-            },
-            "terminal": {
-                "mode": "character-oriented",
-                "profile": "seven-bit-safe-teletype",
-                "local_exit": "control-right-bracket",
-                "simulator_wru": "control-backslash-blocked",
-                "line_feed_input": "carriage-return",
-                "delete_input": "backspace",
-                "high_bit_input": "rejected",
-                "unsafe_output_controls": "escaped-hex",
-            },
-            "limits": {
-                "max_input_bytes": self.max_input_bytes,
-                "max_output_bytes": self.max_output_bytes,
-                "max_chunk_bytes": self.max_chunk_bytes,
-            },
-        }
+        header = _start_record(
+            run_id=run_id,
+            started_at=started_at,
+            repository_revision=repository_revision,
+            max_input_bytes=self.max_input_bytes,
+            max_output_bytes=self.max_output_bytes,
+            max_chunk_bytes=self.max_chunk_bytes,
+            failover=failover,
+        )
         self._header = _parse_header(header)
+        self._schema_version = int(self._header["schema_version"])
         self._next_sequence = 1
         self._input_bytes = 0
         self._output_bytes = 0
@@ -173,7 +153,7 @@ class TerminalSessionRecorder:
         """Record a controller-owned input decision that sent no guest byte."""
 
         self._ensure_writable()
-        if control not in _CONTROLS:
+        if control not in _controls_for_schema(self._schema_version):
             raise TerminalSessionStreamError(
                 f"terminal-session stream has unknown local control {control!r}"
             )
@@ -185,7 +165,11 @@ class TerminalSessionRecorder:
             "control": control,
             "count": count,
         }
-        _parse_control(record, self._next_sequence)
+        _parse_control(
+            record,
+            self._next_sequence,
+            schema_version=self._schema_version,
+        )
         self._write(record)
         self._next_sequence += 1
         self._control_records += 1
@@ -299,6 +283,7 @@ def read_terminal_session_stream(path: str | Path) -> TerminalSession:
             ) from error
 
     header = _parse_header(records[0])
+    schema_version = int(header["schema_version"])
     limits = _mapping(header["limits"], "terminal session-start.limits")
     max_input_bytes = int(limits["max_input_bytes"])
     max_output_bytes = int(limits["max_output_bytes"])
@@ -326,7 +311,11 @@ def read_terminal_session_stream(path: str | Path) -> TerminalSession:
                 )
             data_records += 1
         elif record_type == "local-control":
-            parsed = _parse_control(record, expected_sequence)
+            parsed = _parse_control(
+                record,
+                expected_sequence,
+                schema_version=schema_version,
+            )
             controls.append((str(parsed["control"]), int(parsed["count"])))
         elif record_type == "session-end":
             terminal = _parse_end(
@@ -356,8 +345,86 @@ def read_terminal_session_stream(path: str | Path) -> TerminalSession:
     )
 
 
+def _start_record(
+    *,
+    run_id: str,
+    started_at: str,
+    repository_revision: str,
+    max_input_bytes: int,
+    max_output_bytes: int,
+    max_chunk_bytes: int,
+    failover: bool,
+) -> dict[str, Any]:
+    header: dict[str, Any] = {
+        "schema_version": (
+            TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION
+            if failover
+            else TERMINAL_SESSION_SCHEMA_VERSION
+        ),
+        "kind": TERMINAL_SESSION_KIND,
+        "record_order": TERMINAL_SESSION_RECORD_ORDER,
+        "record_type": "session-start",
+        "sequence": 0,
+        "run": {
+            "id": run_id,
+            "started_at": started_at,
+            "repository_revision": repository_revision,
+        },
+        "ownership": {
+            "controller": (
+                "pdp11-its-failover-controller"
+                if failover
+                else "pdp11-its-interactive-controller"
+            ),
+            "input_source": "operator-terminal",
+            "response_source": "pdp11-console",
+        },
+        "terminal": {
+            "mode": "character-oriented",
+            "profile": "seven-bit-safe-teletype",
+            "local_exit": "control-right-bracket",
+            "simulator_wru": "control-backslash-blocked",
+            "line_feed_input": "carriage-return",
+            "delete_input": "backspace",
+            "high_bit_input": "rejected",
+            "unsafe_output_controls": "escaped-hex",
+        },
+        "limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_output_bytes": max_output_bytes,
+            "max_chunk_bytes": max_chunk_bytes,
+        },
+    }
+    if failover:
+        header["route_plan"] = {
+            "client_id": "host:176",
+            "server_id": "host:106",
+            "initial_route_id": "route:host176-to-host106",
+            "post_cut_route_id": "route:host176-to-host106-alternate",
+        }
+        header["terminal"]["application_link_cut"] = "control-caret"
+    else:
+        header["available_route"] = {
+            "client_id": "host:176",
+            "server_id": "host:106",
+            "route_id": "route:host176-to-host106",
+        }
+    return header
+
+
 def _parse_header(record: object) -> dict[str, Any]:
     value = _mapping(record, "terminal session-start")
+    schema_version = value.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version not in {
+        TERMINAL_SESSION_SCHEMA_VERSION,
+        TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION,
+    }:
+        raise TerminalSessionStreamError("terminal-session stream has invalid start semantics")
+    route_field = (
+        "route_plan"
+        if schema_version == TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION
+        else "available_route"
+    )
     _fields(
         value,
         "terminal session-start",
@@ -368,16 +435,14 @@ def _parse_header(record: object) -> dict[str, Any]:
             "record_type",
             "sequence",
             "run",
-            "available_route",
+            route_field,
             "ownership",
             "terminal",
             "limits",
         },
     )
     if (
-        isinstance(value["schema_version"], bool)
-        or value["schema_version"] != TERMINAL_SESSION_SCHEMA_VERSION
-        or value["kind"] != TERMINAL_SESSION_KIND
+        value["kind"] != TERMINAL_SESSION_KIND
         or value["record_order"] != TERMINAL_SESSION_RECORD_ORDER
         or value["record_type"] != "session-start"
         or isinstance(value["sequence"], bool)
@@ -397,17 +462,31 @@ def _parse_header(record: object) -> dict[str, Any]:
             "terminal-session repository revision must be a full commit id"
         )
 
-    route = _mapping(value["available_route"], "terminal session-start.available_route")
-    _fields(
-        route,
-        "terminal session-start.available_route",
-        {"client_id", "server_id", "route_id"},
-    )
-    if route != {
-        "client_id": "host:176",
-        "server_id": "host:106",
-        "route_id": "route:host176-to-host106",
-    }:
+    route = _mapping(value[route_field], f"terminal session-start.{route_field}")
+    if schema_version == TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION:
+        _fields(
+            route,
+            "terminal session-start.route_plan",
+            {"client_id", "server_id", "initial_route_id", "post_cut_route_id"},
+        )
+        expected_route = {
+            "client_id": "host:176",
+            "server_id": "host:106",
+            "initial_route_id": "route:host176-to-host106",
+            "post_cut_route_id": "route:host176-to-host106-alternate",
+        }
+    else:
+        _fields(
+            route,
+            "terminal session-start.available_route",
+            {"client_id", "server_id", "route_id"},
+        )
+        expected_route = {
+            "client_id": "host:176",
+            "server_id": "host:106",
+            "route_id": "route:host176-to-host106",
+        }
+    if route != expected_route:
         raise TerminalSessionStreamError("terminal-session stream names an unsupported route")
 
     ownership = _mapping(value["ownership"], "terminal session-start.ownership")
@@ -417,28 +496,18 @@ def _parse_header(record: object) -> dict[str, Any]:
         {"controller", "input_source", "response_source"},
     )
     if ownership != {
-        "controller": "pdp11-its-interactive-controller",
+        "controller": (
+            "pdp11-its-failover-controller"
+            if schema_version == TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION
+            else "pdp11-its-interactive-controller"
+        ),
         "input_source": "operator-terminal",
         "response_source": "pdp11-console",
     }:
         raise TerminalSessionStreamError("terminal-session stream has invalid ownership")
 
     terminal = _mapping(value["terminal"], "terminal session-start.terminal")
-    _fields(
-        terminal,
-        "terminal session-start.terminal",
-        {
-            "mode",
-            "profile",
-            "local_exit",
-            "simulator_wru",
-            "line_feed_input",
-            "delete_input",
-            "high_bit_input",
-            "unsafe_output_controls",
-        },
-    )
-    if terminal != {
+    expected_terminal = {
         "mode": "character-oriented",
         "profile": "seven-bit-safe-teletype",
         "local_exit": "control-right-bracket",
@@ -447,7 +516,15 @@ def _parse_header(record: object) -> dict[str, Any]:
         "delete_input": "backspace",
         "high_bit_input": "rejected",
         "unsafe_output_controls": "escaped-hex",
-    }:
+    }
+    if schema_version == TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION:
+        expected_terminal["application_link_cut"] = "control-caret"
+    _fields(
+        terminal,
+        "terminal session-start.terminal",
+        set(expected_terminal),
+    )
+    if terminal != expected_terminal:
         raise TerminalSessionStreamError("terminal-session stream has invalid terminal profile")
 
     limits = _mapping(value["limits"], "terminal session-start.limits")
@@ -527,7 +604,20 @@ def _parse_bytes(
     return parsed
 
 
-def _parse_control(record: Mapping[str, Any], expected_sequence: int) -> dict[str, Any]:
+def _controls_for_schema(schema_version: int) -> set[str]:
+    if schema_version == TERMINAL_SESSION_SCHEMA_VERSION:
+        return _CONTROLS
+    if schema_version == TERMINAL_SESSION_FAILOVER_SCHEMA_VERSION:
+        return _FAILOVER_CONTROLS
+    raise TerminalSessionStreamError("terminal-session stream has unsupported controls")
+
+
+def _parse_control(
+    record: Mapping[str, Any],
+    expected_sequence: int,
+    *,
+    schema_version: int,
+) -> dict[str, Any]:
     _fields(
         record,
         "terminal local-control record",
@@ -540,7 +630,7 @@ def _parse_control(record: Mapping[str, Any], expected_sequence: int) -> dict[st
     ):
         raise TerminalSessionStreamError("terminal local-control record has invalid ordering")
     _timestamp(record["observed_at"], "terminal local-control observation time")
-    if record["control"] not in _CONTROLS:
+    if record["control"] not in _controls_for_schema(schema_version):
         raise TerminalSessionStreamError("terminal local-control record has an unknown control")
     _bounded_positive_integer(record["count"], "terminal local-control count", 65536)
     return dict(record)

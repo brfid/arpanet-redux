@@ -129,6 +129,42 @@ kill -{name} "$$"
                 self.assertEqual(report["cleanup"]["outer_runtime"], "passed")
                 self.assertFalse((result / "build.lock").exists())
 
+    def test_interruption_allows_controller_cleanup_to_outlast_a_leaf_deadline(self) -> None:
+        completed, result = self.run_script('''
+brfid_start_process controller "$result" "$result/controller.out" "$result/controller.err" "$4" -c '
+import signal, sys, time
+from pathlib import Path
+def stop(*_):
+    time.sleep(6)
+    Path(sys.argv[1]).write_text("delegated cleanup complete\\n")
+    raise SystemExit(1)
+signal.signal(signal.SIGTERM, stop)
+print("ready", flush=True)
+while True: time.sleep(0.1)
+' "$result/controller-finished"
+while [ ! -s "$result/controller.out" ]; do sleep 1; done
+kill -TERM "$$"
+''')
+        self.assertEqual(completed.returncode, 143, completed.stderr)
+        self.assertTrue((result / "controller-finished").exists(), "controller was killed before finishing delegated cleanup")
+        report = self.report(result)
+        self.assertEqual(report["cleanup"]["outer_runtime"], "passed")
+
+    def test_forced_controller_exit_cannot_prove_delegated_cleanup(self) -> None:
+        completed, result = self.run_script('''
+brfid_stop_pid_bounded() { BRFID_STOP_FORCED=1; return 0; }
+BRFID_MANAGED_PIDS=123
+BRFID_CONTROLLER_PID=123
+if brfid_cleanup; then exit 99; fi
+brfid_stop_pid_bounded() { BRFID_STOP_FORCED=0; return 0; }
+brfid_mark_run_passed
+''')
+        self.assertEqual(completed.returncode, 1)
+        report = self.report(result)
+        self.assertEqual(report["cleanup"]["outer_runtime"], "failed")
+        self.assertEqual(report["cleanup"]["runtime_failed_resources"], ["controller-cleanup:123"])
+        self.assertEqual(report["cleanup"]["runtime_attempts"], 2)
+
     def test_numeric_signal_exit_does_not_claim_a_handled_signal(self) -> None:
         completed, result = self.run_script("exit 130\n")
         self.assertEqual(completed.returncode, 130)

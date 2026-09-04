@@ -90,7 +90,7 @@ def scenario_command(args: argparse.Namespace, result: Path) -> list[str]:
     ]
 
 
-def stop_owned_scenario(process: subprocess.Popen[bytes], timeout: float = 45) -> None:
+def stop_owned_scenario(process: subprocess.Popen[bytes], timeout: float = 90) -> None:
     """Stop the exact new-session harness and allow its cleanup trap to finish."""
 
     if process.poll() is not None:

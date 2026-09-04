@@ -5,6 +5,8 @@
 brfid_runtime_init() {
   umask 077
   BRFID_MANAGED_PIDS=
+  BRFID_CONTROLLER_PID=
+  BRFID_CONTROLLER_CLEANUP_LOST=
   BRFID_NCP_CLIENT_PIDS=
   BRFID_SOCKET_NAMES=
   BRFID_SOCKET_DIR=
@@ -84,6 +86,9 @@ brfid_unregister_pid() {
     fi
   done
   BRFID_MANAGED_PIDS=$brfid_remaining_pids
+  if [ "$1" = "${BRFID_CONTROLLER_PID-}" ]; then
+    BRFID_CONTROLLER_PID=
+  fi
   export BRFID_MANAGED_PIDS
 }
 
@@ -131,6 +136,7 @@ brfid_remove_ncp_client_socket() {
 brfid_stop_pid_bounded() {
   brfid_stop_pid=$1
   brfid_stop_limit=${2:-5}
+  BRFID_STOP_FORCED=0
   if ! kill -0 "$brfid_stop_pid" 2>/dev/null; then
     wait "$brfid_stop_pid" 2>/dev/null || true
     return 0
@@ -145,6 +151,7 @@ brfid_stop_pid_bounded() {
     brfid_stop_elapsed=$((brfid_stop_elapsed + 1))
   done
   if kill -0 "$brfid_stop_pid" 2>/dev/null; then
+    BRFID_STOP_FORCED=1
     kill -KILL "$brfid_stop_pid" 2>/dev/null || true
   fi
   wait "$brfid_stop_pid" 2>/dev/null || true
@@ -170,9 +177,15 @@ brfid_start_process() {
   ) >"$brfid_start_stdout" 2>"$brfid_start_stderr" &
   BRFID_LAST_PID=$!
   brfid_register_pid "$BRFID_LAST_PID"
+  if [ "$brfid_start_name" = controller ]; then
+    BRFID_CONTROLLER_PID=$BRFID_LAST_PID
+  fi
   export BRFID_LAST_PID
   if [ -n "${BRFID_RUN_MANIFEST-}" ]; then
     brfid_manifest_append "process.$brfid_start_name.pid" "$BRFID_LAST_PID"
+    if [ "$brfid_start_name" = controller ]; then
+      brfid_manifest_append process.controller.shutdown-grace-seconds 60
+    fi
   fi
   printf '%s_pid=%s\n' "$brfid_start_name" "$BRFID_LAST_PID"
 }
@@ -631,7 +644,16 @@ brfid_cleanup() {
     brfid_remove_ncp_client_socket "$brfid_cleanup_client" || brfid_cleanup_failed "ncp-client-socket:$brfid_cleanup_client"
   done
   for brfid_cleanup_pid in ${BRFID_MANAGED_PIDS-}; do
-    brfid_stop_pid_bounded "$brfid_cleanup_pid" 5 || brfid_cleanup_failed "child:$brfid_cleanup_pid"
+    # Controllers own up to two guests and four IMPs. Their sequential bounded
+    # shutdown can exceed the five-second limit appropriate to a leaf process.
+    brfid_cleanup_grace=5
+    if [ "$brfid_cleanup_pid" = "${BRFID_CONTROLLER_PID-}" ]; then
+      brfid_cleanup_grace=60
+    fi
+    brfid_stop_pid_bounded "$brfid_cleanup_pid" "$brfid_cleanup_grace" || brfid_cleanup_failed "child:$brfid_cleanup_pid"
+    if [ "$brfid_cleanup_pid" = "${BRFID_CONTROLLER_PID-}" ] && [ "${BRFID_STOP_FORCED:-0}" -eq 1 ]; then
+      BRFID_CONTROLLER_CLEANUP_LOST=$brfid_cleanup_pid
+    fi
   done
   if [ -n "${BRFID_PORT_LEASE_PID-}" ]; then
     if brfid_stop_pid_bounded "$BRFID_PORT_LEASE_PID" 3; then
@@ -653,6 +675,11 @@ brfid_cleanup() {
     if ! rmdir "$BRFID_EXCLUSIVE_LEASE_DIR" 2>/dev/null; then
       brfid_cleanup_failed exclusive-lease
     fi
+  fi
+  if [ -n "${BRFID_CONTROLLER_CLEANUP_LOST-}" ]; then
+    # Retrying after the controller disappears cannot recover its ownership.
+    brfid_cleanup_failed "controller-cleanup:$BRFID_CONTROLLER_CLEANUP_LOST"
+    brfid_error "controller required KILL; release of its delegated simulator resources is unknown"
   fi
   if [ "$brfid_cleanup_status" -eq 0 ]; then
     BRFID_CLEANED=1

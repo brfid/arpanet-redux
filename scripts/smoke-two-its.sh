@@ -24,15 +24,13 @@ host176_base="$its_root/out/pdp10-ka"
 
 for required in "$h316_bin" "$pdp10_bin" "$its_build_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh"; do
   if [ ! -e "$required" ]; then
-    echo "missing required asset: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required asset: $required"
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   for source_dir in "$host106_base" "$host176_base"; do
     if [ ! -f "$source_dir/$asset" ]; then
-      echo "missing required ITS media: $source_dir/$asset" >&2
-      exit 66
+      brfid_fail 66 "missing required ITS media: $source_dir/$asset"
     fi
   done
 done
@@ -109,13 +107,12 @@ else
 fi
 brfid_unregister_pid "$controller_pid"
 if [ "$controller_status" -ne 0 ]; then
-  echo "two-ITS controller failed; see $results_dir/controller.stderr.log" >&2
-  exit "$controller_status"
+  brfid_fail "$controller_status" "two-ITS controller failed; see $results_dir/controller.stderr.log"
 fi
 
-grep -Fxq "passed" "$results_dir/outcome.txt"
-grep -Fq "source_sha256=" "$results_dir/sentinel-evidence.txt"
-grep -Fq "recovered_sha256=" "$results_dir/sentinel-evidence.txt"
+brfid_require "Required evidence missing: passed in $results_dir/outcome.txt" grep -Fxq "passed" "$results_dir/outcome.txt"
+brfid_require "Required evidence missing: source_sha256= in $results_dir/sentinel-evidence.txt" grep -Fq "source_sha256=" "$results_dir/sentinel-evidence.txt"
+brfid_require "Required evidence missing: recovered_sha256= in $results_dir/sentinel-evidence.txt" grep -Fq "recovered_sha256=" "$results_dir/sentinel-evidence.txt"
 brfid_assert_no_transport_errors "$results_dir/imp6.console.log" "$results_dir/imp6.debug.log" "$results_dir/imp62.console.log" "$results_dir/imp62.debug.log" "$results_dir/host106.console.log" "$results_dir/host176.console.log"
 brfid_cleanup
 echo "PASS: host 176 used UT and TELSER to exchange a guest-originated payload with ITS host 106 through two recovered IMPs."

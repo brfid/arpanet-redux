@@ -37,21 +37,18 @@ max_terminal_chunk_bytes=${BRFID_TELNET_MAX_CHUNK_BYTES:-4096}
 case $terminal_mode in
   line|terminal) ;;
   *)
-    echo "unsupported interactive TELNET mode: $terminal_mode" >&2
-    exit 64
+    brfid_fail 64 "unsupported interactive TELNET mode: $terminal_mode"
     ;;
 esac
 
 for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01"; do
   if [ ! -f "$required" ]; then
-    echo "missing required interactive TELNET input: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required interactive TELNET input: $required"
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
-    exit 66
+    brfid_fail 66 "missing required ITS media: $host106_base/$asset"
   fi
 done
 
@@ -149,27 +146,26 @@ else
   controller_status=$?
 fi
 if [ "$controller_status" -ne 0 ]; then
-  echo "interactive PDP-11-to-ITS controller failed; retained result: $results_dir" >&2
-  exit "$controller_status"
+  brfid_fail "$controller_status" "interactive PDP-11-to-ITS controller failed; retained result: $results_dir"
 fi
 
-grep -Fxq "passed" "$results_dir/outcome.txt"
+brfid_require "Required evidence missing: passed in $results_dir/outcome.txt" grep -Fxq "passed" "$results_dir/outcome.txt"
 if [ "$terminal_mode" = terminal ]; then
-  grep -Fq "session_mode=character-oriented" "$results_dir/application-evidence.txt"
-  grep -Fq "terminal_profile=seven-bit-safe-teletype" "$results_dir/application-evidence.txt"
-  grep -Fq "simulator_wru_forwarded=0" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: session_mode=character-oriented in $results_dir/application-evidence.txt" grep -Fq "session_mode=character-oriented" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: terminal_profile=seven-bit-safe-teletype in $results_dir/application-evidence.txt" grep -Fq "terminal_profile=seven-bit-safe-teletype" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: simulator_wru_forwarded=0 in $results_dir/application-evidence.txt" grep -Fq "simulator_wru_forwarded=0" "$results_dir/application-evidence.txt"
   transcript_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/terminal-session.jsonl" | awk '{print $1}')
-  grep -Fxq "sha256.terminal-session=$transcript_sha" "$runtime_dir/run.env"
+  brfid_require "Required evidence missing: sha256.terminal-session=$transcript_sha in $runtime_dir/run.env" grep -Fxq "sha256.terminal-session=$transcript_sha" "$runtime_dir/run.env"
 else
-  grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
-  grep -Fq "session_mode=interactive-line-oriented" "$results_dir/application-evidence.txt"
-  grep -Fq "prompt_framing=its-ddt-star" "$results_dir/application-evidence.txt"
-  grep -Eq "interactive_commands_completed=[1-9][0-9]*" "$results_dir/application-evidence.txt"
-  grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: connection_open=1 in $results_dir/application-evidence.txt" grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: session_mode=interactive-line-oriented in $results_dir/application-evidence.txt" grep -Fq "session_mode=interactive-line-oriented" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: prompt_framing=its-ddt-star in $results_dir/application-evidence.txt" grep -Fq "prompt_framing=its-ddt-star" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: interactive_commands_completed=[1-9][0-9]* in $results_dir/application-evidence.txt" grep -Eq "interactive_commands_completed=[1-9][0-9]*" "$results_dir/application-evidence.txt"
+  brfid_require "Required evidence missing: correlated_inter_imp_traffic=both-directions in $results_dir/application-evidence.txt" grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
   transcript_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/interactive-telnet.jsonl" | awk '{print $1}')
-  grep -Fxq "sha256.interactive-telnet=$transcript_sha" "$runtime_dir/run.env"
+  brfid_require "Required evidence missing: sha256.interactive-telnet=$transcript_sha in $runtime_dir/run.env" grep -Fxq "sha256.interactive-telnet=$transcript_sha" "$runtime_dir/run.env"
 fi
-grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"
+brfid_require "Required evidence missing: surviving_owned_processes=0 in $results_dir/cleanup-evidence.txt" grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"
 brfid_assert_no_transport_errors \
   "$results_dir/imp6.console.log" "$results_dir/imp6.debug.log" \
   "$results_dir/imp62.console.log" "$results_dir/imp62.debug.log" \

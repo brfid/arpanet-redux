@@ -31,32 +31,27 @@ max_terminal_chunk_bytes=${BRFID_TELNET_MAX_CHUNK_BYTES:-4096}
 case $failover_mode in
   formal|terminal) ;;
   *)
-    echo "unsupported application-failover mode: $failover_mode" >&2
-    exit 64
+    brfid_fail 64 "unsupported application-failover mode: $failover_mode"
     ;;
 esac
 for setting in "$receiver_duration" "$relay_duration"; do
   case $setting in
     ''|*[!0-9]*)
-      echo "receiver and relay durations must be positive integers" >&2
-      exit 64
+      brfid_fail 64 "receiver and relay durations must be positive integers"
       ;;
   esac
   if [ "$setting" -le 0 ]; then
-    echo "receiver and relay durations must be positive" >&2
-    exit 64
+    brfid_fail 64 "receiver and relay durations must be positive"
   fi
 done
 for setting in "$max_terminal_input_bytes" "$max_terminal_output_bytes" "$max_terminal_chunk_bytes"; do
   case $setting in
     ''|*[!0-9]*)
-      echo "terminal byte limits must be positive integers" >&2
-      exit 64
+      brfid_fail 64 "terminal byte limits must be positive integers"
       ;;
   esac
   if [ "$setting" -le 0 ]; then
-    echo "terminal byte limits must be positive" >&2
-    exit 64
+    brfid_fail 64 "terminal byte limits must be positive"
   fi
 done
 
@@ -78,14 +73,12 @@ evaluator="$repo_root/scripts/ncc-evaluate-pdp11-its-failover.py"
 
 for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01" "$topology" "$imp5_config" "$imp6_config" "$imp7_config" "$imp62_config" "$host106_config" "$pdp11_config" "$receiver" "$relay" "$controller" "$evaluator"; do
   if [ ! -f "$required" ]; then
-    echo "missing required application-failover input: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required application-failover input: $required"
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
-    exit 66
+    brfid_fail 66 "missing required ITS media: $host106_base/$asset"
   fi
 done
 
@@ -287,9 +280,11 @@ fi
 brfid_manifest_append process.controller.exit-status "$controller_status"
 if [ "$controller_status" -ne 0 ]; then
   if [ "$failover_mode" = terminal ]; then
-    echo "interactive application-failover controller failed; retained result: $results_dir" >&2
+    BRFID_FAILURE_REASON="interactive application-failover controller failed; retained result: $results_dir"
+    brfid_error "$BRFID_FAILURE_REASON"
   else
-    echo "application-failover controller failed; see $results_dir/controller.stderr.log" >&2
+    BRFID_FAILURE_REASON="application-failover controller failed; see $results_dir/controller.stderr.log"
+    brfid_error "$BRFID_FAILURE_REASON"
   fi
   exit "$controller_status"
 fi
@@ -303,8 +298,7 @@ if [ "$failover_mode" = formal ]; then
   brfid_unregister_pid "$receiver_pid"
   brfid_manifest_append process.receiver.exit-status "$receiver_status"
   if [ "$receiver_status" -ne 0 ]; then
-    echo "application-failover NCC receiver failed" >&2
-    exit "$receiver_status"
+    brfid_fail "$receiver_status" "application-failover NCC receiver failed"
   fi
 fi
 
@@ -317,8 +311,7 @@ fi
 brfid_unregister_pid "$relay_pid"
 brfid_manifest_append process.application-relay.exit-status "$relay_status"
 if [ "$relay_status" -ne 0 ]; then
-  echo "application-link relay failed" >&2
-  exit "$relay_status"
+  brfid_fail "$relay_status" "application-link relay failed"
 fi
 
 brfid_assert_no_transport_errors \
@@ -332,7 +325,7 @@ brfid_cleanup
 brfid_manifest_append cleanup.outer-runtime passed
 
 if [ "$failover_mode" = terminal ]; then
-  "$python_command" "$evaluator" \
+  brfid_require "Scenario evaluator failed; see $results_dir/verdict.json" "$python_command" "$evaluator" \
     --profile interactive-terminal \
     --topology "$topology" \
     --relay "$results_dir/application-relay.json" \
@@ -346,7 +339,7 @@ if [ "$failover_mode" = terminal ]; then
     --run-id "$run_id" \
     --output "$results_dir/verdict.json"
 else
-  "$python_command" "$evaluator" \
+  brfid_require "Scenario evaluator failed; see $results_dir/verdict.json" "$python_command" "$evaluator" \
     --topology "$topology" \
     --receiver "$results_dir/receiver.json" \
     --relay "$results_dir/application-relay.json" \

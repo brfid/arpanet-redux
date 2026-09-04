@@ -77,19 +77,16 @@ brfid_run_ncc_line_scenario() {
   python_command=${PYTHON:-python3}
   case $receiver_duration in
     ''|*[!0-9]*)
-      echo "BRFID_NCC_RECEIVER_DURATION must be a positive integer" >&2
-      exit 64
+      brfid_fail 64 "BRFID_NCC_RECEIVER_DURATION must be a positive integer"
       ;;
   esac
   case $forward_seconds in
     ''|*[!0-9]*)
-      echo "BRFID_DIRECT_FORWARD_SECONDS must be a positive integer" >&2
-      exit 64
+      brfid_fail 64 "BRFID_DIRECT_FORWARD_SECONDS must be a positive integer"
       ;;
   esac
   if [ "$receiver_duration" -le 0 ] || [ "$forward_seconds" -le 0 ] || [ "$forward_seconds" -ge "$receiver_duration" ]; then
-    echo "the direct forwarding interval must be positive and shorter than the receiver duration" >&2
-    exit 64
+    brfid_fail 64 "the direct forwarding interval must be positive and shorter than the receiver duration"
   fi
   instrument_duration=$((receiver_duration + 20))
 
@@ -105,8 +102,7 @@ brfid_run_ncc_line_scenario() {
     "$BRFID_NCC_LINE_INSTRUMENT" \
     "$BRFID_NCC_LINE_EVALUATOR"; do
     if [ ! -f "$required" ]; then
-      echo "required input is missing: $required" >&2
-      exit 66
+      brfid_fail 66 "required input is missing: $required"
     fi
   done
 
@@ -219,8 +215,7 @@ brfid_run_ncc_line_scenario() {
   brfid_unregister_pid "$receiver_pid"
   brfid_manifest_append process.receiver.exit-status "$receiver_status"
   if [ "$receiver_status" -ne 0 ]; then
-    echo "NCC receiver failed" >&2
-    exit "$receiver_status"
+    brfid_fail "$receiver_status" "NCC receiver failed"
   fi
 
   kill -TERM "$instrument_pid"
@@ -232,8 +227,7 @@ brfid_run_ncc_line_scenario() {
   brfid_unregister_pid "$instrument_pid"
   brfid_manifest_append "process.$BRFID_NCC_LINE_RESULT_STEM.exit-status" "$instrument_status"
   if [ "$instrument_status" -ne 0 ]; then
-    echo "$BRFID_NCC_LINE_INSTRUMENT_FAILURE" >&2
-    exit "$instrument_status"
+    brfid_fail "$instrument_status" "$BRFID_NCC_LINE_INSTRUMENT_FAILURE"
   fi
 
   if "$python_command" "$BRFID_NCC_LINE_EVALUATOR" \
@@ -257,7 +251,8 @@ brfid_run_ncc_line_scenario() {
   brfid_cleanup
   brfid_manifest_append cleanup.completed "$BRFID_CLEANED"
   if [ "$verdict_status" -ne 0 ]; then
-    echo "$BRFID_NCC_LINE_VERDICT_FAILURE" >&2
+    BRFID_FAILURE_REASON=$BRFID_NCC_LINE_VERDICT_FAILURE
+    brfid_error "$BRFID_FAILURE_REASON"
     brfid_finish_run_manifest "$verdict_status"
     trap - 0 1 2 15
     exit "$verdict_status"

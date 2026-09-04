@@ -25,13 +25,11 @@ python_command=${PYTHON:-python3}
 receiver_duration=${BRFID_NCC_RECEIVER_DURATION:-150}
 case $receiver_duration in
   ''|*[!0-9]*)
-    echo "BRFID_NCC_RECEIVER_DURATION must be a positive integer" >&2
-    exit 64
+    brfid_fail 64 "BRFID_NCC_RECEIVER_DURATION must be a positive integer"
     ;;
 esac
 if [ "$receiver_duration" -le 0 ]; then
-  echo "BRFID_NCC_RECEIVER_DURATION must be positive" >&2
-  exit 64
+  brfid_fail 64 "BRFID_NCC_RECEIVER_DURATION must be positive"
 fi
 
 mini_dir="$arpanet_root/mini"
@@ -51,14 +49,12 @@ controller="$repo_root/scripts/pdp11-its-controller.py"
 
 for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01" "$topology" "$imp5_config" "$imp6_config" "$imp7_config" "$imp62_config" "$host106_config" "$pdp11_config" "$receiver" "$evaluator" "$controller"; do
   if [ ! -f "$required" ]; then
-    echo "missing required integrated NCC smoke input: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required integrated NCC smoke input: $required"
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
-    exit 66
+    brfid_fail 66 "missing required ITS media: $host106_base/$asset"
   fi
 done
 
@@ -205,8 +201,7 @@ fi
 brfid_unregister_pid "$controller_pid"
 brfid_manifest_append process.controller.exit-status "$controller_status"
 if [ "$controller_status" -ne 0 ]; then
-  echo "integrated PDP-11-to-ITS controller failed; see $results_dir/controller.stderr.log" >&2
-  exit "$controller_status"
+  brfid_fail "$controller_status" "integrated PDP-11-to-ITS controller failed; see $results_dir/controller.stderr.log"
 fi
 
 if wait "$receiver_pid"; then
@@ -217,8 +212,7 @@ fi
 brfid_unregister_pid "$receiver_pid"
 brfid_manifest_append process.receiver.exit-status "$receiver_status"
 if [ "$receiver_status" -ne 0 ]; then
-  echo "integrated NCC receiver failed; see $results_dir/receiver.stderr.log" >&2
-  exit "$receiver_status"
+  brfid_fail "$receiver_status" "integrated NCC receiver failed; see $results_dir/receiver.stderr.log"
 fi
 
 brfid_assert_no_transport_errors \
@@ -231,7 +225,7 @@ brfid_assert_no_transport_errors \
 brfid_cleanup
 brfid_manifest_append cleanup.outer-runtime passed
 
-"$python_command" "$evaluator" \
+brfid_require "Scenario evaluator failed; see $results_dir/verdict.json" "$python_command" "$evaluator" \
   --topology "$topology" \
   --events "$results_dir/historical-events.jsonl" \
   --receiver "$results_dir/receiver.json" \

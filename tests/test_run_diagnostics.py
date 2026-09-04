@@ -71,6 +71,58 @@ class RunDiagnosticTests(unittest.TestCase):
                 self.assertEqual(report["cleanup"]["outer_runtime"], "not-recorded")
                 self.assertIn("cannot infer the cause", report["next_steps"][0])
 
+    def test_malformed_termination_records_fail_closed(self) -> None:
+        valid = "termination.kind=signal\ntermination.signal=TERM\ntermination.exit-status=143\nfailure.reason=Launcher handled TERM\n"
+        cases = (
+            valid.replace("signal\n", "unknown\n", 1),
+            valid.replace("signal=TERM", "signal=KILL"),
+            valid.replace("exit-status=143", "exit-status=130"),
+            valid.replace("kind=signal", "kind=exit"),
+            valid.replace("termination.signal=TERM\n", ""),
+            valid.replace("failure.reason=Launcher handled TERM\n", ""),
+            valid.replace("Launcher handled TERM", "bad\x1b[2J"),
+            valid.replace("Launcher handled TERM", "a" * 1025),
+        )
+        for extra in cases:
+            with self.subTest(extra=extra):
+                self.manifest("failed", 143, extra=extra)
+                report = diagnose_run(self.root)
+                self.assertEqual(report["status"], "inconsistent")
+                self.assertNotIn("\x1b", render_diagnostic(report))
+        self.manifest("failed", 1, extra=valid)
+        self.assertEqual(diagnose_run(self.root)["status"], "inconsistent")
+        self.manifest(extra=valid)
+        self.assertEqual(diagnose_run(self.root)["status"], "inconsistent")
+
+    def test_incomplete_or_conflicting_runtime_cleanup_cannot_prove_release(self) -> None:
+        valid = "cleanup.runtime.exit-status=0\ncleanup.runtime.attempts=1\ncleanup.runtime.failed-resources=none\n"
+        cases = (
+            valid.replace("exit-status=0", "exit-status=2"),
+            valid.replace("attempts=1", "attempts=0"),
+            valid.replace("cleanup.runtime.attempts=1\n", ""),
+            valid.replace("failed-resources=none", "failed-resources=control-directory"),
+            valid.replace("exit-status=0", "exit-status=1"),
+            valid + "cleanup.outer-runtime=failed\n",
+            valid + "cleanup.completed=0\n",
+        )
+        for extra in cases:
+            with self.subTest(extra=extra):
+                self.manifest("failed", 1, extra=extra)
+                report = diagnose_run(self.root)
+                self.assertEqual(report["status"], "inconsistent")
+                self.assertEqual(report["cleanup"]["outer_runtime"], "inconsistent")
+        self.manifest("failed", 1, extra=valid + "termination.kind=exit\ntermination.exit-status=0\nfailure.reason=cleanup failed\n")
+        self.assertEqual(diagnose_run(self.root)["status"], "inconsistent")
+
+    def test_final_cleanup_can_support_older_scenario_flags(self) -> None:
+        cleanup = "cleanup.runtime.exit-status=0\ncleanup.runtime.attempts=1\ncleanup.runtime.failed-resources=none\n"
+        self.manifest(extra=cleanup + "cleanup.outer-runtime=passed\ncleanup.completed=1\n")
+        report = diagnose_run(self.root)
+        self.assertEqual(report["status"], "recorded-passed")
+        self.assertEqual(report["cleanup"]["outer_runtime"], "passed")
+        self.manifest("failed", 1, extra=cleanup.replace("exit-status=0", "exit-status=1").replace("resources=none", "resources=control-directory") + "cleanup.completed=0\n")
+        self.assertEqual(diagnose_run(self.root)["cleanup"]["outer_runtime"], "failed")
+
     def test_unfinished_run_does_not_claim_running_or_dead(self) -> None:
         self.manifest(None)
         self.write("outcome.txt", "passed\n")

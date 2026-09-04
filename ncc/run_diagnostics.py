@@ -14,6 +14,7 @@ from typing import Any
 _MANIFEST = "runtime/run.env"
 _CLEANUP = "cleanup-evidence.txt"
 _LOGS = (
+    "runtime/launcher.stderr.log",
     "controller.stderr.log",
     "runtime/lease.stderr.log",
     "receiver.stderr.log",
@@ -205,6 +206,42 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
     if runtime_outcome == "passed" and exit_status not in (None, 0):
         reader.issue(_MANIFEST, "runtime records passed with a nonzero exit status")
 
+    termination = {
+        "kind": values.get("termination.kind", "not-recorded"),
+        "signal": values.get("termination.signal"),
+        "exit_status": None,
+        "reason": values.get("failure.reason"),
+        "evidence": [
+            _reference(_MANIFEST, field)
+            for key, field in fields.items()
+            if key.startswith("termination.") or key == "failure.reason"
+        ],
+    }
+    if termination["evidence"]:
+        try:
+            kind = termination["kind"]
+            if kind not in ("exit", "signal"):
+                raise ValueError("missing or unsupported termination.kind")
+            original_status = _integer(values.get("termination.exit-status", ""), 255)
+            termination["exit_status"] = original_status
+            if kind == "signal":
+                expected = {"HUP": 129, "INT": 130, "TERM": 143}.get(termination["signal"])
+                if expected is None or original_status != expected:
+                    raise ValueError("handled signal and launcher exit status disagree")
+            elif termination["signal"] is not None:
+                raise ValueError("exit termination cannot record a handled signal")
+            if original_status and exit_status not in (None, original_status):
+                raise ValueError("terminal exit status did not preserve the launcher failure")
+            reason = termination["reason"]
+            if reason is not None and not re.fullmatch(r"[ -~]{1,1024}", reason):
+                raise ValueError("failure.reason must be bounded printable ASCII")
+            if runtime_outcome == "passed" and (reason or original_status):
+                raise ValueError("runtime records passed with a launcher failure")
+            if runtime_outcome == "failed" and reason is None:
+                raise ValueError("new termination records lack failure.reason")
+        except ValueError as error:
+            reader.issue(_MANIFEST, str(error))
+
     controller_outcome = None
     outcome_data = reader.read("outcome.txt", 1024)
     if outcome_data is not None:
@@ -263,6 +300,36 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
                 outer_cleanup = "inconsistent"
             else:
                 outer_cleanup = completed
+    cleanup_status = None
+    cleanup_attempts = None
+    failed_resources: list[str] = []
+    runtime_cleanup_keys = (
+        "cleanup.runtime.exit-status", "cleanup.runtime.attempts", "cleanup.runtime.failed-resources",
+    )
+    if any(key in values for key in runtime_cleanup_keys):
+        cleanup_evidence.extend(_reference(_MANIFEST, fields[key]) for key in runtime_cleanup_keys if key in fields)
+        try:
+            cleanup_status = _integer(values.get("cleanup.runtime.exit-status", ""), 1)
+            cleanup_attempts = _integer(values.get("cleanup.runtime.attempts", ""))
+            if not cleanup_attempts:
+                raise ValueError("cleanup result has no recorded attempt")
+            resources = values.get("cleanup.runtime.failed-resources", "")
+            if resources != "none":
+                if not re.fullmatch(r"[A-Za-z0-9_:-]+(?: [A-Za-z0-9_:-]+)*", resources):
+                    raise ValueError("invalid cleanup failed-resources record")
+                failed_resources = resources.split(" ")
+            if bool(cleanup_status) != bool(failed_resources):
+                raise ValueError("cleanup status and failed resources disagree")
+            result = "failed" if cleanup_status else "passed"
+            if outer_cleanup not in ("not-recorded", result) and not (result == "failed" and outer_cleanup == "not-completed"):
+                raise ValueError("outer-runtime cleanup records disagree")
+            outer_cleanup = result
+        except ValueError as error:
+            reader.issue(_MANIFEST, str(error))
+            outer_cleanup = "inconsistent"
+    if termination["exit_status"] == 0 and exit_status not in (None, 0):
+        if exit_status != 1 or cleanup_status != 1:
+            reader.issue(_MANIFEST, "changed launcher exit status lacks a cleanup failure")
     if runtime_outcome == "passed" and (survivors or outer_cleanup in ("failed", "not-completed")):
         reader.issue(_MANIFEST, "runtime records passed with failed cleanup evidence")
 
@@ -298,7 +365,11 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
     elif state == "unfinished":
         next_steps.append("Check the terminal that launched this run. Missing final records do not establish whether it is still running or was interrupted.")
     elif state == "recorded-failed":
-        if controller_outcome == "passed":
+        if termination["signal"]:
+            next_steps.append("The launcher recorded a handled signal. Review the cleanup results before starting a new run.")
+        elif termination["reason"]:
+            next_steps.append("Review the retained failure reason and diagnostic output below; preserve this result when retrying.")
+        elif controller_outcome == "passed":
             next_steps.append("The controller passed before the outer runtime failed; inspect the launch terminal and later validation or cleanup diagnostics.")
         elif logs:
             next_steps.append("Inspect the diagnostic output below and the named files for the recorded failure details.")
@@ -343,12 +414,16 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
             "controller": controller_outcome,
             "exit_status": exit_status,
         },
+        "termination": termination,
         "last_recorded_checkpoint": checkpoints[-1] if checkpoints else None,
         "checkpoints": checkpoints,
         "cleanup": {
             "controller": controller_cleanup,
             "surviving_owned_processes": survivors,
             "outer_runtime": outer_cleanup,
+            "runtime_exit_status": cleanup_status,
+            "runtime_attempts": cleanup_attempts,
+            "runtime_failed_resources": failed_resources,
             "evidence": cleanup_evidence,
         },
         "diagnostic_output": logs,
@@ -390,6 +465,13 @@ def render_diagnostic(report: dict[str, Any]) -> str:
         "",
     ]
     checkpoint = report["last_recorded_checkpoint"]
+    termination = report["termination"]
+    if termination["kind"] != "not-recorded":
+        lines.append(f"Launcher termination: {_safe(termination['kind'])}; original exit status: {_safe(termination['exit_status'])}")
+    if termination["signal"]:
+        lines.append(f"Handled signal: {_safe(termination['signal'])}")
+    if termination["reason"]:
+        lines.append(f"Recorded failure reason: {_safe(termination['reason'])}")
     if checkpoint:
         lines.extend([
             f"Last recorded checkpoint: {_safe(checkpoint['label'])}",
@@ -401,6 +483,8 @@ def render_diagnostic(report: dict[str, Any]) -> str:
         f"Controller cleanup: {labels[cleanup['controller']]}; recorded survivors: {_safe(cleanup['surviving_owned_processes'])}",
         f"Outer-runtime cleanup: {_safe(labels.get(cleanup['outer_runtime'], cleanup['outer_runtime']))}",
     ])
+    if cleanup["runtime_failed_resources"]:
+        lines.append("Cleanup failures: " + ", ".join(_safe(value) for value in cleanup["runtime_failed_resources"]))
     if report["unrecorded_details"]:
         lines.append("Unrecorded details (not necessarily required by this scenario):")
         lines.extend("  " + detail for detail in report["unrecorded_details"])

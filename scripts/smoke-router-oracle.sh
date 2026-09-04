@@ -22,8 +22,7 @@ ncpd="$linux_ncp_root/src/ncpd"
 
 for required in "$ncpd" "$h316" "$apps_dir/ncp-ping" "$ncp_build_receipt" "$test_dir/impconfig.simh" "$test_dir/impcode.simh"; do
   if [ ! -e "$required" ]; then
-    echo "missing required asset: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required asset: $required"
   fi
 done
 
@@ -96,16 +95,14 @@ while [ "$(date +%s)" -lt "$ready_deadline" ]; do
 done
 
 if [ "$ready" -ne 1 ]; then
-  echo "router oracle did not become ready within 75s" >&2
-  exit 1
+  brfid_fail 1 "router oracle did not become ready within 75s"
 fi
 
 brfid_run_ncp_client_bounded 30 env NCP="$ncp2_socket" "$apps_dir/ncp-ping" -c3 003 >"$results_dir/ping-host-003.log" 2>&1
-grep -Fq "Reply from host 003: seq=3" "$results_dir/ping-host-003.log"
+brfid_require "Required evidence missing: Reply from host 003: seq=3 in $results_dir/ping-host-003.log" grep -Fq "Reply from host 003: seq=3" "$results_dir/ping-host-003.log"
 
 if brfid_run_ncp_client_bounded 20 env NCP="$ncp2_socket" "$apps_dir/ncp-ping" -c1 004 >"$results_dir/ping-dead-host-004.log" 2>&1; then
-  echo "unexpected reply from dead host 004" >&2
-  exit 1
+  brfid_fail 1 "unexpected reply from dead host 004"
 fi
 
 "$repo_root/scripts/assert-log-evidence.py" router-dead "$results_dir/ncp2.debug.log" "$results_dir/ping-dead-host-004.log"

@@ -26,8 +26,7 @@ test_dir="$linux_ncp_root/test"
 
 for required in "$h316_bin" "$pdp10_bin" "$ncpd" "$ping_bin" "$ncp_build_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$host70_base/dskdmp.rim" "$host70_base/rp03.0" "$host70_base/rp03.1" "$host70_base/rp03.2" "$host70_base/rp03.3"; do
   if [ ! -e "$required" ]; then
-    echo "missing required asset: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required asset: $required"
   fi
 done
 
@@ -96,11 +95,10 @@ while [ "$elapsed" -lt 300 ]; do
 done
 
 if [ "$booted" -ne 1 ]; then
-  echo "ITS did not reach its operational banner within ${elapsed}s" >&2
-  exit 1
+  brfid_fail 1 "ITS did not reach its operational banner within ${elapsed}s"
 fi
 
-grep -Fq "IN OPERATION" "$results_dir/host70.console.log"
+brfid_require "Required evidence missing: IN OPERATION in $results_dir/host70.console.log" grep -Fq "IN OPERATION" "$results_dir/host70.console.log"
 
 ncp_ready=0
 ncp_deadline=$(($(date +%s) + 90))
@@ -124,13 +122,12 @@ while [ "$(date +%s)" -lt "$ncp_deadline" ]; do
 done
 
 if [ "$ncp_ready" -ne 1 ]; then
-  echo "ITS NCP did not answer within 90s of the operational banner" >&2
-  exit 1
+  brfid_fail 1 "ITS NCP did not answer within 90s of the operational banner"
 fi
 
 brfid_run_ncp_client_bounded 30 env NCP="$ncp62_socket" "$ping_bin" -c3 70 >"$results_dir/ping-its-host-106.log" 2>&1
-grep -Fq "packet received" "$results_dir/imp6.debug.log"
-grep -Fq "packet received" "$results_dir/imp62.debug.log"
+brfid_require "Required evidence missing: packet received in $results_dir/imp6.debug.log" grep -Fq "packet received" "$results_dir/imp6.debug.log"
+brfid_require "Required evidence missing: packet received in $results_dir/imp62.debug.log" grep -Fq "packet received" "$results_dir/imp62.debug.log"
 "$repo_root/scripts/assert-log-evidence.py" mixed-conversion "$results_dir/imp6.debug.log" "$results_dir/ping-its-host-106.log"
 brfid_assert_managed_alive
 brfid_assert_no_transport_errors "$results_dir/imp6.console.log" "$results_dir/imp6.debug.log" "$results_dir/imp62.console.log" "$results_dir/imp62.debug.log" "$results_dir/host70.console.log" "$results_dir/host70.debug.log"

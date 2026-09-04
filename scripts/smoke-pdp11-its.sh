@@ -28,14 +28,12 @@ pdp11_media="$pdp11_build_root/ncpd/guest/images"
 
 for required in "$h316_bin" "$pdp10_bin" "$pdp11_bin" "$pdp11_receipt" "$mini_dir/impconfig.simh" "$mini_dir/impcode.simh" "$pdp11_media/ncp_root.rl01" "$pdp11_media/ncp_swap.rl01"; do
   if [ ! -f "$required" ]; then
-    echo "missing required PDP-11 smoke input: $required" >&2
-    exit 66
+    brfid_fail 66 "missing required PDP-11 smoke input: $required"
   fi
 done
 for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   if [ ! -f "$host106_base/$asset" ]; then
-    echo "missing required ITS media: $host106_base/$asset" >&2
-    exit 66
+    brfid_fail 66 "missing required ITS media: $host106_base/$asset"
   fi
 done
 
@@ -123,20 +121,19 @@ else
 fi
 brfid_unregister_pid "$controller_pid"
 if [ "$controller_status" -ne 0 ]; then
-  echo "PDP-11-to-ITS controller failed; see $results_dir/controller.stderr.log" >&2
-  exit "$controller_status"
+  brfid_fail "$controller_status" "PDP-11-to-ITS controller failed; see $results_dir/controller.stderr.log"
 fi
 
-grep -Fxq "passed" "$results_dir/outcome.txt"
-grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
-grep -Fq "remote_time=structured" "$results_dir/application-evidence.txt"
-grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
-grep -Fq "message_journey_observations=12" "$results_dir/application-evidence.txt"
-grep -Fq "message_journey_state=complete" "$results_dir/application-evidence.txt"
-grep -Fq "message_journey_first_boundary=none" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: passed in $results_dir/outcome.txt" grep -Fxq "passed" "$results_dir/outcome.txt"
+brfid_require "Required evidence missing: connection_open=1 in $results_dir/application-evidence.txt" grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: remote_time=structured in $results_dir/application-evidence.txt" grep -Fq "remote_time=structured" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: correlated_inter_imp_traffic=both-directions in $results_dir/application-evidence.txt" grep -Fq "correlated_inter_imp_traffic=both-directions" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: message_journey_observations=12 in $results_dir/application-evidence.txt" grep -Fq "message_journey_observations=12" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: message_journey_state=complete in $results_dir/application-evidence.txt" grep -Fq "message_journey_state=complete" "$results_dir/application-evidence.txt"
+brfid_require "Required evidence missing: message_journey_first_boundary=none in $results_dir/application-evidence.txt" grep -Fq "message_journey_first_boundary=none" "$results_dir/application-evidence.txt"
 journey_sha=$("$repo_root/scripts/sha256-file.sh" "$results_dir/message-journey.jsonl" | awk '{print $1}')
-grep -Fxq "sha256.message-journey=$journey_sha" "$runtime_dir/run.env"
-grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"
+brfid_require "Required evidence missing: sha256.message-journey=$journey_sha in $runtime_dir/run.env" grep -Fxq "sha256.message-journey=$journey_sha" "$runtime_dir/run.env"
+brfid_require "Required evidence missing: surviving_owned_processes=0 in $results_dir/cleanup-evidence.txt" grep -Fq "surviving_owned_processes=0" "$results_dir/cleanup-evidence.txt"
 brfid_assert_no_transport_errors \
   "$results_dir/imp6.console.log" "$results_dir/imp6.debug.log" \
   "$results_dir/imp62.console.log" "$results_dir/imp62.debug.log" \

@@ -60,6 +60,28 @@ Evaluators consume declared structured inputs, not arbitrary raw logs. They requ
 
 Raw console, protocol, receiver, and IMP traces remain in the external result directory. The source-only suite covers parsers, reducers, contracts, lifecycle failures, and tempting false positives with synthetic fixtures.
 
+## Launcher termination records
+
+After a launcher creates `runtime/run.env`, the shared shell runtime retains its own error messages in `runtime/launcher.stderr.log`. Explicit terminal failures use `brfid_fail`; otherwise silent external checks use `brfid_require` with a description and the unchanged command arguments. The latter is only for external commands, since calling a shell function inside a conditional would suppress its `errexit` behavior. Helper errors can be handled successfully by their caller, so the error log alone never establishes the final failure cause. Controller standard input and output remain attached as before, including foreground terminal sessions.
+
+The format-1 manifest has these additive terminal records:
+
+| Field | Meaning |
+|---|---|
+| `termination.kind` | `exit` or an explicitly handled `signal` |
+| `termination.signal` | `HUP`, `INT`, or `TERM`, present only when that launcher trap ran |
+| `termination.exit-status` | Launcher status before the exit handler attempts cleanup |
+| `failure.reason` | Explicit terminal failure description, handled signal, or an honest fallback when the cause was not recorded; present only for failed runs |
+| `cleanup.runtime.attempts` | Number of actual outer-runtime cleanup attempts; repeated calls after success do not add attempts |
+| `cleanup.runtime.exit-status` | Final cleanup attempt's result: `0` for success, `1` for failure |
+| `cleanup.runtime.failed-resources` | `none`, or space-separated resource identifiers for failures in that final attempt |
+
+The resource identifiers name owned children, the port-lease helper, known socket paths, the private control directory, lease files, or the exclusive lease. Cleanup continues after an individual failure. A failed attempt can be retried; the final status describes the final attempt, and earlier error messages remain in the log. These are retained observations, not current ownership or liveness evidence. Existing scenario-owned `cleanup.outer-runtime` and `cleanup.completed` records remain available to their evaluators and must agree with the final cleanup result.
+
+The exit handler preserves a nonzero launcher status. If the launcher exits zero but cleanup fails, the handler exits one and records a failed run. A manifest-write failure also prevents a zero exit without replacing a prior nonzero exit status. Failure descriptions are limited to 1,024 printable ASCII characters, replacing other bytes with `?`, so error text cannot inject additional manifest records. Raw helper messages remain in the separate log. Manifest initialization claims ownership only after creating a new file; refusal of an existing manifest cannot append a terminal block to that file.
+
+Failures before result/manifest creation remain terminal-only. An uncatchable kill, host crash, or inability to write records can leave an unfinished run; missing records never prove a handled signal or completed cleanup. An exit status such as `130` alone is not a recorded interrupt. These records describe the modern launcher and confer no historical application, packet, or NCC authority.
+
 ## Retained-run diagnostics
 
 `ncc.run_diagnostics` reads fixed run-local harness files into an in-memory diagnostic; `scripts/diagnose-run.py` provides text and version-1 JSON output. It keeps the runtime outcome, controller outcome, recorded checkpoints, and two cleanup layers distinct. It neither revalidates a gate nor observes current process or network state. A controller pass cannot override an outer-runtime failure, absent terminal records cannot distinguish an active run from an interrupted one, and absent cleanup evidence cannot prove resource release.

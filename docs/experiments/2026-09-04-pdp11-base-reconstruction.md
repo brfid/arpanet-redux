@@ -4,7 +4,7 @@
 
 The supported setup path can build usable Network UNIX base disks from pinned public inputs without copying the previously prepared private pair. Two independent assemblies produced identical unbooted media. A newly populated laboratory compiled the preserved guest applications and passed the unchanged direct Gate 4H. The [base-media page](../pdp11-base.md) owns the current recipe and compatibility contract; this record owns the exact evidence.
 
-Development started from project commit `aa9afe188889a0ada8d4dc3a79f2428655ac4bcb`. The tested constructor `scripts/pdp11_base.py` has SHA-256 `bb9ea9b9a2ed86665917b26ab8cfe3761e1172cc356dd5464e70999bd2c60b3c`; the unchanged filesystem injector has SHA-256 `4bdab56ab2649ec00da7b6d2450b14785633ab2904ccef52c721c710470c4ad6`. The external base receipt records both hashes and its exact input lock and output-pin identities. Simulator revisions remain H316 `feb155fbc49333e879ab082d481e6dcce27d2d91`, KA10 `4b59f21d00355a7a917fa7cd54ef8a1123b515b2`, and IMP11-A `c74e7040e186a6ea11d9cd816b94edc235959e27`; Network UNIX remains `464893a99da8e3ac7f90577bc54749fa64bb0966`.
+Development started from project commit `aa9afe188889a0ada8d4dc3a79f2428655ac4bcb`; implementation and tests are committed in `03c2431`. The tested constructor `scripts/pdp11_base.py` has SHA-256 `bb9ea9b9a2ed86665917b26ab8cfe3761e1172cc356dd5464e70999bd2c60b3c`; the unchanged filesystem injector has SHA-256 `4bdab56ab2649ec00da7b6d2450b14785633ab2904ccef52c721c710470c4ad6`. The external base receipt records both hashes and its exact input lock and output-pin identities. Simulator revisions remain H316 `feb155fbc49333e879ab082d481e6dcce27d2d91`, KA10 `4b59f21d00355a7a917fa7cd54ef8a1123b515b2`, and IMP11-A `c74e7040e186a6ea11d9cd816b94edc235959e27`; Network UNIX remains `464893a99da8e3ac7f90577bc54749fa64bb0966`.
 
 ## Retained locations
 
@@ -48,6 +48,8 @@ The guest compiled TELNET and its reader companion, then the NCP daemon, using i
 Direct Gate 4H recorded an open connection, ITS service job `53TLNT`, the ITS greeting, structured remote `:TIME`, correlated traffic through both IMPs in both directions, and twelve journey observations in state `complete` with no missing boundary. The legacy option diagnostic was absent. All four owned simulators exited, no owned process survived, and the outer launcher recorded successful cleanup and exit status zero.
 
 An additional boot of disposable base copies confirmed the kernel and daemon sizes and character device 5,0. The first inspection used incorrect `/etc` paths for the filesystem utilities and reported them missing; that transcript remains under `results/base-filesystem-check-20260904`. Inspection of the preserved root located them in `/bin`. In the corrected independent run, `/bin/icheck /dev/rl0` reported 3008 used and 905 free blocks without duplicate or missing-block diagnostics, and `/bin/dcheck /dev/rl0` reported no directory-link discrepancies. Both inspections synchronized and exited the simulator; neither boot wrote to the pinned base pair.
+
+Source validation passed all 392 tests, with the expected sandbox UDP skip; shell runtime checks passed with their expected Unix-socket sandbox skip. The complete-history source-only guard passed, and changed documentation passed soft-wrap and local-link checks.
 
 ## Limits
 

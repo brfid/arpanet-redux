@@ -40,6 +40,7 @@ from ncc.pdp11_its_harness import (
     application_evidence_failures,
     boot_pdp11,
     create_host106_observation_config,
+    create_pdp11_observation_config,
     ordered_pattern_failures,
     stop_and_record,
     wait_for_prompt,
@@ -72,6 +73,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="retain and adapt the versioned KA10 request-ingress trace",
     )
+    parser.add_argument(
+        "--pdp11-ingress-trace",
+        action="store_true",
+        help="retain and adapt the versioned IMP11-A reply-ingress trace",
+    )
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
     return parser.parse_args()
@@ -92,6 +98,15 @@ def run(args: argparse.Namespace) -> int:
         create_host106_attach_config(args.host106_config.resolve(), attach_config)
     append_manifest(manifest, "sha256.host106-attach-config", sha256(attach_config))
     append_manifest(manifest, "path.host106-attach-config", attach_config)
+    pdp11_config = args.pdp11_config.resolve()
+    if args.pdp11_ingress_trace:
+        pdp11_observation_config = results_dir / "pdp11-input-observation.simh"
+        create_pdp11_observation_config(pdp11_config, pdp11_observation_config)
+        pdp11_config = pdp11_observation_config
+        append_manifest(
+            manifest, "sha256.pdp11-observation-config", sha256(pdp11_config)
+        )
+        append_manifest(manifest, "path.pdp11-observation-config", pdp11_config)
 
     imp6 = ImpProcess(
         "imp6",
@@ -121,7 +136,7 @@ def run(args: argparse.Namespace) -> int:
     pdp11 = PtyProcess(
         "pdp11",
         args.pdp11.resolve(),
-        args.pdp11_config.resolve(),
+        pdp11_config,
         args.pdp11_work.resolve(),
         results_dir / "pdp11.console.log",
         results_dir / "pdp11.sent.log",
@@ -221,6 +236,11 @@ def run(args: argparse.Namespace) -> int:
             append_manifest(
                 manifest, "application.offset.host106-imp", host106_trace_offset
             )
+        host176_trace_offset = pdp11_offset if args.pdp11_ingress_trace else None
+        if host176_trace_offset is not None:
+            append_manifest(
+                manifest, "application.offset.host176-imp", host176_trace_offset
+            )
 
         pdp11.send("/usr/bin/telnet - -h 106\r")
         event, _ = pdp11.expect_any(
@@ -247,6 +267,11 @@ def run(args: argparse.Namespace) -> int:
             if host106_trace_offset is not None
             else None
         )
+        host176_trace_end_offset = (
+            host176_trace_offset + len(pdp11_output)
+            if host176_trace_offset is not None
+            else None
+        )
         imp6_output = imp6.debug_path.read_bytes()[
             imp_offsets["imp6"] : imp_end_offsets["imp6"]
         ]
@@ -254,6 +279,7 @@ def run(args: argparse.Namespace) -> int:
             imp_offsets["imp62"] : imp_end_offsets["imp62"]
         ]
         host106_trace = its_output if args.ka10_ingress_trace else None
+        host176_trace = pdp11_output if args.pdp11_ingress_trace else None
         failures = application_evidence_failures(
             pdp11_output,
             its_output,
@@ -306,6 +332,20 @@ def run(args: argparse.Namespace) -> int:
                     content=host106_trace,
                 )
             )
+        if (
+            host176_trace is not None
+            and host176_trace_offset is not None
+            and host176_trace_end_offset is not None
+        ):
+            window.append(
+                transaction_window_source(
+                    source_id="source:host176-imp",
+                    artifact=pdp11.console_log_path.name,
+                    start_offset=host176_trace_offset,
+                    end_offset=host176_trace_end_offset,
+                    content=host176_trace,
+                )
+            )
         provenance = [
             ObservationProvenance(
                 "source:controller",
@@ -326,6 +366,14 @@ def run(args: argparse.Namespace) -> int:
                     manifest_values["source.ka10-simh.revision"],
                 )
             )
+        if host176_trace is not None:
+            provenance.append(
+                ObservationProvenance(
+                    "source:host176-imp",
+                    "pdp11-imp11a-trace",
+                    manifest_values["source.imp11a-simh.revision"],
+                )
+            )
         journey = write_pdp11_its_journey_stream(
             journey_path,
             run_id=results_dir.name,
@@ -336,10 +384,16 @@ def run(args: argparse.Namespace) -> int:
             imp6_trace=imp6_output,
             imp62_trace=imp62_output,
             ka10_trace=host106_trace,
+            imp11a_trace=host176_trace,
             h316_revision=manifest_values["source.h316-simh.revision"],
             ka10_revision=(
                 manifest_values["source.ka10-simh.revision"]
                 if host106_trace is not None
+                else None
+            ),
+            imp11a_revision=(
+                manifest_values["source.imp11a-simh.revision"]
+                if host176_trace is not None
                 else None
             ),
         )
@@ -354,6 +408,12 @@ def run(args: argparse.Namespace) -> int:
                 manifest,
                 "application.offset.end.host106-imp",
                 host106_trace_end_offset,
+            )
+        if host176_trace_end_offset is not None:
+            append_manifest(
+                manifest,
+                "application.offset.end.host176-imp",
+                host176_trace_end_offset,
             )
         append_manifest(manifest, "path.message-journey", journey_path)
         append_manifest(
@@ -372,6 +432,7 @@ def run(args: argparse.Namespace) -> int:
         )
 
         option_diagnostic = b"Possible protocol error!" in pdp11_output
+        first_boundary = journey.diagnosis.first_boundary_id or "none"
         evidence = (
             "connection_open=1\n"
             f"its_service_user={service_user}\n"
@@ -382,7 +443,7 @@ def run(args: argparse.Namespace) -> int:
             "correlated_inter_imp_traffic=both-directions\n"
             f"message_journey_observations={len(journey.observations)}\n"
             f"message_journey_state={journey.diagnosis.state.value}\n"
-            f"message_journey_first_boundary={journey.diagnosis.first_boundary_id}\n"
+            f"message_journey_first_boundary={first_boundary}\n"
             f"legacy_option_diagnostic={'observed' if option_diagnostic else 'absent'}\n"
         )
         (results_dir / "application-evidence.txt").write_text(evidence, encoding="ascii")

@@ -170,6 +170,13 @@ def main() -> int:
             "host106-imp",
             artifact="host106.console.log",
         )
+    if "application.offset.host176-imp" in manifest:
+        traces["host176-imp"] = read_trace_window(
+            result_dir,
+            manifest,
+            "host176-imp",
+            artifact="pdp11.console.log",
+        )
     provenance = [
         ObservationProvenance(
             "source:controller",
@@ -188,6 +195,14 @@ def main() -> int:
                 "source:host106-imp",
                 "ka10-imp-trace",
                 manifest["source.ka10-simh.revision"],
+            )
+        )
+    if "host176-imp" in traces:
+        provenance.append(
+            ObservationProvenance(
+                "source:host176-imp",
+                "pdp11-imp11a-trace",
+                manifest["source.imp11a-simh.revision"],
             )
         )
     window = tuple(
@@ -212,10 +227,18 @@ def main() -> int:
         ka10_trace=(
             traces["host106-imp"][3] if "host106-imp" in traces else None
         ),
+        imp11a_trace=(
+            traces["host176-imp"][3] if "host176-imp" in traces else None
+        ),
         h316_revision=manifest["source.h316-simh.revision"],
         ka10_revision=(
             manifest["source.ka10-simh.revision"]
             if "host106-imp" in traces
+            else None
+        ),
+        imp11a_revision=(
+            manifest["source.imp11a-simh.revision"]
+            if "host176-imp" in traces
             else None
         ),
     )

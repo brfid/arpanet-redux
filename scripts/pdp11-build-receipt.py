@@ -22,6 +22,7 @@ IMAGE_NAMES = ("ncp_root.rl01", "ncp_swap.rl01")
 BUILDER_NAMES = (
     "research/build-guest-telnet.py",
     "research/build-guest-ncpd.py",
+    "research/simh_shutdown.py",
     "research/v6fs.py",
 )
 

@@ -63,6 +63,7 @@ from pathlib import Path
 import pexpect
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from simh_shutdown import quit_simh_cleanly  # noqa: E402
 from v6fs import V6FS  # noqa: E402
 
 NCPD_C_FILES = [
@@ -574,14 +575,7 @@ def build_in_guest_session(child: pexpect.spawn, settle: float) -> None:
     time.sleep(settle)
 
     print("[build] shutting down cleanly", file=sys.stderr)
-    child.sendcontrol("e")
-    time.sleep(0.5)
-    child.sendline("quit")
-    try:
-        child.expect(pexpect.EOF, timeout=15)
-    except pexpect.TIMEOUT:
-        print("[build] simh did not exit on its own, forcing", file=sys.stderr)
-        child.close(force=True)
+    quit_simh_cleanly(child, pexpect.EOF)
 
 
 def _main() -> int:

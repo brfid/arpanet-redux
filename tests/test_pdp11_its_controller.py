@@ -19,6 +19,7 @@ from ncc.pdp11_its_harness import (
     application_evidence_failures,
     boot_pdp11,
     create_host106_observation_config,
+    create_pdp11_observation_config,
     ordered_pattern_failures,
     stop_and_record,
     wait_for_prompt,
@@ -85,6 +86,7 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
             "read_manifest": read_manifest,
             "wait_for_prompt": wait_for_prompt,
             "create_host106_observation_config": create_host106_observation_config,
+            "create_pdp11_observation_config": create_pdp11_observation_config,
             "boot_pdp11": boot_pdp11,
             "stop_and_record": stop_and_record,
         }
@@ -178,6 +180,22 @@ class Pdp11ItsEvidenceTests(unittest.TestCase):
             self.assertNotIn('expect -p "DSKDMP"', text)
             self.assertTrue(
                 text.endswith("set -f debug stdout\nset imp debug=ASSEMBLY\n")
+            )
+
+    def test_pdp11_observation_config_enables_only_input_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as directory_name:
+            destination = Path(directory_name) / "pdp11-input-observation.simh"
+
+            CONTROLLER.create_pdp11_observation_config(
+                ROOT / "config" / "hosts" / "pdp11-176.simh",
+                destination,
+            )
+
+            text = destination.read_text(encoding="ascii")
+            self.assertNotIn("BRFID_PDP11_DEBUG_LOG", text)
+            self.assertNotIn("debug=reg;int;pkt", text)
+            self.assertTrue(
+                text.endswith("set -f debug stdout\nset imp debug=INPUT\n")
             )
 
     def test_complete_evidence_accepts_nonfatal_legacy_diagnostic(self) -> None:

@@ -231,12 +231,13 @@ def simulator_build_arguments(
 ) -> list[os.PathLike[str] | str]:
     arguments: list[os.PathLike[str] | str] = ["make", "-C", checkout]
     if (
-        source_name == "ka10-simh"
-        and target == "pdp10-ka"
+        (source_name, target)
+        in {("ka10-simh", "pdp10-ka"), ("imp11a-simh", "pdp11")}
         and platform_name == "darwin"
     ):
         # The pinned legacy probe looks for a physical libz.dylib, while Apple
         # provides zlib to the linker through its SDK stub and shared cache.
+        # Both pinned legacy simulator trees need the explicit link.
         arguments.append("LDFLAGS_O=-lz")
     arguments.append(target)
     return arguments

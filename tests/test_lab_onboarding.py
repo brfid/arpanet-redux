@@ -179,7 +179,7 @@ class LabSetupTests(unittest.TestCase):
             ),
         )
 
-    def test_ka10_build_links_system_zlib_only_on_macos(self) -> None:
+    def test_legacy_simh_builds_link_system_zlib_only_on_macos(self) -> None:
         setup = load_script("lab-setup.py")
         checkout = Path("/external/lab/work/ka10-simh")
 
@@ -194,6 +194,18 @@ class LabSetupTests(unittest.TestCase):
                 "ka10-simh", "pdp10-ka", checkout, "linux"
             ),
             ["make", "-C", checkout, "pdp10-ka"],
+        )
+        self.assertEqual(
+            setup.simulator_build_arguments(
+                "imp11a-simh", "pdp11", checkout, "darwin"
+            ),
+            ["make", "-C", checkout, "LDFLAGS_O=-lz", "pdp11"],
+        )
+        self.assertEqual(
+            setup.simulator_build_arguments(
+                "imp11a-simh", "pdp11", checkout, "linux"
+            ),
+            ["make", "-C", checkout, "pdp11"],
         )
         self.assertEqual(
             setup.simulator_build_arguments(

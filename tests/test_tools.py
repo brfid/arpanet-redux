@@ -371,15 +371,17 @@ printf '%s\n' \\
 
     def test_telnet_target_reuses_the_retained_receipt_bound_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
-            results = Path(directory_name)
+            lab = Path(directory_name)
+            results = lab / "results"
             retained = results / "pdp11-telnet-option-fix-build-20260902T002513Z"
-            retained.mkdir()
+            retained.mkdir(parents=True)
             (retained / "pdp11-build-receipt.json").write_text(
                 "{}\n", encoding="ascii"
             )
             operated = run(
                 "make",
                 "-n",
+                f"LAB_ROOT={lab}",
                 f"RESULTS_ROOT={results}",
                 "RUN_ID=interactive-demo",
                 "telnet",
@@ -395,9 +397,10 @@ printf '%s\n' \\
 
     def test_ncc_targets_reuse_the_retained_receipt_bound_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory_name:
-            results = Path(directory_name)
+            lab = Path(directory_name)
+            results = lab / "results"
             retained = results / "pdp11-telnet-option-fix-build-20260902T002513Z"
-            retained.mkdir()
+            retained.mkdir(parents=True)
             (retained / "pdp11-build-receipt.json").write_text(
                 "{}\n", encoding="ascii"
             )
@@ -406,6 +409,7 @@ printf '%s\n' \\
                     operated = run(
                         "make",
                         "-n",
+                        f"LAB_ROOT={lab}",
                         f"RESULTS_ROOT={results}",
                         "RUN_ID=operated-demo",
                         target,
@@ -1075,7 +1079,7 @@ class UtilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory_name:
             executable = Path(directory_name) / "fake-pdp11"
             executable.write_text(
-                "#!/bin/sh\nprintf '%s\\n' 'git commit id: 2722eef4'\n",
+                "#!/bin/sh\nprintf '%s\\n' 'git commit id: c74e7040'\n",
                 encoding="ascii",
             )
             executable.chmod(0o755)
@@ -1097,7 +1101,7 @@ class UtilityTests(unittest.TestCase):
                 executable,
             )
             self.assertNotEqual(failing.returncode, 0)
-            self.assertIn("expected embedded commit 2722eef4", failing.stderr)
+            self.assertIn("expected embedded commit c74e7040", failing.stderr)
 
     def test_simulator_binary_verifier_detaches_interactive_stdin(self) -> None:
         module_path = SCRIPTS / "verify-simulator-binaries.py"

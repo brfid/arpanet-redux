@@ -111,6 +111,23 @@ def create_host106_observation_config(source: Path, destination: Path) -> None:
         stream.write("set -f debug stdout\nset imp debug=ASSEMBLY\n")
 
 
+def create_pdp11_observation_config(source: Path, destination: Path) -> None:
+    """Route only versioned IMP11-A input evidence through the live console."""
+
+    text = source.read_text(encoding="ascii")
+    existing = (
+        "set debug -n %BRFID_PDP11_DEBUG_LOG%\n"
+        "set imp debug=reg;int;pkt\n"
+    )
+    replacement = "set -f debug stdout\nset imp debug=INPUT\n"
+    if text.count(existing) != 1 or not text.endswith(existing):
+        raise ValueError("PDP-11 configuration has an unexpected debug boundary")
+    destination.write_text(
+        text.removesuffix(existing) + replacement,
+        encoding="ascii",
+    )
+
+
 def boot_pdp11(process: PtyProcess) -> None:
     if process.state != "PROMPT":
         raise RuntimeError(f"{process.name} cannot boot from {process.state}")

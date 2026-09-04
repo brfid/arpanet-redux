@@ -65,6 +65,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from simh_shutdown import quit_simh_cleanly  # noqa: E402
 from v6fs import V6FS  # noqa: E402
 
 LOWERCASE_ALIAS_BLOCK = """
@@ -218,19 +219,12 @@ def build_in_guest(pdp11: Path, workdir: Path, console_log: Path, settle: float)
     time.sleep(settle)
 
     print("[build] shutting down cleanly", file=sys.stderr)
-    child.sendcontrol("e")  # SIMH console escape
-    time.sleep(0.5)
-    child.sendline("quit")
     try:
-        # Force-closing here (rather than waiting for a clean exit) was
-        # tried first and silently lost the just-compiled a.out: SIMH's
-        # disk-image writes are not guaranteed flushed to the host file
-        # until the simulator actually exits on its own.
-        child.expect(pexpect.EOF, timeout=15)
-    except pexpect.TIMEOUT:
-        print("[build] simh did not exit on its own, forcing", file=sys.stderr)
-        child.close(force=True)
-    console.close()
+        quit_simh_cleanly(child, pexpect.EOF)
+    finally:
+        if child.isalive():
+            child.close(force=True)
+        console.close()
 
 
 def _main() -> int:

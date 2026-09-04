@@ -186,6 +186,34 @@ def synthetic_ka10_trace(*, sequence: int = 7, start_tick: int = 2_000) -> bytes
     return ("\r\n".join(lines) + "\r\n").encode("ascii")
 
 
+def synthetic_imp11a_trace(
+    words: tuple[int, ...] = REPLY_AT_IMP62,
+    *,
+    sequence: int = 41,
+    start_tick: int = 4_000,
+) -> bytes:
+    lines = [
+        f"DBG({start_tick})> IMP INPUT: IMP INPUT-MESSAGE version=1 "
+        f"message={sequence}"
+    ]
+    tick = start_tick
+    for index, wire in enumerate(words):
+        tick += 10
+        address = 0o123050 + index * 2 if index < 4 else 0o123564 + (index - 4) * 2
+        guest = ((wire << 8) & 0xFFFF) | (wire >> 8)
+        lines.append(
+            f"DBG({tick})> IMP INPUT: IMP INPUT-DMA version=1 "
+            f"message={sequence} word={index} address={address:06o} "
+            f"wire={wire:06o} guest={guest:06o}"
+        )
+    tick += 10
+    lines.append(
+        f"DBG({tick})> IMP INPUT: IMP INPUT-COMPLETE version=1 "
+        f"message={sequence} words={len(words)}"
+    )
+    return ("\r\n".join(lines) + "\r\n").encode("ascii")
+
+
 class Pdp11ItsJourneyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.topology = load_shared_topology(TOPOLOGY_PATH)
@@ -265,6 +293,73 @@ class Pdp11ItsJourneyTests(unittest.TestCase):
                 imp6_trace=self.imp6,
                 imp62_trace=self.imp62,
                 ka10_trace=changed,
+            )
+
+    def test_imp11a_dma_closes_only_reply_ingress(self) -> None:
+        extraction = extract_pdp11_its_journey(
+            self.topology,
+            imp6_trace=self.imp6,
+            imp62_trace=self.imp62,
+            imp11a_trace=synthetic_imp11a_trace(),
+            imp11a_revision="d" * 40,
+        )
+
+        self.assertEqual(len(extraction.observations), 11)
+        self.assertEqual(extraction.diagnosis.state, JourneyState.MISSING_BOUNDARY)
+        self.assertEqual(extraction.diagnosis.first_boundary_id, "boundary:request:6")
+        observation = extraction.observations[-1]
+        self.assertEqual(observation.id, "observation:reply:6")
+        self.assertEqual(observation.provenance.kind, "pdp11-imp11a-trace")
+        self.assertEqual(observation.provenance.revision, "d" * 40)
+        self.assertEqual(
+            observation.decoded.leader_format,
+            "imp11a-dma-nosc-short-1822-ncp",
+        )
+        self.assertEqual(
+            observation.correlation_fingerprint,
+            extraction.expected.reply.correlation_fingerprint,
+        )
+
+    def test_both_direct_guest_ingress_sources_complete_the_journey(self) -> None:
+        extraction = extract_pdp11_its_journey(
+            self.topology,
+            imp6_trace=self.imp6,
+            imp62_trace=self.imp62,
+            ka10_trace=synthetic_ka10_trace(),
+            imp11a_trace=synthetic_imp11a_trace(),
+            ka10_revision="c" * 40,
+            imp11a_revision="d" * 40,
+        )
+
+        self.assertEqual(len(extraction.observations), 12)
+        self.assertEqual(extraction.diagnosis.state, JourneyState.COMPLETE)
+        self.assertIsNone(extraction.diagnosis.first_boundary_id)
+        self.assertTrue(
+            all(
+                assessment.state == BoundaryAssessmentState.OBSERVED
+                for assessment in extraction.diagnosis.boundaries
+            )
+        )
+
+    def test_imp11a_trace_requires_one_exact_dma_stored_reply(self) -> None:
+        with self.assertRaisesRegex(Pdp11ItsJourneyError, "exactly one"):
+            extract_pdp11_its_journey(
+                self.topology,
+                imp6_trace=self.imp6,
+                imp62_trace=self.imp62,
+                imp11a_trace=synthetic_imp11a_trace()
+                + synthetic_imp11a_trace(sequence=42, start_tick=8_000),
+            )
+
+        changed = synthetic_imp11a_trace(
+            (*REPLY_AT_IMP62[:-1], 1),
+        )
+        with self.assertRaisesRegex(Pdp11ItsJourneyError, "exactly one"):
+            extract_pdp11_its_journey(
+                self.topology,
+                imp6_trace=self.imp6,
+                imp62_trace=self.imp62,
+                imp11a_trace=changed,
             )
 
     def test_preserves_direct_and_connected_peer_authority_and_transport_ids(self) -> None:
@@ -550,9 +645,10 @@ class MessageJourneyStreamTests(unittest.TestCase):
 
 
 class Pdp11ItsJourneyCommandTests(unittest.TestCase):
-    def test_read_only_result_adapter_replays_the_ka10_window(self) -> None:
+    def test_read_only_result_adapter_replays_both_guest_ingress_windows(self) -> None:
         imp6, imp62 = synthetic_traces()
         ka10 = synthetic_ka10_trace()
+        imp11a = synthetic_imp11a_trace()
         prefix = b"ignored prefix\r\n"
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)
@@ -562,6 +658,7 @@ class Pdp11ItsJourneyCommandTests(unittest.TestCase):
             (result / "imp6.debug.log").write_bytes(imp6)
             (result / "imp62.debug.log").write_bytes(imp62)
             (result / "host106.console.log").write_bytes(prefix + ka10 + b"ignored tail")
+            (result / "pdp11.console.log").write_bytes(prefix + imp11a + b"ignored tail")
             (runtime / "run.env").write_text(
                 "format=1\n"
                 "topology=pdp11-its-telnet\n"
@@ -569,12 +666,15 @@ class Pdp11ItsJourneyCommandTests(unittest.TestCase):
                 f"repository.revision={'a' * 40}\n"
                 f"source.h316-simh.revision={'b' * 40}\n"
                 f"source.ka10-simh.revision={'c' * 40}\n"
+                f"source.imp11a-simh.revision={'d' * 40}\n"
                 "application.offset.imp6=0\n"
                 "application.offset.imp62=0\n"
                 f"application.offset.host106-imp={len(prefix)}\n"
+                f"application.offset.host176-imp={len(prefix)}\n"
                 f"application.offset.end.imp6={len(imp6)}\n"
                 f"application.offset.end.imp62={len(imp62)}\n"
                 f"application.offset.end.host106-imp={len(prefix) + len(ka10)}\n"
+                f"application.offset.end.host176-imp={len(prefix) + len(imp11a)}\n"
                 "application.service_user=53TLNT\n"
                 "application.remote_time=structured\n"
                 "cleanup.outer-runtime=passed\n"
@@ -615,16 +715,27 @@ class Pdp11ItsJourneyCommandTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             stream = read_message_journey_stream(output)
-            self.assertEqual(len(stream.observations), 11)
-            self.assertEqual(stream.diagnosis.first_boundary_id, "boundary:reply:6")
+            self.assertEqual(len(stream.observations), 12)
+            self.assertEqual(stream.diagnosis.state, JourneyState.COMPLETE)
+            self.assertIsNone(stream.diagnosis.first_boundary_id)
             self.assertEqual(
                 [item.artifact for item in stream.transaction_window],
-                ["imp6.debug.log", "imp62.debug.log", "host106.console.log"],
+                [
+                    "imp6.debug.log",
+                    "imp62.debug.log",
+                    "host106.console.log",
+                    "pdp11.console.log",
+                ],
+            )
+            self.assertEqual(stream.transaction_window[-2].start_offset, len(prefix))
+            self.assertEqual(
+                stream.transaction_window[-2].end_offset,
+                len(prefix) + len(ka10),
             )
             self.assertEqual(stream.transaction_window[-1].start_offset, len(prefix))
             self.assertEqual(
                 stream.transaction_window[-1].end_offset,
-                len(prefix) + len(ka10),
+                len(prefix) + len(imp11a),
             )
 
     def test_read_only_result_adapter_writes_only_the_requested_sidecar(self) -> None:

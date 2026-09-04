@@ -17,6 +17,9 @@ SPEC.loader.exec_module(RECEIPT)
 
 
 class Pdp11BuildReceiptTests(unittest.TestCase):
+    def test_receipt_binds_the_shared_clean_shutdown_helper(self) -> None:
+        self.assertIn("research/simh_shutdown.py", RECEIPT.BUILDER_NAMES)
+
     def test_build_log_requires_the_repaired_companion_size(self) -> None:
         telnet_log = (
             "git commit id: 2722eef4\n"
@@ -64,9 +67,16 @@ class Pdp11BuildReceiptTests(unittest.TestCase):
                 0,
                 stdout="git commit id: 2722eef4\n",
             )
-            with mock.patch.object(
-                RECEIPT.subprocess, "run", return_value=completed
-            ) as invoked:
+            with (
+                mock.patch.object(
+                    RECEIPT.subprocess, "run", return_value=completed
+                ) as invoked,
+                mock.patch.object(
+                    RECEIPT,
+                    "pinned_revisions",
+                    return_value={"imp11a-simh": "2722eef4" + "0" * 32},
+                ),
+            ):
                 version = RECEIPT.simulator_version(executable)
 
             self.assertEqual(version, "git commit id: 2722eef4")

@@ -13,6 +13,11 @@ from .h316_journey import (
     observation_from_h316_transfer,
     parse_h316_trace,
 )
+from .imp11a_journey import (
+    Imp11aInputMessage,
+    Imp11aTraceError,
+    parse_imp11a_trace,
+)
 from .ka10_imp_journey import (
     Ka10ImpInputMessage,
     Ka10ImpTraceError,
@@ -38,6 +43,7 @@ from .message_journey import (
     decode_nosc_short_leader,
     diagnose_message_journey,
     observation_from_ka10_imp_trace,
+    observation_from_pdp11_imp11a_trace,
 )
 from .message_journey_stream import (
     MessageJourneyStream,
@@ -88,8 +94,10 @@ def write_pdp11_its_journey_stream(
     imp6_trace: bytes,
     imp62_trace: bytes,
     ka10_trace: bytes | None = None,
+    imp11a_trace: bytes | None = None,
     h316_revision: str | None = None,
     ka10_revision: str | None = None,
+    imp11a_revision: str | None = None,
 ) -> MessageJourneyStream:
     """Extract, record, and read back one formal typed journey sidecar."""
 
@@ -99,8 +107,10 @@ def write_pdp11_its_journey_stream(
         imp6_trace=imp6_trace,
         imp62_trace=imp62_trace,
         ka10_trace=ka10_trace,
+        imp11a_trace=imp11a_trace,
         h316_revision=h316_revision,
         ka10_revision=ka10_revision,
+        imp11a_revision=imp11a_revision,
     )
     recorder = MessageJourneyStreamRecorder(
         path,
@@ -161,15 +171,19 @@ def extract_pdp11_its_journey(
     imp6_trace: bytes,
     imp62_trace: bytes,
     ka10_trace: bytes | None = None,
+    imp11a_trace: bytes | None = None,
     h316_revision: str | None = None,
     ka10_revision: str | None = None,
+    imp11a_revision: str | None = None,
 ) -> Pdp11ItsJourneyExtraction:
     """Extract the first exact TELNET-open request and correlated reply path.
 
     H316 cross-process associations use literal packet equality. When supplied,
     the KA10 trace must reconstruct one fully consumed canonical long-leader
     message whose reversible short form exactly equals the IMP 6 transfer. The
-    adapter never compares independent simulator ticks.
+    When supplied, the IMP11-A trace must reconstruct one complete post-store
+    DMA message exactly equal to the IMP 62 destination-HI reply. The adapter
+    never compares independent simulator ticks.
     """
 
     imp62_mi_device, imp6_mi_device = pdp11_its_modem_devices(topology)
@@ -211,6 +225,24 @@ def extract_pdp11_its_journey(
                 "formal KA10 trace window does not contain exactly one consumed TELNET RFC"
             )
         ka10_message = candidates[0]
+    imp11a_message = None
+    if imp11a_trace is not None:
+        try:
+            imp11a_messages = parse_imp11a_trace(imp11a_trace)
+        except Imp11aTraceError as error:
+            raise Pdp11ItsJourneyError(
+                f"invalid IMP11-A trace window: {error}"
+            ) from error
+        candidates = [
+            message
+            for message in imp11a_messages
+            if message.wire_words == reply.destination_hi.words
+        ]
+        if len(candidates) != 1:
+            raise Pdp11ItsJourneyError(
+                "formal IMP11-A trace window does not contain exactly one DMA-stored control reply"
+            )
+        imp11a_message = candidates[0]
     expected = build_expected_journey(
         topology,
         journey_id=PDP11_ITS_JOURNEY_ID,
@@ -223,10 +255,18 @@ def extract_pdp11_its_journey(
         request,
         reply,
         ka10_message=ka10_message,
+        imp11a_message=imp11a_message,
         h316_revision=h316_revision,
         ka10_revision=ka10_revision,
+        imp11a_revision=imp11a_revision,
     )
     diagnosis = diagnose_message_journey(topology, expected, observations)
+    if ka10_message is not None and imp11a_message is not None:
+        if diagnosis.state != JourneyState.COMPLETE or diagnosis.first_boundary_id is not None:
+            raise Pdp11ItsJourneyError(
+                "formal journey did not become complete after both guest-ingress observations"
+            )
+        return Pdp11ItsJourneyExtraction(expected, observations, diagnosis)
     first = next(
         boundary
         for boundary in expected.boundaries
@@ -364,8 +404,10 @@ def _observations(
     reply: _LegPath,
     *,
     ka10_message: Ka10ImpInputMessage | None,
+    imp11a_message: Imp11aInputMessage | None,
     h316_revision: str | None,
     ka10_revision: str | None,
+    imp11a_revision: str | None,
 ) -> tuple[MessageJourneyObservation, ...]:
     request_boundaries = _boundaries(expected, JourneyLeg.REQUEST)
     reply_boundaries = _boundaries(expected, JourneyLeg.REPLY)
@@ -462,6 +504,15 @@ def _observations(
             revision=h316_revision,
         ),
     )
+    if imp11a_message is not None:
+        reply_observations += (
+            _imp11a_reply_ingress(
+                imp11a_message,
+                reply_boundaries[5],
+                reply.expectation,
+                revision=imp11a_revision,
+            ),
+        )
     return request_observations + reply_observations
 
 
@@ -504,6 +555,57 @@ def _ka10_request_ingress(
     )
     if observation.correlation_fingerprint != expectation.correlation_fingerprint:
         raise Pdp11ItsJourneyError("KA10 consumed message fingerprint changed after decoding")
+    if revision is None:
+        return observation
+    return replace(
+        observation,
+        provenance=ObservationProvenance(
+            id=observation.provenance.id,
+            kind=observation.provenance.kind,
+            revision=revision,
+        ),
+    )
+
+
+def _imp11a_reply_ingress(
+    message: Imp11aInputMessage,
+    boundary: ExpectedBoundary,
+    expectation: MessageExpectation,
+    *,
+    revision: str | None,
+) -> MessageJourneyObservation:
+    decoded = replace(
+        decode_nosc_short_leader(message.wire_words),
+        leader_format="imp11a-dma-nosc-short-1822-ncp",
+    )
+    observation = observation_from_pdp11_imp11a_trace(
+        observation_id=f"observation:{boundary.leg.value}:{boundary.position}",
+        journey_id=PDP11_ITS_JOURNEY_ID,
+        leg=boundary.leg,
+        component_id=boundary.component_id,
+        interface_id=boundary.interface_id,
+        direction=boundary.direction,
+        source_local_sequence=message.source_local_sequence,
+        decoded=decoded,
+        fingerprint=correlation_fingerprint_words(message.wire_words[2:]),
+        provenance_id="source:host176-imp",
+        simulator_tick=message.complete_tick,
+        external_evidence=(
+            ExternalEvidenceReference(
+                id=f"evidence:host176-imp:{message.source_local_sequence}",
+                kind="imp11a-input-dma-store",
+                locator=(
+                    "pdp11.console.log#"
+                    f"message={message.source_local_sequence};"
+                    f"start_tick={message.start_tick};"
+                    f"complete_tick={message.complete_tick};"
+                    f"words={len(message.words)}"
+                ),
+            ),
+        ),
+    )
+    if observation.correlation_fingerprint != expectation.correlation_fingerprint:
+        raise Pdp11ItsJourneyError("IMP11-A DMA message fingerprint changed after decoding")
     if revision is None:
         return observation
     return replace(

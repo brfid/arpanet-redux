@@ -60,6 +60,12 @@ Evaluators consume declared structured inputs, not arbitrary raw logs. They requ
 
 Raw console, protocol, receiver, and IMP traces remain in the external result directory. The source-only suite covers parsers, reducers, contracts, lifecycle failures, and tempting false positives with synthetic fixtures.
 
+## Retained-run diagnostics
+
+`ncc.run_diagnostics` reads fixed run-local harness files into an in-memory diagnostic; `scripts/diagnose-run.py` provides text and version-1 JSON output. It keeps the runtime outcome, controller outcome, recorded checkpoints, and two cleanup layers distinct. It neither revalidates a gate nor observes current process or network state. A controller pass cannot override an outer-runtime failure, absent terminal records cannot distinguish an active run from an interrupted one, and absent cleanup evidence cannot prove resource release.
+
+Reads are bounded and restricted to regular files; symlinked inputs, invalid or duplicate fields, unsupported manifest versions, incompatible terminal records, and contradictory cleanup evidence are reported as problems. An unfinished final manifest record can be ignored for checkpoint inspection but cannot produce a completed diagnostic. Input byte ranges and digests identify the exact snapshots read. Error-log tails remain uninterpreted and the text renderer escapes control characters. The report does not load paths from a manifest, execute a recorded command, inspect a guest image, write a result, or acquire NCC verdict authority. See the [runbook](runbook.md#diagnose-a-retained-run) for usage and exit semantics.
+
 ## Repository guard
 
 `check-source-only.py` rejects large indexed blobs, known media names and formats, and content matching protected external-asset digests. Staged mode reads candidate files and the candidate manifest from the index and prevents silent denylist shrinkage relative to `HEAD`. Complete-history mode checks material that was committed and later deleted.

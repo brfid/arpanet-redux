@@ -207,6 +207,28 @@ make NCC_RESULT="$lab/results/ncc-pdp11-its-coexistence-watch-demo" watch-ncc
 
 To inspect a retained result without starting a simulator, run `make view-ncc` for coexistence or `make view-ncc-failover` for application failover. Each target uses the stable external selection, or discovers the newest completed passing result when no selection exists, and fails immediately when a fresh lab has nothing to replay. Both open the same console with different validated result adapters. Override `NCC_RESULT`, `NCC_FAILOVER_RESULT`, `NCC_VIEW_PORT`, or `NCC_WATCH_PORT` when needed; persist an explicit result with `make NCC_RESULT=/absolute/result select-ncc-result` or `make NCC_FAILOVER_RESULT=/absolute/result select-ncc-failover-result`. Interactive TELNET remains a separate foreground terminal surface; the console does not send input or own that controller.
 
+## Diagnose a retained run
+
+Use the same read-only command for a successful, failed, interrupted, or unfinished smoke or terminal run:
+
+```sh
+make diagnose-run RESULT=/absolute/path/to/result
+```
+
+The report distinguishes the outer runtime's recorded outcome from the controller's `outcome.txt`. A controller can pass before a later validation or cleanup failure makes the outer run fail. Missing terminal manifest fields mean unfinished, which does not establish whether the run is still active or was interrupted. The diagnostic never checks or signals a PID, reads a guest disk, starts a simulator, follows manifest-supplied paths, or changes a result.
+
+The last recorded checkpoint comes from recognized fields in manifest order. It describes retained harness metadata, not the last instruction executed, a current network state, or a newly validated application result. Controller cleanup and outer-runtime cleanup are reported separately; missing cleanup records stay unknown. The outer layer recognizes both `cleanup.outer-runtime` and the historical-line scenarios' `cleanup.completed` flag, rejecting disagreement between them. Older failure paths can perform cleanup without retaining either record, and this command does not invent that evidence.
+
+When available, the report shows a bounded tail of the fixed controller, port-lease, receiver, or fault-instrument diagnostic logs. These excerpts are uninterpreted error output; they cannot supply a missing packet observation or gate verdict. Terminal controls are escaped in the human-readable report. Raw excerpts remain external laboratory material under [NOTICE](../NOTICE.md); inspect them before sharing diagnostic output.
+
+For another local tool, request the version-1 JSON diagnostic:
+
+```sh
+python3 scripts/diagnose-run.py --json /absolute/path/to/result
+```
+
+JSON includes the recorded outcomes, checkpoint references, unrecorded details, cleanup records, input byte ranges and SHA-256 digests, record problems, and suggested next steps. The command exits zero when it can describe a recorded success, recorded failure, or unfinished run; it exits one for unavailable, malformed, unsafe, or contradictory inputs. This exit status describes the diagnostic operation, not whether the historical scenario passed. Acceptance still belongs to the scenario's existing evaluator or validated replay. Use `make doctor` for laboratory and build readiness; build directories are not smoke results.
+
 ## Read a result
 
 Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manifest records source and repository revisions, tracked-dirty flags, executable and configuration hashes, allocated ports, platform, timestamps, outcome, exit status, and cleanup. Console, protocol, and IMP traces remain beside it.

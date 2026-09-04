@@ -95,4 +95,6 @@ make doctor
 
 The doctor reports each source revision, historical asset hash, base-media hash, simulator identity, Python dependency, and selected build receipt, then prints the remaining commands in dependency order. Repair the external lab rather than weakening a check. Pass `TELNET_PREFLIGHT_VERBOSE=1` to `make telnet` or `make telnet-failover` when the successful narrow preflight should print every identity too.
 
+If a run created a result directory, inspect it with `make diagnose-run RESULT=/absolute/path/to/result`. The read-only report distinguishes the controller's result from the overall run, shows the last retained checkpoint and diagnostic output, and tells you which cleanup or completion details were not recorded. It also works for unfinished runs without assuming that they are still running. See [run diagnostics](runbook.md#diagnose-a-retained-run) for the evidence limits.
+
 Results are immutable directories under `$LAB_ROOT/results`. Do not edit a retained result, copy raw evidence into Git, or publish a result bundle until every included external component has been reviewed under its own terms. The detailed smoke, replay, result, and cleanup procedures remain in the [runbook](runbook.md).

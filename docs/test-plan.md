@@ -213,7 +213,11 @@ Source-only tests own deterministic snapshots, authority labels, route and metho
 
 ## Gate 6: Site integration
 
-After Gates 4 and 5 pass, a replacement site stage must preserve the external contracts in [architecture](architecture.md#publication-seam): semantic output, artifact and build-log identity, status, exact source provenance, reuse fingerprints, validation, and fail-closed publication.
+Retired as a project goal on 2026-09-04. The laboratory now prioritizes observability, reliable operation, and use by other vintage-computing operators. Existing historical application and network gates remain active; website output is not a required milestone. [ADR-001](adr/0001-two-imp-baseline.md) retains the original integration context.
+
+## Retained-run diagnostic checks
+
+The read-only diagnostic must distinguish runtime and controller outcomes, retain explicit uncertainty for unfinished or absent records, report each cleanup layer independently, and keep checkpoint metadata and raw diagnostic excerpts separate from acceptance verdicts. Source tests cover successful and failed records, a controller pass followed by outer failure, signal-style exits, incomplete records, contradictory outcomes and cleanup, unsafe file types and symlinks, bounded reads, terminal control escaping, literal path arguments, deterministic output, and result immutability. Read-only checks against retained external passing and failed results verify the same behavior without a new simulator or network claim.
 
 ## Fault injection
 

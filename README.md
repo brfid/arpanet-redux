@@ -2,6 +2,8 @@
 
 ARPANET Redux runs native TELNET from PDP-11/Network UNIX through simulated H316 systems running recovered 1973 Interface Message Processor (IMP) software to PDP-10/ITS. The accepted failover composition preserves one TELNET session when its direct application link is cut and the IMPs reroute traffic through a third IMP.
 
+The project is a vintage-computing laboratory. Current development prioritizes independent setup, understandable observations and failures, reliable operation, and useful guest sessions. Website-pipeline integration is no longer a project goal.
+
 This repository contains source-only orchestration, project-authored simulator configurations, observability code, pins, documentation, and tests. Third-party source trees, firmware, disk images, simulator binaries, generated media, and raw results remain in an external laboratory because several inputs have unresolved redistribution terms.
 
 The project promotes bounded, reproducible compositions. It does not claim to reconstruct the complete ARPANET or identify configured IMPs as historical sites.
@@ -26,6 +28,8 @@ make doctor
 ```
 
 The project cannot redistribute or silently acquire the prepared PDP-11 base images, but it now verifies and installs a user-supplied pair, builds and remembers the receipt-bound guest media, and prints every next command in order. Once `make doctor` reports ready, start either surface with `make telnet` or `make ncc`; use `make telnet-failover` to operate one guest session across the link cut, or `make ncc-failover` for the longer passive-report proof. See the [fresh-clone guide](docs/getting-started.md) for the complete path and `make help` for the command summary.
+
+To understand an existing successful, failed, or unfinished run, use `make diagnose-run RESULT=/absolute/path/to/result`. It reports retained outcomes, the last recorded checkpoint, cleanup evidence, and bounded diagnostic excerpts without starting a simulator or changing the result. See [run diagnostics](docs/runbook.md#diagnose-a-retained-run) for its evidence limits and JSON output.
 
 ## Verified compositions
 

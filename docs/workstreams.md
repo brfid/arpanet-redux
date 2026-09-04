@@ -6,11 +6,16 @@
 
 This page owns active local checkouts, selected work, and decision points. The [README](../README.md) owns public status, subsystem pages own current contracts, [ADRs](adr/README.md) own decisions, and [dated notes](experiments/README.md) own evidence.
 
+## Current direction
+
+The project is a vintage-computing laboratory. Prioritize independent setup, understandable live and failed runs, reliable operation and recovery, and useful guest sessions. Website-pipeline integration is retired as a project goal; dated decisions retain the context in which they were made. New applications, hosts, and historically dated addressing follow improvements to operating the existing laboratory.
+
 ## Local checkouts
 
 | Directory | Branch | Use |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only |
+| `/Users/brf/src/arpanet-redux-worktrees/run-diagnostics` | `codex/run-diagnostics` | Read-only retained-run diagnostics |
 
 This table lists attached checkouts. An integrated branch is deleted rather than retained, per Branch safety below; start future work from current `main` in a fresh dedicated worktree.
 
@@ -30,6 +35,7 @@ Prefer reverting the relevant commit on `main` for an ordinary rollback. Never s
 
 | Workstream | State | Decision | Read first |
 |---|---|---|---|
+| Laboratory usability | Selected first batch: a read-only diagnostic for existing successful, failed, and unfinished run directories | Report retained outcomes, last recorded checkpoints, cleanup evidence, and useful diagnostic logs. Missing records remain unknown; recorded outcomes are not acceptance revalidation or current process liveness. Verify synthetic failure cases and immutable external results before integration | [Harness](harness.md), [runbook](runbook.md), [NCC authority](ncc.md) |
 | Documentation | Current pages use one owner per concern; experiments and research remain dated records; source, link, and soft-wrap checks pass. Retained-result media pruning now has a tracked, fail-closed helper and source-only coverage | No follow-up is selected; start later work from current `main` in a clean worktree | [README](../README.md), [architecture](architecture.md), [test plan](test-plan.md) |
 | NCC | Genuine reports, paired `up`/`down`/`looped` states, typed journeys, coexistence, same-session application failover, and terminal-owned runners feed one fail-closed mid-1970s-style operator console with a banked annunciator, log, and quick summary | No required follow-up. Keep the console read-only and discovered application-link report identities candidate-only; browser input and simulator controls require a separate authority decision | [NCC observability](ncc.md), [telemetry research](research/2026-08-30-ncc-telemetry.md) |
 | PDP-11 TELNET | Gate 4H, receipt-bound media, remote `:TIME`, correlated IMP evidence, and a complete twelve-observation direct journey include independent KA10 request-ingress and IMP11-A reply-ingress traces; deterministic repeated commands, clean option negotiation, and a safe character-oriented Network UNIX terminal continue to use the preserved client's command, mode, and protocol controls. Gate 4K now composes that terminal with the accepted four-IMP failover topology: one local Control-^ cuts the run-owned direct relay only after a proved transaction, and one structured post-cut `:TIME` returns through IMP 7 in the same guest session | No required follow-up. Keep the direct terminal profile unchanged, the interactive cut controller-owned, and the human evaluator independent of passive NCC reports. Browser authority, report-line promotion, a guest-protocol implementation, a new host-interface claim, full-screen terminal behavior, and historical addressing remain separate optional decisions | [interactive failover result](experiments/2026-09-04-interactive-pdp11-its-failover.md), [ADR-018](adr/0018-interactive-telnet-failover.md), [Gate 4K](test-plan.md#gate-4k-interactive-same-session-telnet-failover) |

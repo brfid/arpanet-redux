@@ -96,16 +96,11 @@ Every run receives a new result directory, leased UDP ports, private control soc
 
 The sibling external laboratory contains replaceable build inputs and immutable run evidence, not repository state. See the [runbook](runbook.md) for its layout and [harness design](harness.md) for lifecycle mechanics.
 
-## Publication seam
+## Project direction
 
-The eventual site pipeline may replace its two historical-machine stages with a network stage only if it preserves these external contracts:
+The laboratory is an independent vintage-computing project. Current priorities are reproducible setup by another operator, understandable observations and failures, reliable lifecycle and recovery behavior, and useful guest sessions. The [workstreams page](workstreams.md#current-direction) owns the selected batch.
 
-- final bundle names `brad.bio.txt`, `build.log.html`, and `pipeline-status.json`;
-- exact name and headline plus summary equality after whitespace normalization;
-- pipeline identity, success result, zero exit status, build ID, and source revision;
-- build-log identity, provenance, reuse fingerprints, semantic validation, and fail-closed publication.
-
-The laboratory smokes do not read or modify the site checkout. [Gate 6](test-plan.md#gate-6-site-integration) owns acceptance of any integration.
+The original website-pipeline integration goal is retired as of 2026-09-04. Its context remains in [ADR-001](adr/0001-two-imp-baseline.md); it no longer determines the next application, output artifact, or acceptance milestone. The laboratory smokes do not read or modify the site checkout.
 
 ## Decisions and evidence
 

@@ -56,6 +56,7 @@ TELNET_MAX_INPUT_BYTES ?= 1048576
 TELNET_MAX_OUTPUT_BYTES ?= 8388608
 TELNET_MAX_CHUNK_BYTES ?= 4096
 TELNET_PREFLIGHT_VERBOSE ?= 0
+RESULT ?=
 TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/null)
 
 .NOTPARALLEL:
@@ -68,6 +69,7 @@ help:
 	@printf '  make test              source-only checks (no external downloads)\n'
 	@printf '  make lab-setup         fetch pinned runtime sources and build host tools\n'
 	@printf '  make doctor            report readiness and exact next actions\n\n'
+	@printf '  make diagnose-run RESULT=/path/to/result  explain a retained run\n\n'
 	@printf 'Prepare user-supplied historical media:\n'
 	@printf '  make install-pdp11-base PDP11_BASE_SOURCE_ROOT=/path/root.rl01 PDP11_BASE_SOURCE_SWAP=/path/swap.rl01\n'
 	@printf '  make build-pdp11-telnet build and select receipt-bound guest media\n\n'
@@ -91,6 +93,12 @@ lab-setup-plan:
 
 doctor:
 	$(PYTHON) ./scripts/lab-doctor.py "$(LAB_ROOT)" --python "$(PYTHON)" --arpanet-root "$(ARPANET_ROOT)" --linux-ncp-root "$(LINUX_NCP_ROOT)" --h316-root "$(H316_ROOT)" --ka10-root "$(KA10_ROOT)" --imp11a-root "$(IMP11A_ROOT)" --network-unix-root "$(NETWORK_UNIX_ROOT)" --h316 "$(H316_BIN)" --pdp10-ka "$(PDP10_KA_BIN)" --pdp11 "$(PDP11_BIN)" --base-root "$(PDP11_BASE_ROOT)" --base-swap "$(PDP11_BASE_SWAP)" --results-root "$(RESULTS_ROOT)" $(PDP11_DOCTOR_BUILD_ARGUMENT)
+
+.PHONY: diagnose-run
+diagnose-run: export ARPANET_DIAGNOSTIC_RESULT = $(value RESULT)
+diagnose-run:
+	@test -n "$$ARPANET_DIAGNOSTIC_RESULT" || { printf '%s\n' 'Set RESULT=/absolute/path/to/a/smoke-or-terminal-result.' >&2; exit 64; }
+	$(BOOTSTRAP_PYTHON) ./scripts/diagnose-run.py -- "$$ARPANET_DIAGNOSTIC_RESULT"
 
 prune-media:
 	$(BOOTSTRAP_PYTHON) ./scripts/prune-media.py "$(LAB_ROOT)" --results-root "$(RESULTS_ROOT)"

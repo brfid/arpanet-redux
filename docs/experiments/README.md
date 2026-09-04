@@ -48,6 +48,7 @@ Per [`AGENTS.md`](../../AGENTS.md), an evidence record is settled. A retained fa
 | [Interactive TELNET session](2026-09-01-interactive-pdp11-its-telnet.md) | One-controller line-oriented operator session to ITS | Network UNIX to ITS | Accepted for the bounded line-oriented scope in [ADR-014](../adr/0014-interactive-telnet-session-stream.md) and [Gate 4I](../test-plan.md#gate-4i-interactive-network-unix-to-its-telnet) | Client diagnostic repaired by [option negotiation](2026-09-01-network-unix-telnet-option-negotiation.md) |
 | [Option negotiation](2026-09-01-network-unix-telnet-option-negotiation.md) | Bounded repair of a false client diagnostic | Network UNIX to ITS | Accepted for the repair; interactive scope and authority unchanged | — |
 | [Historical terminal](2026-09-01-historical-network-unix-telnet-terminal.md) | Character-oriented interaction with the preserved guest client | Network UNIX to ITS | Accepted for the bounded character-oriented scope in [ADR-015](../adr/0015-character-oriented-historical-terminal.md) and [Gate 4J](../test-plan.md#gate-4j-historical-network-unix-telnet-terminal) | — |
+| [Interactive failover](2026-09-04-interactive-pdp11-its-failover.md) | One human-operated guest TELNET connection before and after a controller-owned direct-link cut | Network UNIX to ITS over direct and alternate routes | Accepted for the bounded same-session scope in [ADR-018](../adr/0018-interactive-telnet-failover.md) and [Gate 4K](../test-plan.md#gate-4k-interactive-same-session-telnet-failover) | — |
 
 ## NCC-observed compositions
 

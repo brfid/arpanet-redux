@@ -65,6 +65,8 @@ Allow about two minutes for ITS, Network UNIX, and both IMPs to boot. The handof
 
 This is a safe seven-bit character-oriented teletype surface, not a cursor-addressed terminal emulator. The preserved guest programs own TELNET commands and protocol; the project controller owns process lifecycle, byte retention, terminal safety, evidence checks, and cleanup. See [the runbook's terminal section](runbook.md#use-interactive-telnet) for the full command and boundary reference.
 
+To operate one connection across the accepted application-link cut, use `make telnet-failover`. Complete one `:TIME`, press Control-^ once, wait until the controller says the alternate IMP 7 route is ready, complete a second `:TIME`, and press Control-]. Control-^ is local only in this failover target; the direct `make telnet` profile continues to forward it to the guest. The runbook gives the exact sequence and retained-evidence contract.
+
 ## Start the NCC operator console
 
 Run the accepted coexistence scenario beside the passive console:
@@ -91,6 +93,6 @@ Both foreground targets run narrow fail-closed preflight. If it fails, they invo
 make doctor
 ```
 
-The doctor reports each source revision, historical asset hash, base-media hash, simulator identity, Python dependency, and selected build receipt, then prints the remaining commands in dependency order. Repair the external lab rather than weakening a check. Pass `TELNET_PREFLIGHT_VERBOSE=1` to `make telnet` when the successful narrow preflight should print every identity too.
+The doctor reports each source revision, historical asset hash, base-media hash, simulator identity, Python dependency, and selected build receipt, then prints the remaining commands in dependency order. Repair the external lab rather than weakening a check. Pass `TELNET_PREFLIGHT_VERBOSE=1` to `make telnet` or `make telnet-failover` when the successful narrow preflight should print every identity too.
 
 Results are immutable directories under `$LAB_ROOT/results`. Do not edit a retained result, copy raw evidence into Git, or publish a result bundle until every included external component has been reviewed under its own terms. The detailed smoke, replay, result, and cleanup procedures remain in the [runbook](runbook.md).

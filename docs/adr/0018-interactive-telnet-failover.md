@@ -53,6 +53,7 @@ A second set of configurations, port wiring, and route reducers would create two
 
 ## Evidence basis
 
+- The [accepted interactive failover run](../experiments/2026-09-04-interactive-pdp11-its-failover.md) closes Gate 4K over one exact clean checkpoint and a byte-identical read-only verdict replay.
 - [ADR-015](0015-character-oriented-historical-terminal.md) owns the preserved-client terminal, seven-bit safety adapter, directional-byte stream, and sole-controller boundary.
 - [ADR-014](0014-interactive-telnet-session-stream.md) owns the separate deterministic prompt-framed interface and explains why operator sessions do not belong in NCC persistence.
 - The [accepted application-failover experiment](../experiments/2026-09-01-ncc-pdp11-its-application-failover.md) owns the relay cut, direct-dead/alternate-ready transition, three-IMP route, and fourteen-observation journey.

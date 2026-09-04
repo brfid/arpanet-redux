@@ -37,7 +37,7 @@ Per [`AGENTS.md`](../../AGENTS.md), a decision recorded here is settled. Reopeni
 | [ADR-007](0007-ncc-historical-event-stream.md) | Whether direct passive reports get their own persisted stream | NCC host-interface proof | Accepted 2026-08-31 | Extended by [ADR-008](0008-ncc-throughput-event-stream-v2.md) |
 | [ADR-008](0008-ncc-throughput-event-stream-v2.md) | Admission of Type 302 bodies and the stream version required to carry them | NCC host-interface proof | Accepted 2026-08-31 | Extends [ADR-007](0007-ncc-historical-event-stream.md) |
 | [ADR-012](0012-ncc-network-behavior-summary-v2.md) | Derived-state vocabulary and gate kinds carried by completed summaries | All formal runs | Accepted 2026-08-31 | Extends [ADR-005](0005-ncc-run-summary-contract.md) |
-| [ADR-013](0013-ncc-message-journey-stream.md) | Where formal message journeys are persisted | Network UNIX to ITS | Accepted 2026-09-01; superseded in part | Superseded in part by [ADR-016](0016-ka10-request-ingress-evidence.md) for direct Gate 4H host-106 request ingress |
+| [ADR-013](0013-ncc-message-journey-stream.md) | Where formal message journeys are persisted | Network UNIX to ITS | Accepted 2026-09-01; superseded in part | Superseded in part by [ADR-016](0016-ka10-request-ingress-evidence.md) and [ADR-017](0017-imp11a-reply-ingress-evidence.md) for the two direct Gate 4H host-ingress boundaries |
 
 ## Guest session scope
 
@@ -51,3 +51,4 @@ Per [`AGENTS.md`](../../AGENTS.md), a decision recorded here is settled. Reopeni
 | Decision | Subject | Composition | Status | Successor |
 |---|---|---|---|---|
 | [ADR-016](0016-ka10-request-ingress-evidence.md) | Evidence standard admitting a direct request-ingress observation | Network UNIX to ITS | Accepted 2026-09-02 | Supersedes part of [ADR-013](0013-ncc-message-journey-stream.md) |
+| [ADR-017](0017-imp11a-reply-ingress-evidence.md) | Evidence standard admitting a direct reply-ingress observation | Network UNIX to ITS | Accepted 2026-09-04 | Supersedes the remaining direct Gate 4H ingress gap in [ADR-013](0013-ncc-message-journey-stream.md) |

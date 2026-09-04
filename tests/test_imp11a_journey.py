@@ -113,6 +113,14 @@ class Imp11aJourneyTests(unittest.TestCase):
         with self.assertRaisesRegex(Imp11aTraceError, "sequence is not contiguous"):
             parse_imp11a_trace(trace + input_trace(sequence=43, start_tick=2_000))
 
+    def test_rejects_invalid_dma_address_and_backward_tick(self) -> None:
+        trace = input_trace()
+        with self.assertRaisesRegex(Imp11aTraceError, "DMA address"):
+            parse_imp11a_trace(trace.replace(b"address=123050", b"address=123051", 1))
+
+        with self.assertRaisesRegex(Imp11aTraceError, "tick moved backward"):
+            parse_imp11a_trace(trace.replace(b"DBG(1020)>", b"DBG(1009)>", 1))
+
 
 if __name__ == "__main__":
     unittest.main()

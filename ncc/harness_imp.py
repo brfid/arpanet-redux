@@ -14,6 +14,8 @@ def wait_for_log_marker(
 ) -> float:
     deadline = time.monotonic() + timeout
     encoded = marker.encode("latin-1")
+    if getattr(imp, "watch", None) is not None:
+        imp.watch.waiting(f"{imp.name} reporting {marker!r}", timeout)
     while time.monotonic() < deadline:
         imp.ensure_alive()
         if imp.debug_path.exists() and encoded in imp.debug_path.read_bytes()[offset:]:
@@ -77,7 +79,13 @@ def wait_for_watchdog_devices_ready(
     host_device: str | None = None,
     timeout: float,
 ) -> tuple[float, str]:
+    selected = modem_device.upper()
+    if host_device is not None:
+        selected += f" and {host_device.upper()}"
+    if getattr(imp, "watch", None) is not None:
+        imp.watch.waiting(f"{imp.name} watchdog {selected} ready", timeout)
     deadline = time.monotonic() + timeout
+    state = None
     while time.monotonic() < deadline:
         imp.ensure_alive()
         state = latest_watchdog(imp.debug_path) if imp.debug_path.exists() else None
@@ -87,12 +95,9 @@ def wait_for_watchdog_devices_ready(
             assert state is not None
             return time.monotonic(), state
         time.sleep(0.1)
-    selected = modem_device.upper()
-    if host_device is not None:
-        selected += f" and {host_device.upper()}"
     raise TimeoutError(
         f"{imp.name} did not report {selected} ready within {timeout}s; "
-        f"latest watchdog state is {latest_watchdog(imp.debug_path)}"
+        f"latest watchdog state is {state}"
     )
 
 

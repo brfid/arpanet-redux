@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from contextlib import contextmanager
 import errno
 import os
 from pathlib import Path
 import pty
 import re
+import signal
 import subprocess
 import threading
 import time
+from typing import Callable, Iterator
 
 from ncc.harness_manifest import append_manifest
 
@@ -50,8 +53,16 @@ class PtyProcess:
         self.eof = False
         self.condition = threading.Condition()
         self.state = "NEW"
+        self.watch: ProcessWatch | None = None
 
     def launch(self, state: str = "BOOTING") -> None:
+        try:
+            self._launch(state)
+        except BaseException:
+            self.stop(force=True)
+            raise
+
+    def _launch(self, state: str) -> None:
         self.console_stream = self.console_log_path.open("wb", buffering=0)
         self.sent_stream = self.sent_log_path.open("a", encoding="ascii")
         master_fd, slave_fd = pty.openpty()
@@ -114,8 +125,12 @@ class PtyProcess:
             for pattern in patterns
         ]
         deadline = time.monotonic() + timeout
+        if self.watch is not None:
+            self.watch.waiting(f"{self.name} console matching {patterns!r}", timeout)
         with self.condition:
             while True:
+                if self.watch is not None:
+                    self.watch.check()
                 matches = [
                     (match.start(), index, match)
                     for index, expression in enumerate(expressions)
@@ -129,7 +144,8 @@ class PtyProcess:
                 if self.eof or self.process is None or self.process.poll() is not None:
                     tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
                     raise RuntimeError(
-                        f"{self.name} exited while waiting for {patterns!r}; tail={tail!r}"
+                        f"{self.name} exited while waiting for {patterns!r}; "
+                        f"exit status={self.process.poll() if self.process is not None else None}; tail={tail!r}"
                     )
                 if remaining <= 0:
                     tail = bytes(self.buffer[-1000:]).decode("latin-1", errors="replace")
@@ -179,6 +195,13 @@ class PtyProcess:
         self.expect(rb"\r\n\*", timeout=30)
 
     def stop(self, force: bool = False) -> None:
+        self.watch = None
+        try:
+            self._stop_process(force)
+        finally:
+            self._close_resources()
+
+    def _stop_process(self, force: bool) -> None:
         process = self.process
         if process is None:
             return
@@ -205,6 +228,8 @@ class PtyProcess:
                     process.kill()
                     process.wait(timeout=3)
         self.state = "STOPPED"
+
+    def _close_resources(self) -> None:
         if self.master_fd is not None:
             try:
                 os.close(self.master_fd)
@@ -240,8 +265,16 @@ class ImpProcess:
         self.debug_stream = None
         self.master_fd: int | None = None
         self.process: subprocess.Popen[bytes] | None = None
+        self.watch: ProcessWatch | None = None
 
     def launch(self) -> None:
+        try:
+            self._launch()
+        except BaseException:
+            self.stop()
+            raise
+
+    def _launch(self) -> None:
         self.console_stream = self.console_path.open("wb")
         self.debug_stream = self.debug_path.open("wb")
         master_fd, slave_fd = pty.openpty()
@@ -261,10 +294,18 @@ class ImpProcess:
         append_manifest(self.manifest, f"process.{self.name}.pid", self.process.pid)
 
     def ensure_alive(self) -> None:
-        if self.process is None or self.process.poll() is not None:
-            raise RuntimeError(f"{self.name} exited early")
+        if self.watch is not None:
+            self.watch.check()
+        ensure_process_alive(self)
 
     def stop(self) -> None:
+        self.watch = None
+        try:
+            self._stop_process()
+        finally:
+            self._close_resources()
+
+    def _stop_process(self) -> None:
         process = self.process
         if process is not None and process.poll() is None:
             process.terminate()
@@ -273,6 +314,8 @@ class ImpProcess:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=3)
+
+    def _close_resources(self) -> None:
         if self.master_fd is not None:
             os.close(self.master_fd)
             self.master_fd = None
@@ -282,15 +325,72 @@ class ImpProcess:
             self.debug_stream.close()
 
 
-def ensure_process_alive(process: PtyProcess) -> None:
+def ensure_process_alive(process: PtyProcess | ImpProcess) -> None:
     if process.process is None or process.process.poll() is not None:
-        raise RuntimeError(f"{process.name} exited early")
+        status = process.process.poll() if process.process is not None else None
+        raise RuntimeError(f"{process.name} exited early (exit status={status})")
+
+
+class ProcessWatch:
+    """Check the live child handles in one controller, including waiting peers."""
+
+    def __init__(
+        self,
+        processes: tuple[PtyProcess | ImpProcess, ...],
+        waiting: Callable[[str, float], None],
+    ) -> None:
+        self.processes = processes
+        self.waiting = waiting
+        for process in processes:
+            process.watch = self
+
+    def check(self) -> None:
+        for item in self.processes:
+            if item.process is not None:
+                ensure_process_alive(item)
+
+    def sleep(self, seconds: float, condition: str) -> None:
+        self.waiting(condition, seconds)
+        deadline = time.monotonic() + seconds
+        while True:
+            self.check()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(remaining, 0.1))
+
+
+@contextmanager
+def cleanup_signals() -> Iterator[None]:
+    """Finish bounded cleanup even when another catchable signal arrives."""
+
+    previous = {}
+    if threading.current_thread() is threading.main_thread():
+        for signum in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
+            previous[signum] = signal.signal(signum, signal.SIG_IGN)
+    try:
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
 
 
 def stop_all(
     hosts: tuple[PtyProcess, ...], imps: tuple[ImpProcess, ...], force: bool
 ) -> None:
-    for host in hosts:
-        host.stop(force=force)
-    for imp in imps:
-        imp.stop()
+    failures = []
+    with cleanup_signals():
+        # Readiness must not reject simulator-prompt cleanup because a peer has
+        # already stopped. Visit every owner even after one stop/close fails.
+        for item in (*hosts, *imps):
+            item.watch = None
+        for item in (*hosts, *imps):
+            try:
+                if item in hosts:
+                    item.stop(force=force)
+                else:
+                    item.stop()
+            except Exception as error:
+                failures.append(f"{item.name}: {type(error).__name__}: {error}")
+    if failures:
+        raise RuntimeError("owned process cleanup failed: " + "; ".join(failures))

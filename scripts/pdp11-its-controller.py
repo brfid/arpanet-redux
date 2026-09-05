@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import signal
 import sys
@@ -28,7 +29,8 @@ from ncc.harness_imp import (
     watchdog_devices_ready,
 )
 from ncc.harness_manifest import append_manifest, read_manifest, sha256
-from ncc.harness_process import ImpProcess, PtyProcess, ensure_process_alive
+from ncc.harness_process import ImpProcess, ProcessWatch, PtyProcess, cleanup_signals, ensure_process_alive
+from ncc.harness_progress import ControllerProgress
 from ncc.message_journey import ObservationProvenance
 from ncc.pdp11_its_harness import (
     DATE_PATTERN,
@@ -80,10 +82,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
+    parser.add_argument("--progress-fd", type=int, help="launcher-owned descriptor for live progress")
     return parser.parse_args()
 
 
-def run(args: argparse.Namespace) -> int:
+def run(args: argparse.Namespace, progress: ControllerProgress | None = None) -> int:
+    if progress is None:
+        progress = ControllerProgress(args.manifest)
+    progress.stage("controller input and observation configuration")
     validate_environment()
     results_dir = args.results_dir.resolve()
     manifest = args.manifest.resolve()
@@ -144,6 +150,7 @@ def run(args: argparse.Namespace) -> int:
     )
     hosts = (pdp11, host106)
     imps = (imp6, imp62)
+    watch = ProcessWatch((*hosts, *imps), progress.waiting)
     outcome = "failed"
     interrupted = False
 
@@ -157,16 +164,19 @@ def run(args: argparse.Namespace) -> int:
     old_term = signal.signal(signal.SIGTERM, interrupt)
     old_int = signal.signal(signal.SIGINT, interrupt)
     try:
+        progress.stage("IMP startup")
         imp6.launch()
         imp62.launch()
         wait_for_log_marker(imp6, "listening on port", 30)
         wait_for_log_marker(imp62, "listening on port", 30)
 
+        progress.stage("guest simulator consoles")
         host106.launch(state="PROMPT")
         pdp11.launch(state="PROMPT")
         host106.expect("sim> ", timeout=60)
         pdp11.expect("sim> ", timeout=60)
 
+        progress.stage("inter-IMP modem readiness")
         imp6_modem_up, _ = wait_for_watchdog_devices_ready(
             imp6, modem_device=imp6_mi_device, timeout=60
         )
@@ -175,6 +185,7 @@ def run(args: argparse.Namespace) -> int:
         )
         route_settle_deadline = max(imp6_modem_up, imp62_modem_up) + args.route_settle
 
+        progress.stage("ITS boot and local command readiness")
         host106.send(
             'expect -p "DSKDMP" send "L\\e2\\eNITS\\rIMPUS=\\eG\\r" ; continue\r'
         )
@@ -184,11 +195,13 @@ def run(args: argparse.Namespace) -> int:
         host106.mark_running_after_banner()
         host106.enter_ddt_and_prove_local_time()
 
+        progress.stage("Network UNIX boot and NCP daemon")
         boot_pdp11(pdp11)
         pdp11.send("/usr/net/etc/smalldaemon &\r")
         wait_for_prompt(pdp11, timeout=15)
-        time.sleep(args.daemon_settle)
+        watch.sleep(args.daemon_settle, "NCP daemon settling interval")
 
+        progress.stage("host interfaces and route hold-down")
         wait_for_watchdog_devices_ready(
             imp6,
             modem_device=imp6_mi_device,
@@ -203,7 +216,7 @@ def run(args: argparse.Namespace) -> int:
         )
         remaining = route_settle_deadline - time.monotonic()
         if remaining > 0:
-            time.sleep(remaining)
+            watch.sleep(remaining, "route hold-down interval")
         for imp, modem_device in (
             (imp6, imp6_mi_device),
             (imp62, imp62_mi_device),
@@ -242,6 +255,7 @@ def run(args: argparse.Namespace) -> int:
                 manifest, "application.offset.host176-imp", host176_trace_offset
             )
 
+        progress.stage("TELNET connection and remote TIME transaction")
         pdp11.send("/usr/bin/telnet - -h 106\r")
         event, _ = pdp11.expect_any(
             (rb"Connection open", rb"Host is Unavailable"), timeout=60
@@ -257,8 +271,9 @@ def run(args: argparse.Namespace) -> int:
         pdp11.expect(TIME_PATTERN, timeout=60)
         pdp11.expect(DATE_PATTERN, timeout=30)
         pdp11.expect(UPTIME_PATTERN, timeout=30)
-        time.sleep(3)
+        watch.sleep(3, "post-transaction capture interval")
 
+        progress.stage("application and message-journey evidence")
         pdp11_output = pdp11.output_from(pdp11_offset)
         its_output = host106.output_from(host106_offset)
         imp_end_offsets = {imp.name: imp.debug_path.stat().st_size for imp in imps}
@@ -457,22 +472,51 @@ def run(args: argparse.Namespace) -> int:
             "observed" if option_diagnostic else "absent",
         )
         outcome = "passed"
-        print(f"PASS: Network UNIX PDP-11 reached ITS host 106 through two IMPs: {results_dir}")
-        return 0
+    except Exception as error:
+        try:
+            progress.failure(error)
+        except OSError:
+            pass
+        raise
     finally:
-        stop_and_record(results_dir, hosts, imps, force=interrupted)
-        (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
-        signal.signal(signal.SIGTERM, old_term)
-        signal.signal(signal.SIGINT, old_int)
+        try:
+            with cleanup_signals():
+                try:
+                    try:
+                        progress.stage("controller shutdown: stopping owned guests and IMPs")
+                    finally:
+                        stop_and_record(results_dir, hosts, imps, force=interrupted)
+                except Exception:
+                    outcome = "failed"
+                    raise
+                finally:
+                    (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
+        finally:
+            signal.signal(signal.SIGTERM, old_term)
+            signal.signal(signal.SIGINT, old_int)
+    progress.stage("controller cleanup completed")
+    print(f"PASS: Network UNIX PDP-11 reached ITS host 106 through two IMPs: {results_dir}")
+    return 0
 
 
 def main() -> int:
     args = parse_args()
+    live_stream = os.fdopen(os.dup(args.progress_fd), "w") if args.progress_fd is not None else None
+    progress = ControllerProgress(args.manifest, live_stream)
     try:
-        return run(args)
-    except (OSError, RuntimeError, TimeoutError, ValueError, InterruptedError):
+        return run(args, progress)
+    except (OSError, RuntimeError, TimeoutError, ValueError, InterruptedError) as error:
+        # Failure before simulator creation still belongs to this run's manifest.
+        try:
+            if not progress.failed:
+                progress.failure(error)
+        except OSError:
+            pass
         traceback.print_exc()
         return 1
+    finally:
+        if live_stream is not None:
+            live_stream.close()
 
 
 if __name__ == "__main__":

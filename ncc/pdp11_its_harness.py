@@ -11,7 +11,8 @@ from ncc.harness_imp import (
     significant,
     watchdog_reports_modem_dead,
 )
-from ncc.harness_process import ImpProcess, PtyProcess, stop_all
+from ncc.harness_process import ImpProcess, PtyProcess, cleanup_signals, stop_all
+from ncc.harness_progress import printable_record
 
 
 TIME_PATTERN = rb"The time is [0-9]{1,2}:[0-9]{2}:[0-9]{2} [A-Z]{2,5}\."
@@ -147,21 +148,31 @@ def stop_and_record(
     imps: tuple[ImpProcess, ...],
     force: bool,
 ) -> None:
-    stop_all(hosts, imps, force=force)
-    records = []
-    survivors = []
-    for item in (*hosts, *imps):
-        process = item.process
-        pid = process.pid if process is not None else 0
-        status = process.poll() if process is not None else None
-        records.append(f"{item.name}.pid={pid}\n{item.name}.exit_status={status}\n")
-        if process is not None and status is None:
-            survivors.append(item.name)
-    (results_dir / "cleanup-evidence.txt").write_text(
-        "".join(records) + f"surviving_owned_processes={len(survivors)}\n",
-        encoding="ascii",
-    )
-    if survivors:
-        raise RuntimeError(
-            "owned simulator processes survived cleanup: " + ", ".join(survivors)
+    with cleanup_signals():
+        failure = None
+        try:
+            stop_all(hosts, imps, force=force)
+        except Exception as error:
+            failure = error
+        records = []
+        survivors = []
+        for item in (*hosts, *imps):
+            process = item.process
+            pid = process.pid if process is not None else 0
+            status = process.poll() if process is not None else None
+            records.append(f"{item.name}.pid={pid}\n{item.name}.exit_status={status}\n")
+            if process is not None and status is None:
+                survivors.append(item.name)
+        if failure is None and survivors:
+            failure = RuntimeError(
+                "owned simulator processes survived cleanup: " + ", ".join(survivors)
+            )
+        records.append(f"surviving_owned_processes={len(survivors)}\n")
+        records.append(f"cleanup_status={'failed' if failure else 'passed'}\n")
+        if failure is not None:
+            records.append(f"cleanup_error={printable_record(failure)}\n")
+        (results_dir / "cleanup-evidence.txt").write_text(
+            "".join(records), encoding="ascii",
         )
+        if failure is not None:
+            raise failure

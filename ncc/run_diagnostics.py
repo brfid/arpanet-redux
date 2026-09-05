@@ -130,6 +130,11 @@ def _checkpoints(fields: dict[str, tuple[str, int]]) -> list[dict[str, str]]:
         value = field[0]
         if key == "repository.revision":
             kind, label = "repository", "Repository identity recorded"
+        elif re.fullmatch(r"progress\.(launcher|controller)\.[1-9][0-9]*", key):
+            kind = ".".join(key.split(".")[:2])
+            label = "Recorded stage / awaited condition (not a current activity check)"
+        elif key == "failure.controller":
+            kind, label = "controller-failure", "Controller failure recorded"
         elif key.startswith("source.") and key.endswith(".revision"):
             kind, label = "sources", "External source identity recorded"
         elif key == "udp.count":
@@ -180,6 +185,21 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
         reader.issue(_MANIFEST, "no readable run manifest; select a smoke or terminal result")
     elif values.get("format") != "1":
         reader.issue(_MANIFEST, "missing or unsupported run manifest format")
+
+    progress_sequences: dict[str, int] = {}
+    for key, value in values.items():
+        if key.startswith("progress."):
+            match = re.fullmatch(r"progress\.(launcher|controller)\.([1-9][0-9]{0,5})", key)
+            if match is None or not re.fullmatch(r"[ -~]{1,1024}", value):
+                reader.issue(_MANIFEST, f"invalid progress record: {key}")
+            else:
+                owner, sequence = match[1], int(match[2])
+                if sequence <= progress_sequences.get(owner, 0):
+                    reader.issue(_MANIFEST, f"progress sequence moved backwards: {key}")
+                progress_sequences[owner] = sequence
+    controller_failure = values.get("failure.controller")
+    if controller_failure is not None and not re.fullmatch(r"[ -~]{1,1024}", controller_failure):
+        reader.issue(_MANIFEST, "failure.controller must be bounded printable ASCII")
 
     for key in ("started_utc", "finished_utc"):
         if key in values:
@@ -278,6 +298,15 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
                     process_survivors += 1
             if any(key.endswith(".pid") for key in cleanup_fields) and process_survivors != survivors:
                 raise ValueError("survivor count disagrees with recorded process statuses")
+            if "cleanup_status" in cleanup_fields:
+                status = cleanup_fields["cleanup_status"]
+                cleanup_evidence.append(_reference(_CLEANUP, status))
+                if status[0] not in ("passed", "failed"):
+                    raise ValueError("unsupported controller cleanup_status")
+                if status[0] == "passed" and (survivors or "cleanup_error" in cleanup_fields):
+                    raise ValueError("controller cleanup status disagrees with failure evidence")
+                if status[0] == "failed":
+                    controller_cleanup = "recorded-errors"
         except ValueError as error:
             reader.issue(_CLEANUP, str(error))
             controller_cleanup = "inconsistent"
@@ -330,8 +359,10 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
     if termination["exit_status"] == 0 and exit_status not in (None, 0):
         if exit_status != 1 or cleanup_status != 1:
             reader.issue(_MANIFEST, "changed launcher exit status lacks a cleanup failure")
-    if runtime_outcome == "passed" and (survivors or outer_cleanup in ("failed", "not-completed")):
+    if runtime_outcome == "passed" and (survivors or controller_cleanup == "recorded-errors" or outer_cleanup in ("failed", "not-completed")):
         reader.issue(_MANIFEST, "runtime records passed with failed cleanup evidence")
+    if runtime_outcome == "passed" and controller_failure:
+        reader.issue(_MANIFEST, "runtime records passed with a controller failure")
 
     logs = []
     for file in _LOGS:
@@ -377,8 +408,8 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
             next_steps.append("The failure reason was not retained in a supported diagnostic log. Inspect the launch terminal; this report cannot infer the cause.")
     else:
         next_steps.append("Use the scenario's documented evaluator or replay for acceptance revalidation; this command reports the recorded outcome only.")
-    if controller_cleanup == "recorded-survivors":
-        next_steps.append("The controller recorded surviving processes. Return to the owning launch session for cleanup; recorded PIDs must not be used as current ownership evidence.")
+    if controller_cleanup in ("recorded-survivors", "recorded-errors"):
+        next_steps.append("The controller recorded cleanup failures or surviving processes. Return to the owning launch session for cleanup; recorded PIDs must not be used as current ownership evidence.")
     elif outer_cleanup == "not-recorded":
         next_steps.append("Outer-runtime cleanup was not recorded. Release of ports, relays, and other outer-run resources is unknown.")
     elif outer_cleanup in ("failed", "not-completed"):
@@ -417,6 +448,7 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
         "termination": termination,
         "last_recorded_checkpoint": checkpoints[-1] if checkpoints else None,
         "checkpoints": checkpoints,
+        "controller_failure": controller_failure,
         "cleanup": {
             "controller": controller_cleanup,
             "surviving_owned_processes": survivors,
@@ -451,6 +483,7 @@ def render_diagnostic(report: dict[str, Any]) -> str:
         "inconsistent": "Run records cannot be reconciled",
         "recorded-clean": "Recorded clean",
         "recorded-survivors": "Surviving processes recorded",
+        "recorded-errors": "Cleanup failure recorded",
         "not-recorded": "Not recorded",
         "not-completed": "Recorded incomplete",
     }
@@ -472,6 +505,8 @@ def render_diagnostic(report: dict[str, Any]) -> str:
         lines.append(f"Handled signal: {_safe(termination['signal'])}")
     if termination["reason"]:
         lines.append(f"Recorded failure reason: {_safe(termination['reason'])}")
+    if report.get("controller_failure"):
+        lines.append(f"Recorded controller failure: {_safe(report['controller_failure'])}")
     if checkpoint:
         lines.extend([
             f"Last recorded checkpoint: {_safe(checkpoint['label'])}",

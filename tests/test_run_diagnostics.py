@@ -54,6 +54,28 @@ class RunDiagnosticTests(unittest.TestCase):
         self.assertEqual(report["unrecorded_details"], [])
         self.assertIn("Recorded success", render_diagnostic(report))
 
+    def test_progress_describes_waits_without_claiming_current_activity(self) -> None:
+        self.manifest(None, extra='progress.launcher.2=input checks\nprogress.controller.1=ITS boot: waiting up to 900s for banner\n')
+        report = diagnose_run(self.root)
+        self.assertEqual(report['status'], 'unfinished')
+        self.assertIn('waiting up to 900s', report['last_recorded_checkpoint']['value'])
+        self.assertIn('not a current activity check', report['last_recorded_checkpoint']['label'])
+        for extra in ('progress.controller.0=bad\n', 'progress.controller.2=next\nprogress.controller.1=backwards\n',
+                      'progress.controller.1=bad\x1b\n', 'failure.controller=bad\x1b\n'):
+            with self.subTest(extra=extra):
+                self.manifest(None, extra=extra)
+                self.assertEqual(diagnose_run(self.root)['status'], 'inconsistent')
+
+    def test_controller_failure_and_cleanup_error_are_independent_of_zero_survivors(self) -> None:
+        self.manifest('failed', 1, extra='failure.controller=ITS boot: imp62 exited early (exit status=-9)\n')
+        self.write('cleanup-evidence.txt', 'host.pid=123\nhost.exit_status=0\nsurviving_owned_processes=0\ncleanup_status=failed\ncleanup_error=log close failed\n')
+        report = diagnose_run(self.root)
+        self.assertEqual(report['status'], 'recorded-failed')
+        self.assertEqual(report['cleanup']['controller'], 'recorded-errors')
+        self.assertIn('imp62 exited early', render_diagnostic(report))
+        self.manifest(extra='failure.controller=boot failed\n')
+        self.assertEqual(diagnose_run(self.root)['status'], 'inconsistent')
+
     def test_controller_success_does_not_mask_later_outer_failure(self) -> None:
         self.manifest("failed", 1)
         self.write("outcome.txt", "passed\n")

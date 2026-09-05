@@ -228,6 +228,32 @@ brfid_mark_run_passed
         self.assertEqual(report["cleanup"]["outer_runtime"], "passed")
         self.assertIsNone(report["termination"]["reason"])
 
+    def test_cleanup_retry_does_not_reuse_released_process_or_lease_ownership(self) -> None:
+        completed, result = self.run_script('''
+brfid_acquire_exclusive_lease "$result/build.lock"
+brfid_make_private_socket_dir
+control=$BRFID_SOCKET_DIR
+brfid_stop_pid_bounded() {
+  BRFID_STOP_FORCED=0
+  printf '%s\\n' "$1" >>"$result/stopped"
+}
+BRFID_MANAGED_PIDS=123
+BRFID_PORT_LEASE_PID=456
+BRFID_CONTROLLER_CLEANUP_LOST=123
+if brfid_cleanup; then exit 99; fi
+# Another run may legitimately take these names after their release.
+mkdir "$result/build.lock" "$control"
+if brfid_cleanup; then exit 99; fi
+test -d "$result/build.lock"
+test -d "$control"
+rmdir "$control"
+brfid_fail 7 "primary failure"
+''')
+        self.assertEqual(completed.returncode, 7, completed.stderr)
+        self.assertEqual((result / 'stopped').read_text().splitlines(), ['123', '456'])
+        self.assertTrue((result / 'build.lock').is_dir())
+        self.assertEqual(self.report(result)['cleanup']['runtime_failed_resources'], ['controller-cleanup:123'])
+
     def test_failure_reason_cannot_inject_records_or_terminal_controls(self) -> None:
         completed, result = self.run_script('''
 reason=$(printf 'bad\nexit_status=0\r\033[2J')

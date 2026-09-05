@@ -7,19 +7,31 @@ if [ "$#" -ne 8 ]; then
   exit 64
 fi
 
-arpanet_root=$(CDPATH= cd -- "$1" && pwd)
-network_unix_root=$(CDPATH= cd -- "$2" && pwd)
-imp11a_root=$(CDPATH= cd -- "$3" && pwd)
-h316_bin="$(CDPATH= cd -- "$(dirname "$4")" && pwd)/$(basename "$4")"
-pdp10_bin="$(CDPATH= cd -- "$(dirname "$5")" && pwd)/$(basename "$5")"
-pdp11_bin="$(CDPATH= cd -- "$(dirname "$6")" && pwd)/$(basename "$6")"
-pdp11_build_root=$(CDPATH= cd -- "$7" && pwd)
 results_dir_input=$8
 script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 . "$repo_root/scripts/lib/runtime.sh"
 brfid_runtime_init
 brfid_install_cleanup_traps
+brfid_progress "result allocation: creating a new result at $results_dir_input"
+brfid_create_results_dir "$results_dir_input"
+results_dir=$BRFID_RESULTS_DIR
+runtime_dir="$results_dir/runtime"
+mkdir "$runtime_dir"
+brfid_manifest_init "$runtime_dir/run.env" pdp11-its-telnet "$repo_root"
+brfid_progress "input paths: checking source, build, simulator, and media locations"
+for directory in "$1" "$2" "$3" "$7"; do
+  if [ ! -d "$directory" ]; then
+    brfid_fail 66 "missing required input directory: $directory"
+  fi
+done
+arpanet_root=$(CDPATH= cd -- "$1" && pwd)
+network_unix_root=$(CDPATH= cd -- "$2" && pwd)
+imp11a_root=$(CDPATH= cd -- "$3" && pwd)
+h316_bin=$4
+pdp10_bin=$5
+pdp11_bin=$6
+pdp11_build_root=$(CDPATH= cd -- "$7" && pwd)
 
 mini_dir="$arpanet_root/mini"
 host106_base="$mini_dir/host70/106"
@@ -37,16 +49,19 @@ for asset in dskdmp.rim rp03.0 rp03.1 rp03.2 rp03.3; do
   fi
 done
 
+# Resolve executables only after missing paths can leave a retained reason.
+h316_bin="$(CDPATH= cd -- "$(dirname "$h316_bin")" && pwd)/$(basename "$h316_bin")"
+pdp10_bin="$(CDPATH= cd -- "$(dirname "$pdp10_bin")" && pwd)/$(basename "$pdp10_bin")"
+pdp11_bin="$(CDPATH= cd -- "$(dirname "$pdp11_bin")" && pwd)/$(basename "$pdp11_bin")"
+brfid_progress "build lease: acquiring exclusive use of $pdp11_build_root"
 brfid_acquire_exclusive_lease "$pdp11_build_root.lock"
-"$repo_root/scripts/pdp11-build-receipt.py" verify "$pdp11_receipt"
-"$repo_root/scripts/verify-simulator-binaries.py" \
+brfid_progress "build receipt: verifying all bound inputs and media"
+brfid_require "PDP-11 build receipt verification failed" "$repo_root/scripts/pdp11-build-receipt.py" verify "$pdp11_receipt"
+brfid_progress "simulator identity: verifying the pinned H316, KA10, and PDP-11 executables"
+brfid_require "Simulator identity verification failed" "$repo_root/scripts/verify-simulator-binaries.py" \
   --h316 "$h316_bin" --pdp10-ka "$pdp10_bin" --pdp11 "$pdp11_bin"
 
-brfid_create_results_dir "$results_dir_input"
-results_dir=$BRFID_RESULTS_DIR
-runtime_dir="$results_dir/runtime"
-mkdir -p "$runtime_dir"
-brfid_manifest_init "$runtime_dir/run.env" pdp11-its-telnet "$repo_root"
+brfid_progress "input identity: recording source, executable, and configuration hashes"
 brfid_manifest_add_git arpanet-in-a-box "$arpanet_root"
 brfid_manifest_add_git network-unix-v6 "$network_unix_root"
 brfid_manifest_add_git h316-simh "$(git -C "$(dirname "$h316_bin")" rev-parse --show-toplevel)"
@@ -65,6 +80,7 @@ brfid_manifest_add_file imp-firmware "$mini_dir/impcode.simh" "$repo_root/script
 brfid_manifest_add_file imp-base-config "$mini_dir/impconfig.simh" "$repo_root/scripts/sha256-file.sh"
 brfid_manifest_add_file asset-manifest "$repo_root/pins/arpanet-assets.sha256" "$repo_root/scripts/sha256-file.sh"
 
+brfid_progress "guest staging: copying disposable ITS and Network UNIX media"
 host106_work="$results_dir/host106"
 pdp11_work="$results_dir/pdp11"
 mkdir -p "$host106_work" "$pdp11_work/images"
@@ -81,6 +97,7 @@ for asset in ncp_root.rl01 ncp_swap.rl01; do
   brfid_manifest_add_file "pdp11-$asset" "$pdp11_work/images/$asset" "$repo_root/scripts/sha256-file.sh"
 done
 
+brfid_progress "UDP reservation: waiting up to 10s for six leased ports"
 brfid_reserve_udp_ports "$repo_root/scripts/reserve-udp-ports.py" 6 "$runtime_dir" "$runtime_dir/ports.env"
 brfid_assign_two_host_ports
 brfid_manifest_add_port_metadata "$runtime_dir/ports.env"
@@ -90,12 +107,15 @@ brfid_manifest_append udp.imp6.hi "$BRFID_IMP6_HI_PORT"
 brfid_manifest_append udp.host106.imp "$BRFID_HOST_A_IMP_PORT"
 brfid_manifest_append udp.imp62.hi "$BRFID_IMP62_HI_PORT"
 brfid_manifest_append udp.host176.imp "$BRFID_HOST_B_IMP_PORT"
+brfid_progress "control namespace: creating the private run directory"
 brfid_make_private_socket_dir
 brfid_manifest_append runtime.control-socket-namespace "$BRFID_SOCKET_DIR"
 BRFID_PDP11_DEBUG_LOG="$results_dir/pdp11-imp-debug.log"
 export BRFID_PDP11_DEBUG_LOG
+brfid_progress "UDP handoff: waiting up to 5s for the reservation release acknowledgement"
 brfid_release_udp_lease_for_launch
 
+brfid_progress "controller startup: awaiting guest and network readiness; details in $runtime_dir/run.env"
 brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log" "$results_dir/controller.stderr.log" \
   python3 "$repo_root/scripts/pdp11-its-controller.py" \
   --h316 "$h316_bin" \
@@ -112,7 +132,7 @@ brfid_start_process controller "$repo_root" "$results_dir/controller.stdout.log"
   --ka10-ingress-trace \
   --pdp11-ingress-trace \
   --results-dir "$results_dir" \
-  --manifest "$runtime_dir/run.env" >/dev/null
+  --manifest "$runtime_dir/run.env" --progress-fd 3 3>&2 >/dev/null
 controller_pid=$BRFID_LAST_PID
 if wait "$controller_pid"; then
   controller_status=0
@@ -124,6 +144,7 @@ if [ "$controller_status" -ne 0 ]; then
   brfid_fail "$controller_status" "PDP-11-to-ITS controller failed; see $results_dir/controller.stderr.log"
 fi
 
+brfid_progress "acceptance: checking application, journey, transport, and controller cleanup evidence"
 brfid_require "Required evidence missing: passed in $results_dir/outcome.txt" grep -Fxq "passed" "$results_dir/outcome.txt"
 brfid_require "Required evidence missing: connection_open=1 in $results_dir/application-evidence.txt" grep -Fq "connection_open=1" "$results_dir/application-evidence.txt"
 brfid_require "Required evidence missing: remote_time=structured in $results_dir/application-evidence.txt" grep -Fq "remote_time=structured" "$results_dir/application-evidence.txt"
@@ -139,6 +160,7 @@ brfid_assert_no_transport_errors \
   "$results_dir/imp62.console.log" "$results_dir/imp62.debug.log" \
   "$results_dir/host106.console.log" "$results_dir/pdp11.console.log" \
   "$results_dir/pdp11-imp-debug.log"
+brfid_progress "outer cleanup: releasing owned helper, ports, control namespace, and build lease"
 brfid_cleanup
 brfid_manifest_append cleanup.outer-runtime passed
 echo "PASS: Network UNIX host 176 used TELNET to execute :TIME on ITS host 106 through two recovered IMPs."

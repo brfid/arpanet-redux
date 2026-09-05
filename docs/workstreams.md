@@ -1,6 +1,6 @@
 # Workstreams
 
-- **Updated:** 2026-09-04
+- **Updated:** 2026-09-05
 - **Canonical repository:** [`brfid/arpanet-redux`](https://github.com/brfid/arpanet-redux)
 - **Integration policy:** Keep `main` test-passing; develop in dedicated branches and worktrees.
 
@@ -15,8 +15,11 @@ The project is a vintage-computing laboratory. Prioritize independent setup, und
 | Directory | Branch | Use |
 |---|---|---|
 | `/Users/brf/src/arpanet-redux` | `main` | Integration only |
+| `/Users/brf/src/arpanet-redux-worktrees/lifecycle-recovery` | `codex/lifecycle-recovery` | Bounded startup, shutdown, and recovery stabilization |
 
 This table lists attached checkouts. An integrated branch is deleted rather than retained, per Branch safety below; start future work from current `main` in a fresh dedicated worktree.
+
+The active laboratory-usability batch targets direct Network UNIX-to-ITS preflight and readiness diagnostics, owned-component exits during startup, repeated interruption, partial startup cleanup, and recovery through a subsequent normal run. Require source regression tests, bounded real failure experiments, released resources, preserved inputs, and a second composition for shared lifecycle changes. Guest disks remain disposable; persistent workspaces, historical protocol changes, topology changes, and broader failover tracing are deferred.
 
 One optional branch is parked with no attached worktree: `research/historical-addressing-model`, on `origin`, containing unintegrated historical-addressing work. It is not queued for review or integration; inspect its current divergence before reviving it. See the historical addressing handoff below before deliberately reviving work that touches shared topology, address identifiers, or `config/`.
 

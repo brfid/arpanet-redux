@@ -25,6 +25,8 @@ brfid_runtime_init() {
   BRFID_RUNTIME_CLEANUP_STATUS=
   BRFID_RUNTIME_CLEANUP_ATTEMPTS=0
   BRFID_RUNTIME_CLEANUP_FAILURES=
+  BRFID_PROGRESS_SEQUENCE=0
+  BRFID_PROGRESS_TEXT=
   export BRFID_MANAGED_PIDS BRFID_NCP_CLIENT_PIDS
   export BRFID_SOCKET_NAMES BRFID_SOCKET_DIR
   export BRFID_PORT_LEASE_PID BRFID_PORT_LEASE_READY
@@ -59,6 +61,16 @@ brfid_require() {
     brfid_requirement_status=$?
   fi
   brfid_fail "$brfid_requirement_status" "$brfid_requirement (exit status $brfid_requirement_status)"
+}
+
+brfid_progress() {
+  # One bounded record per transition, including stages before a manifest exists.
+  BRFID_PROGRESS_TEXT=$(printf '%s' "$1" | LC_ALL=C tr -c '\040-\176' '?' | cut -c 1-1024)
+  BRFID_PROGRESS_SEQUENCE=$((BRFID_PROGRESS_SEQUENCE + 1))
+  brfid_error "[launcher] $BRFID_PROGRESS_TEXT"
+  if [ -n "${BRFID_RUN_MANIFEST-}" ]; then
+    brfid_manifest_append "progress.launcher.$BRFID_PROGRESS_SEQUENCE" "$BRFID_PROGRESS_TEXT"
+  fi
 }
 
 brfid_register_pid() {
@@ -478,7 +490,7 @@ brfid_finish_run_manifest() {
       if [ -n "${BRFID_RUN_SIGNAL-}" ]; then
         BRFID_FAILURE_REASON="Launcher handled $BRFID_RUN_SIGNAL"
       elif [ "$brfid_manifest_exit_status" -ne 0 ]; then
-        BRFID_FAILURE_REASON="Launcher exited with status $brfid_manifest_exit_status; no more specific reason was recorded"
+        BRFID_FAILURE_REASON="Launcher exited with status $brfid_manifest_exit_status${BRFID_PROGRESS_TEXT:+ during $BRFID_PROGRESS_TEXT}; no more specific reason was recorded"
       else
         BRFID_FAILURE_REASON="Launcher ended without recording a passed outcome"
       fi
@@ -650,9 +662,17 @@ brfid_cleanup() {
     if [ "$brfid_cleanup_pid" = "${BRFID_CONTROLLER_PID-}" ]; then
       brfid_cleanup_grace=60
     fi
-    brfid_stop_pid_bounded "$brfid_cleanup_pid" "$brfid_cleanup_grace" || brfid_cleanup_failed "child:$brfid_cleanup_pid"
+    brfid_cleanup_stopped=0
+    if brfid_stop_pid_bounded "$brfid_cleanup_pid" "$brfid_cleanup_grace"; then
+      brfid_cleanup_stopped=1
+    else
+      brfid_cleanup_failed "child:$brfid_cleanup_pid"
+    fi
     if [ "$brfid_cleanup_pid" = "${BRFID_CONTROLLER_PID-}" ] && [ "${BRFID_STOP_FORCED:-0}" -eq 1 ]; then
       BRFID_CONTROLLER_CLEANUP_LOST=$brfid_cleanup_pid
+    fi
+    if [ "$brfid_cleanup_stopped" -eq 1 ]; then
+      brfid_unregister_pid "$brfid_cleanup_pid"
     fi
   done
   if [ -n "${BRFID_PORT_LEASE_PID-}" ]; then
@@ -668,12 +688,22 @@ brfid_cleanup() {
   if [ -n "${BRFID_SOCKET_DIR-}" ]; then
     if [ -d "$BRFID_SOCKET_DIR" ] && ! rmdir "$BRFID_SOCKET_DIR" 2>/dev/null; then
       brfid_cleanup_failed control-directory
+    else
+      BRFID_SOCKET_DIR=
+      BRFID_SOCKET_NAMES=
     fi
   fi
-  rm -f "${BRFID_PORT_LEASE_RELEASED-}" "${BRFID_PORT_LEASE_READY-}" || brfid_cleanup_failed port-lease-files
-  if [ -n "${BRFID_EXCLUSIVE_LEASE_DIR-}" ] && [ -d "$BRFID_EXCLUSIVE_LEASE_DIR" ]; then
-    if ! rmdir "$BRFID_EXCLUSIVE_LEASE_DIR" 2>/dev/null; then
+  if rm -f "${BRFID_PORT_LEASE_RELEASED-}" "${BRFID_PORT_LEASE_READY-}"; then
+    BRFID_PORT_LEASE_RELEASED=
+    BRFID_PORT_LEASE_READY=
+  else
+    brfid_cleanup_failed port-lease-files
+  fi
+  if [ -n "${BRFID_EXCLUSIVE_LEASE_DIR-}" ]; then
+    if [ -d "$BRFID_EXCLUSIVE_LEASE_DIR" ] && ! rmdir "$BRFID_EXCLUSIVE_LEASE_DIR" 2>/dev/null; then
       brfid_cleanup_failed exclusive-lease
+    else
+      BRFID_EXCLUSIVE_LEASE_DIR=
     fi
   fi
   if [ -n "${BRFID_CONTROLLER_CLEANUP_LOST-}" ]; then
@@ -698,7 +728,10 @@ brfid_cleanup_failed() {
 brfid_exit_trap() {
   brfid_exit_status=$?
   BRFID_LAUNCHER_EXIT_STATUS=$brfid_exit_status
-  trap - 0 1 2 15
+  trap - 0
+  # The first termination owns the status. Further catchable signals must not
+  # interrupt delegated cleanup or leave the exclusive lease behind.
+  trap '' 1 2 15
   if ! brfid_cleanup; then
     if [ "$brfid_exit_status" -eq 0 ]; then
       brfid_exit_status=1

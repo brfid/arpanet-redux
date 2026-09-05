@@ -76,6 +76,16 @@ class RunDiagnosticTests(unittest.TestCase):
         self.manifest(extra='failure.controller=boot failed\n')
         self.assertEqual(diagnose_run(self.root)['status'], 'inconsistent')
 
+    def test_incomplete_cleanup_error_cannot_look_like_an_older_clean_record(self) -> None:
+        self.manifest('failed', 1)
+        for extra in ('cleanup_error=close failed\n', 'cleanup_status=passed\ncleanup_error=close failed\n',
+                      'cleanup_status=failed\ncleanup_error=bad\x1b\n'):
+            with self.subTest(extra=extra):
+                self.write('cleanup-evidence.txt', extra + 'surviving_owned_processes=0\n')
+                self.assertEqual(diagnose_run(self.root)['cleanup']['controller'], 'inconsistent')
+        self.write('cleanup-evidence.txt', 'cleanup_status=failed\ncleanup_error=close failed\nhost.pid=1\n')
+        self.assertEqual(diagnose_run(self.root)['cleanup']['controller'], 'not-recorded')
+
     def test_controller_success_does_not_mask_later_outer_failure(self) -> None:
         self.manifest("failed", 1)
         self.write("outcome.txt", "passed\n")

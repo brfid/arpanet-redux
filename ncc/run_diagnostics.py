@@ -276,6 +276,7 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
 
     cleanup_fields = reader.fields(_CLEANUP)
     controller_cleanup = "not-recorded"
+    controller_cleanup_error = None
     survivors = None
     cleanup_evidence: list[str] = []
     if "surviving_owned_processes" in cleanup_fields and _CLEANUP not in reader.partial:
@@ -298,6 +299,14 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
                     process_survivors += 1
             if any(key.endswith(".pid") for key in cleanup_fields) and process_survivors != survivors:
                 raise ValueError("survivor count disagrees with recorded process statuses")
+            if "cleanup_error" in cleanup_fields:
+                error_field = cleanup_fields["cleanup_error"]
+                controller_cleanup_error = error_field[0]
+                cleanup_evidence.append(_reference(_CLEANUP, error_field))
+                if not re.fullmatch(r"[ -~]{1,1024}", controller_cleanup_error):
+                    raise ValueError("cleanup_error must be bounded printable ASCII")
+                if cleanup_fields.get("cleanup_status", (None, 0))[0] != "failed":
+                    raise ValueError("controller cleanup error lacks a failed status")
             if "cleanup_status" in cleanup_fields:
                 status = cleanup_fields["cleanup_status"]
                 cleanup_evidence.append(_reference(_CLEANUP, status))
@@ -451,6 +460,7 @@ def diagnose_run(results_dir: str | Path) -> dict[str, Any]:
         "controller_failure": controller_failure,
         "cleanup": {
             "controller": controller_cleanup,
+            "controller_error": controller_cleanup_error,
             "surviving_owned_processes": survivors,
             "outer_runtime": outer_cleanup,
             "runtime_exit_status": cleanup_status,
@@ -520,6 +530,8 @@ def render_diagnostic(report: dict[str, Any]) -> str:
     ])
     if cleanup["runtime_failed_resources"]:
         lines.append("Cleanup failures: " + ", ".join(_safe(value) for value in cleanup["runtime_failed_resources"]))
+    if cleanup.get("controller_error"):
+        lines.append(f"Controller cleanup error: {_safe(cleanup['controller_error'])}")
     if report["unrecorded_details"]:
         lines.append("Unrecorded details (not necessarily required by this scenario):")
         lines.extend("  " + detail for detail in report["unrecorded_details"])

@@ -139,6 +139,7 @@ class LifecycleRecoveryTests(unittest.TestCase):
             evidence = (root / 'cleanup-evidence.txt').read_text()
             self.assertIn('surviving_owned_processes=0', evidence)
             self.assertIn('cleanup_status=failed', evidence)
+            self.assertTrue(evidence.endswith('surviving_owned_processes=0\n'))
 
     def test_repeated_signal_during_launcher_cleanup_preserves_first_status_and_leases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

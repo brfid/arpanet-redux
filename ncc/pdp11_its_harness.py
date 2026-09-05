@@ -167,10 +167,12 @@ def stop_and_record(
             failure = RuntimeError(
                 "owned simulator processes survived cleanup: " + ", ".join(survivors)
             )
-        records.append(f"surviving_owned_processes={len(survivors)}\n")
-        records.append(f"cleanup_status={'failed' if failure else 'passed'}\n")
+        # Put the complete-count marker last. A torn new record must not look
+        # like an older clean record before its cleanup error has been written.
+        records.insert(0, f"cleanup_status={'failed' if failure else 'passed'}\n")
         if failure is not None:
-            records.append(f"cleanup_error={printable_record(failure)}\n")
+            records.insert(1, f"cleanup_error={printable_record(failure)}\n")
+        records.append(f"surviving_owned_processes={len(survivors)}\n")
         (results_dir / "cleanup-evidence.txt").write_text(
             "".join(records), encoding="ascii",
         )

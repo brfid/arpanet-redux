@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
+import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from ncc.harness_process import WRU
-from ncc.workspace_shutdown import stop_its, stop_unix
+from ncc.workspace_shutdown import prepare_unix_shutdown, stop_its, stop_unix
 
 
 class Guest:
@@ -48,6 +51,29 @@ class Guest:
 
 @patch("ncc.workspace_shutdown.time.sleep")
 class WorkspaceShutdownTests(unittest.TestCase):
+    def test_uploaded_source_must_match_before_compilation(self, _sleep):
+        source = b"main() { sync(); sleep(3); }\n"
+        upload = b"a\r" + source.replace(b"\n", b"\r") + b".\rw\rq\r"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stop.c"
+            manifest = Path(directory) / "run.env"
+            path.write_bytes(source)
+            for actual in (source, source.replace(b"3", b"0")):
+                guest = Guest({
+                    upload: b"\r\n# ",
+                    b"cat stop.c\r": b"cat stop.c\r\n" + actual.replace(b"\n", b"\r\n") + b"# ",
+                })
+                with patch("ncc.workspace_shutdown.quiet_command") as quiet, patch(
+                    "ncc.workspace_shutdown.uuid.uuid4", return_value=SimpleNamespace(hex="a" * 32),
+                ):
+                    if actual == source:
+                        prepare_unix_shutdown(guest, path, manifest)
+                        self.assertIn("cc stop.c", [call.args[1] for call in quiet.call_args_list])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "exactly"):
+                            prepare_unix_shutdown(guest, path, manifest)
+                        self.assertNotIn("cc stop.c", [call.args[1] for call in quiet.call_args_list])
+
     def test_its_requires_new_guest_completion_before_stopping_cpu(self, _sleep):
         replies = {
             b":lock\r": b"LOCK.156\r\n_",

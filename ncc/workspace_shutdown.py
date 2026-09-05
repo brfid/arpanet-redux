@@ -44,8 +44,12 @@ def prepare_unix_shutdown(process: PtyProcess, source: Path, manifest: Path) -> 
     process.cursor = process.position()
     process.send(f"ed {guest_source}\r")
     time.sleep(0.2)
-    process.send_slow(b"a\r" + data.replace(b"\n", b"\r") + b".\rw\rq\r", delay=0.003)
+    process.send_slow(b"a\r" + data.replace(b"\n", b"\r") + b".\rw\rq\r", delay=0.03)
     process.expect(UNIX_PROMPT, timeout=30)
+    uploaded = command(process, "cat stop.c").replace(b"\r", b"")
+    prefix, separator, contents = uploaded.partition(b"cat stop.c\n")
+    if prefix.strip() or not separator or contents.rstrip(b" ") != data + b"#":
+        raise RuntimeError("guest workspace stop source did not survive console upload exactly")
     quiet_command(process, "cc stop.c", timeout=120)
     quiet_command(process, f"mv a.out {program}")
     quiet_command(process, "rm stop.c")

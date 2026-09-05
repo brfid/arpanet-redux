@@ -33,6 +33,15 @@ The base reconstruction acquires pinned historical inputs directly into the exte
 
 To understand an existing successful, failed, or unfinished run, use `make diagnose-run RESULT=/absolute/path/to/result`. It reports retained outcomes, the last recorded checkpoint, cleanup evidence, and bounded diagnostic excerpts without starting a simulator or changing the result. See [run diagnostics](docs/runbook.md#diagnose-a-retained-run) for its evidence limits and JSON output.
 
+To keep saved guest files between sessions, create a named [persistent workspace](docs/workspaces.md), then reopen that name whenever you return:
+
+```sh
+make workspace-create WORKSPACE=personal
+make workspace WORKSPACE=personal
+```
+
+Save your editor buffers inside the guests and press Control-] to save their disks and stop. Each restart boots fresh processes from the last verified save; previous saves remain available for rollback. Reopen your applications and TELNET connections after restarting.
+
 ## Verified compositions
 
 The following results pass at the revisions in [`pins/`](pins/). The linked test gates define their exact claims.
@@ -46,6 +55,7 @@ The following results pass at the revisions in [`pins/`](pins/). The linked test
 | The same direct Network UNIX-to-ITS route under one foreground terminal controller | Repeated operator-entered commands and exact prompt-framed results in one real guest TELNET session, with a strict retained transcript and complete cleanup ([Gate 4I](docs/test-plan.md#gate-4i-interactive-network-unix-to-its-telnet)) |
 | The same route from the real Network UNIX shell and preserved TELNET command interface | Character-oriented seven-bit terminal input, guest-owned connection and option handling, remote `:TIME`, TELNET `AYT`, message/character modes, exact directional bytes, correlated IMP traffic, and safe cleanup ([Gate 4J](docs/test-plan.md#gate-4j-historical-network-unix-telnet-terminal)) |
 | One human-operated Network UNIX TELNET connection with the direct application cable cut after a pre-cut `:TIME` | Local Control-^ cut ownership, atomic acknowledgement, direct-dead/alternate-ready transition, a second structured `:TIME` in the same guest session, typed IMP 7 journey, exact directional bytes, and safe cleanup ([Gate 4K](docs/test-plan.md#gate-4k-interactive-same-session-telnet-failover)) |
+| A named workspace on the direct Network UNIX-to-ITS route | Guest-created and edited files survive repeated complete stop/restart cycles on both hosts; verified disk generations, exclusive ownership, interrupted-publication recovery, and rollback preserve complete saves ([Gate 4L](docs/test-plan.md#gate-4l-persistent-direct-guest-disks)) |
 | NCC receiver on IMP 5 with IMPs 5, 6, and 7 | Genuine trouble and throughput reports plus reciprocal direct-line transitions from `up` to evidenced [`down`](docs/experiments/2026-08-31-ncc-alternate-path-fault.md) or [`looped`](docs/experiments/2026-08-31-ncc-line-loopback.md) |
 | Network UNIX/ITS route plus the IMP 5/6/7 NCC triangle | One lifecycle preserves the accepted application transaction and typed journey while receiving both report forms from IMPs 5, 6, 7, and 62 ([coexistence gate](docs/test-plan.md#ncc-observed-heterogeneous-coexistence-gate)) |
 | The same composition with the IMP 62/IMP 6 application cable cut and an alternate route through IMP 7 | The same TELNET session returns structured `:TIME` output before and after the cut, the post-cut H316 journey covers IMPs 62, 7, and 6, and all four IMPs remain observable ([failover gate](docs/test-plan.md#ncc-observed-application-link-failover-gate)) |

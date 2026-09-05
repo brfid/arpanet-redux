@@ -1,6 +1,6 @@
 # ADR-019: Preserve direct guest disk generations across restarts
 
-- **Status:** Proposed pending real save/restart acceptance
+- **Status:** Accepted
 - **Date:** 2026-09-05
 - **Decider:** Brad
 
@@ -35,6 +35,7 @@ The [workspace contract](../workspaces.md) owns commands and recovery. [Gate 4L]
 
 ## Evidence and sources
 
+- [Exact save/restart and failure-recovery result](../experiments/2026-09-05-persistent-guest-workspaces.md), including saved files on both guests, repeated edits, clean restarts, interrupted publication, rollback, and the unchanged direct Gate 4H regression.
 - [ITS LOCK operator documentation](https://github.com/PDP-10/its/blob/0f7d67997f9f5d30208e117e73272031e74f16b9/doc/_info_/lock.order) and the pinned external `src/syseng/lock.156` define the guest shutdown interface; source and media remain external under [NOTICE](../../NOTICE.md).
 - [V6 init source preserved by TUHS](https://www.tuhs.org/cgi-bin/utree.pl?file=V6/usr/source/s1/init.c) documents the single-user switch setting and reset path. The exact prepared Network UNIX guest must separately prove that behavior.
 - [V6 shell source preserved by TUHS](https://www.tuhs.org/cgi-bin/utree.pl?file=V6/usr/source/s2/sh.c) and the exact guest compiler establish the supported command and compilation interface.

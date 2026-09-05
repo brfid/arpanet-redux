@@ -94,7 +94,7 @@ See [NCC observability](ncc.md) for the supported contracts and [the test plan](
 
 Every run receives a new result directory, leased UDP ports, private control sockets, distinct guest-media workspaces, and an exact child-process set. The harness verifies source and executable identities before launch and records the inputs, configuration hashes, resource allocation, outcome, and cleanup in the result.
 
-The sibling external laboratory contains replaceable build inputs and immutable run evidence, not repository state. See the [runbook](runbook.md) for its layout and [harness design](harness.md) for lifecycle mechanics.
+The sibling external laboratory contains prepared build inputs, retained run evidence, and optional [persistent guest workspaces](workspaces.md), not repository state. A direct workspace boots per-run copies of verified disk generations and publishes a new generation only after guest shutdown and complete cleanup. See the [runbook](runbook.md) for the laboratory layout and [harness design](harness.md) for lifecycle mechanics.
 
 ## Project direction
 

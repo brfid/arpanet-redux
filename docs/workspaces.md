@@ -2,7 +2,7 @@
 
 ## Scope
 
-A workspace preserves saved files on the direct Network UNIX 176 / ITS 106 pair across complete simulator stop and restart. Each start boots fresh processes from a verified saved disk generation and opens the historical Network UNIX terminal. Programs, unsaved editor buffers, logged-in users, TELNET connections, IMP routing state, and packets in transit are recreated rather than resumed.
+A workspace preserves saved files on the direct Network UNIX 176 / ITS 106 pair across complete simulator stop and restart. Each start boots fresh processes from a verified saved disk generation and opens the historical Network UNIX terminal. Process memory, unsaved editor buffers, logged-in sessions, TELNET connections, IMP routing state, and packets in transit are not saved. Reopen your applications and connections after restarting.
 
 The existing `make telnet`, deterministic checks, failover compositions, and formal smokes keep their fresh-image behavior. Workspaces use the direct terminal controller and its existing guest-owned TELNET protocol boundary. The browser remains passive.
 
@@ -17,7 +17,7 @@ make workspace WORKSPACE=personal
 
 Names contain up to 64 letters, digits, underscores, or hyphens and start with a letter or digit. Creation refuses an existing name. `LAB_ROOT=/absolute/path/to/lab` selects another external laboratory. Creation uses `PDP11_INTERACTIVE_BUILD_ROOT` or the currently selected guest build; subsequent starts use the build recorded in the workspace even if the laboratory's selected build changes.
 
-Use the guest shell and preserved TELNET client as described in the [runbook](runbook.md#use-interactive-telnet). Save your editor buffers inside the guests. Control-] ends operator input, requests an ITS shutdown, synchronizes Network UNIX, stops every owned simulator, and publishes a new save only after verification and successful cleanup. ITS can require up to five guest minutes to shut down.
+Use the guest shell and preserved TELNET client as described in the [runbook](runbook.md#use-interactive-telnet). Save your editor buffers inside the guests and exit any foreground UNIX editor or application; the preserved TELNET client may remain open. Control-] ends operator input, requests an ITS shutdown, synchronizes Network UNIX, stops every owned simulator, and publishes a new save only after verification and successful cleanup. ITS can require up to five guest minutes to shut down. If the controller cannot recover the UNIX root shell, it retains the previous save and the failed run's disks.
 
 Every invocation retains a new result under `$LAB_ROOT/results/pdp11-its-workspace-RUN_ID`. Supply `RUN_ID` when a stable result name is useful. Source, simulator, build-receipt, firmware, topology, or media mismatches reject the operation; existing saved generations are not upgraded implicitly.
 
@@ -44,6 +44,6 @@ An atomic directory lease excludes concurrent writers and rollback. The wrapper 
 
 The controller uses the retained ITS local console to request shutdown and requires a new `SHUTDOWN COMPLETE` observation before stopping the CPU. Network UNIX enters its single-user mode through the simulator's switch register and the guest's `init`. A small original utility, compiled with the guest's own C compiler during startup, leaves `init`, its waiting shell, and itself alive while stopping other guest processes, synchronizing the filesystems, and reporting a run-specific completion token. The controller then stops the CPU and rejects remaining queued RL disk activity.
 
-The original utility is in [`guest/workspace-stop.c`](../guest/workspace-stop.c). It changes no historical kernel or NCP implementation and deletes its temporary executable when invoked. Controller writes remain in the existing sent logs; operator characters retain their separate terminal transcript. `workspace-shutdown.json` records completion for both guests and the owning lease token. Publication additionally requires the proof's manifest digest, matching parent-media identities, zero owned survivors, successful cleanup, and successful exits from both guest simulators.
+The original utility is in [`guest/workspace-stop.c`](../guest/workspace-stop.c). Its source is read back from the guest and compared byte for byte before compilation. It changes no historical kernel or NCP implementation and deletes its temporary executable when invoked. Controller writes remain in the existing sent logs; operator characters retain their separate terminal transcript. `workspace-shutdown.json` records completion for both guests and the owning lease token. Publication additionally requires the proof's manifest digest, matching parent-media identities, zero owned survivors, successful cleanup, and successful exits from both guest simulators.
 
-Full simulator memory checkpoints and persistent failover/NCC compositions require separate decisions and evidence.
+The [dated acceptance record](experiments/2026-09-05-persistent-guest-workspaces.md) records guest file creation, repeated edits and restarts, interrupted publication, and rollback. Full simulator memory checkpoints and persistent failover/NCC compositions require separate decisions and evidence.

@@ -46,6 +46,7 @@ Per [`AGENTS.md`](../../AGENTS.md), a decision recorded here is settled. Reopeni
 | [ADR-014](0014-interactive-telnet-session-stream.md) | Where interactive TELNET exchanges are retained | Network UNIX to ITS | Accepted 2026-09-01 | — |
 | [ADR-015](0015-character-oriented-historical-terminal.md) | Which guest carries character-oriented TELNET fidelity | Network UNIX to ITS | Accepted 2026-09-01 | — |
 | [ADR-018](0018-interactive-telnet-failover.md) | How a human-owned terminal requests and proves same-session application failover | Network UNIX to ITS over direct and alternate routes | Accepted 2026-09-04 | Extends [ADR-015](0015-character-oriented-historical-terminal.md) without changing its direct profile |
+| [ADR-019](0019-persistent-direct-guest-disks.md) | How saved guest files survive complete simulator stop and restart | Direct Network UNIX to ITS | Accepted 2026-09-05 | Extends [ADR-015](0015-character-oriented-historical-terminal.md) with optional disk workspaces; full memory/session resume remains separate |
 
 ## Host-ingress evidence
 

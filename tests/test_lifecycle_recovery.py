@@ -149,10 +149,15 @@ class LifecycleRecoveryTests(unittest.TestCase):
             helper.write_text('''import os, signal, sys, time
 from pathlib import Path
 root = Path(sys.argv[1])
+launcher_pid = os.getppid()
+def signal_launcher(signum):
+    if os.getppid() != launcher_pid:
+        sys.exit(2)
+    os.kill(launcher_pid, signum)
 def stop(*_):
-    os.kill(os.getppid(), signal.SIGHUP)
+    signal_launcher(signal.SIGHUP)
     time.sleep(0.2)
-    os.kill(os.getppid(), signal.SIGTERM)
+    signal_launcher(signal.SIGTERM)
     (root / 'controller-finished').touch()
     sys.exit(1)
 signal.signal(signal.SIGTERM, stop)

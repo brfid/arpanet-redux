@@ -58,6 +58,8 @@ TELNET_MAX_OUTPUT_BYTES ?= 8388608
 TELNET_MAX_CHUNK_BYTES ?= 4096
 TELNET_PREFLIGHT_VERBOSE ?= 0
 RESULT ?=
+WORKSPACE ?=
+WORKSPACE_GENERATION ?=
 TELNET_PREFLIGHT_REDIRECT = $(if $(filter 1,$(TELNET_PREFLIGHT_VERBOSE)),,>/dev/null)
 
 .NOTPARALLEL:
@@ -77,8 +79,12 @@ help:
 	@printf '  make build-pdp11-telnet build and select receipt-bound guest media\n\n'
 	@printf 'Laboratory maintenance:\n'
 	@printf '  make prune-media       preview removable staged media (never deletes)\n\n'
+	@printf '  make workspace-status WORKSPACE=name  verify and list saved generations\n'
+	@printf '  make workspace-restore WORKSPACE=name WORKSPACE_GENERATION=id  select a save\n\n'
 	@printf 'Start:\n'
 	@printf '  make telnet            foreground historical Network UNIX terminal\n'
+	@printf '  make workspace-create WORKSPACE=name  create persistent guest disks\n'
+	@printf '  make workspace WORKSPACE=name         open, save, and restart guest work\n'
 	@printf '  make telnet-failover   foreground terminal with a controller-owned link cut\n'
 	@printf '  make ncc               live passive NCC operator console\n'
 	@printf '  make ncc-failover      live console with application-link failover\n\n'
@@ -108,6 +114,21 @@ diagnose-run: export ARPANET_DIAGNOSTIC_RESULT = $(value RESULT)
 diagnose-run:
 	@test -n "$$ARPANET_DIAGNOSTIC_RESULT" || { printf '%s\n' 'Set RESULT=/absolute/path/to/a/smoke-or-terminal-result.' >&2; exit 64; }
 	$(BOOTSTRAP_PYTHON) ./scripts/diagnose-run.py -- "$$ARPANET_DIAGNOSTIC_RESULT"
+
+.PHONY: workspace-create workspace workspace-status workspace-restore
+workspace-create workspace workspace-status workspace-restore: export ARPANET_WORKSPACE_NAME = $(value WORKSPACE)
+workspace-restore: export ARPANET_WORKSPACE_GENERATION = $(value WORKSPACE_GENERATION)
+workspace-create:
+	$(BOOTSTRAP_PYTHON) ./scripts/workspace.py create "$(LAB_ROOT)" "$$ARPANET_WORKSPACE_NAME" --build "$(PDP11_INTERACTIVE_BUILD_ROOT)"
+
+workspace:
+	$(BOOTSTRAP_PYTHON) ./scripts/workspace.py run "$(LAB_ROOT)" "$$ARPANET_WORKSPACE_NAME" --result "$(RESULTS_ROOT)/pdp11-its-workspace-$(RUN_ID)"
+
+workspace-status:
+	$(BOOTSTRAP_PYTHON) ./scripts/workspace.py status "$(LAB_ROOT)" "$$ARPANET_WORKSPACE_NAME"
+
+workspace-restore:
+	$(BOOTSTRAP_PYTHON) ./scripts/workspace.py restore "$(LAB_ROOT)" "$$ARPANET_WORKSPACE_NAME" --generation "$$ARPANET_WORKSPACE_GENERATION"
 
 prune-media:
 	$(BOOTSTRAP_PYTHON) ./scripts/prune-media.py "$(LAB_ROOT)" --results-root "$(RESULTS_ROOT)"

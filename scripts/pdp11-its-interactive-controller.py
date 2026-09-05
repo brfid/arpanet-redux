@@ -76,6 +76,7 @@ from ncc.terminal_session import (
     TerminalSessionStreamError,
     read_terminal_session_stream,
 )
+from ncc.workspace_shutdown import prepare_unix_shutdown, save_shutdown_proof, stop_its, stop_unix
 
 ITS_DDT_PROMPT = rb"\r\n\*"
 REMOTE_BANNER = re.compile(rb"MIT Dynamic[\s\S]*?Happy hacking!\r\n")
@@ -102,6 +103,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--mode", choices=("line", "terminal"), default="line")
+    parser.add_argument("--workspace-stop", action="store_true")
     parser.add_argument("--route-settle", type=float, default=60.0)
     parser.add_argument("--daemon-settle", type=float, default=12.0)
     parser.add_argument(
@@ -432,6 +434,11 @@ def run_operator_session(
 
 def run(args: argparse.Namespace) -> int:
     validate_environment()
+    workspace_stop = getattr(args, "workspace_stop", False)
+    workspace_token = os.environ.get("BRFID_WORKSPACE_LEASE_TOKEN", "")
+    if workspace_stop and (args.mode != "terminal" or re.fullmatch(r"[0-9a-f]{32}", workspace_token) is None):
+        raise ValueError("workspace shutdown requires a terminal session with a workspace lease")
+    workspace_program = None
     for value, name in (
         (args.command_timeout, "command timeout"),
         (args.max_command_bytes, "maximum command bytes"),
@@ -552,6 +559,11 @@ def run(args: argparse.Namespace) -> int:
             "BOOT", "Network UNIX 176", "starting PDP-11 and launching NCP"
         )
         boot_pdp11(pdp11)
+        if workspace_stop:
+            display.milestone("PREPARE", "Workspace", "building the guest shutdown utility")
+            workspace_program = prepare_unix_shutdown(
+                pdp11, REPOSITORY_ROOT / "guest/workspace-stop.c", manifest,
+            )
         pdp11.send("/usr/net/etc/smalldaemon &\r")
         wait_for_prompt(pdp11, timeout=15)
         time.sleep(args.daemon_settle)
@@ -632,7 +644,10 @@ def run(args: argparse.Namespace) -> int:
             print("  At the client '* ' prompt:   connect - -h 106")
             print("  While connected, '^' is the client's literal command prefix;")
             print("  for example: ^ayt, ^character, ^msg, or ^close.")
-            print("  Press Control-] to stop the complete simulation cleanly.\n")
+            if workspace_stop:
+                print("  Press Control-] to save guest disks and stop.\n")
+            else:
+                print("  Press Control-] to stop the complete simulation cleanly.\n")
             sys.stdout.flush()
             input_fd = sys.stdin.fileno()
             output_fd = sys.stdout.fileno()
@@ -989,11 +1004,23 @@ def run(args: argparse.Namespace) -> int:
             ):
                 pass
             recorder.close()
-        display.milestone(
-            "STOP", "Simulators", "stopping owned PDP-11, KA10, and H316 processes"
-        )
-        stop_and_record(results_dir, hosts, imps, force=interrupted)
-        (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
+        try:
+            if workspace_stop and outcome == "passed" and not interrupted:
+                assert workspace_program is not None
+                display.milestone("SAVE", "ITS disks", "requesting guest shutdown (up to five guest minutes)")
+                stop_its(host106)
+                display.milestone("SAVE", "UNIX disks", "stopping guest writers and synchronizing filesystems")
+                stop_unix(pdp11, workspace_program, workspace_token)
+                save_shutdown_proof(results_dir, manifest, workspace_token)
+        except BaseException:
+            outcome = "failed"
+            raise
+        finally:
+            display.milestone(
+                "STOP", "Simulators", "stopping owned PDP-11, KA10, and H316 processes"
+            )
+            stop_and_record(results_dir, hosts, imps, force=interrupted)
+            (results_dir / "outcome.txt").write_text(outcome + "\n", encoding="ascii")
         display.milestone("DONE", "Cleanup", "all owned simulator processes stopped")
         if outcome == "passed":
             print(f"\nResult retained at {results_dir}", flush=True)

@@ -62,6 +62,18 @@ results_dir=$BRFID_RESULTS_DIR
 runtime_dir="$results_dir/runtime"
 mkdir -p "$runtime_dir"
 brfid_manifest_init "$runtime_dir/run.env" pdp11-its-interactive-telnet "$repo_root"
+workspace_stop_option=
+if [ -n "${BRFID_WORKSPACE_MEDIA:-}" ]; then
+  [ "$terminal_mode" = terminal ] || brfid_fail 64 "workspaces require the historical terminal mode"
+  workspace_stop_option=--workspace-stop
+  brfid_manifest_append workspace.name "$BRFID_WORKSPACE_NAME"
+  brfid_manifest_append workspace.parent "$BRFID_WORKSPACE_PARENT"
+  brfid_manifest_append workspace.lease-token "$BRFID_WORKSPACE_LEASE_TOKEN"
+  brfid_manifest_add_file workspace-generation "$BRFID_WORKSPACE_MEDIA/generation.json" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file workspace-operator "$repo_root/scripts/workspace.py" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file workspace-store "$repo_root/ncc/guest_workspace.py" "$repo_root/scripts/sha256-file.sh"
+  brfid_manifest_add_file workspace-shutdown-controller "$repo_root/ncc/workspace_shutdown.py" "$repo_root/scripts/sha256-file.sh"
+fi
 brfid_manifest_add_git arpanet-in-a-box "$arpanet_root"
 brfid_manifest_add_git network-unix-v6 "$network_unix_root"
 brfid_manifest_add_git h316-simh "$(git -C "$(dirname "$h316_bin")" rev-parse --show-toplevel)"
@@ -88,6 +100,10 @@ brfid_manifest_append terminal.max-input-bytes "$max_terminal_input_bytes"
 brfid_manifest_append terminal.max-output-bytes "$max_terminal_output_bytes"
 brfid_manifest_append terminal.max-chunk-bytes "$max_terminal_chunk_bytes"
 
+if [ -n "${BRFID_WORKSPACE_MEDIA:-}" ]; then
+  host106_base="$BRFID_WORKSPACE_MEDIA/host106"
+  pdp11_media="$BRFID_WORKSPACE_MEDIA/pdp11/images"
+fi
 host106_work="$results_dir/host106"
 pdp11_work="$results_dir/pdp11"
 mkdir -p "$host106_work" "$pdp11_work/images"
@@ -133,6 +149,7 @@ if python3 "$repo_root/scripts/pdp11-its-interactive-controller.py" \
   --topology "$repo_root/config/topologies/pdp11-its-telnet.json" \
   --results-dir "$results_dir" \
   --manifest "$runtime_dir/run.env" \
+  $workspace_stop_option \
   --mode "$terminal_mode" \
   --command-timeout "$command_timeout" \
   --max-command-bytes "$max_command_bytes" \

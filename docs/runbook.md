@@ -130,6 +130,8 @@ The fault and loopback smokes normally run for about 130 seconds. Their duration
 
 ## Use interactive TELNET
 
+For guest files that survive stop and restart, use the [persistent workspace commands](workspaces.md). `make telnet` continues to start from fresh prepared media.
+
 From the repository root, the existing standard laboratory and retained receipt-bound PDP-11 build need only:
 
 ```sh
@@ -248,6 +250,7 @@ Every smoke creates one immutable directory under `$LAB_ROOT/results`. The manif
 | `pdp11-its-telnet-` | Application and cleanup evidence, receipt binding, and `message-journey.jsonl` |
 | `pdp11-its-interactive-` | Application and cleanup evidence plus the strict `interactive-telnet.jsonl` command/result stream |
 | `pdp11-its-terminal-` | Historical terminal lifecycle, application evidence when observed, and exact `terminal-session.jsonl` directional bytes |
+| `pdp11-its-workspace-` | The direct historical terminal plus parent-media identity and a complete guest disk shutdown proof; saved generations live separately under `workspaces/` |
 | `pdp11-its-interactive-failover-` | Version-2 directional terminal stream, relay and cut acknowledgement, direct and alternate journeys, application evidence, and interactive verdict |
 | `ncc-alternate-path-fault-` | `receiver.json`, `historical-events.jsonl`, `direct-relay.json`, and `verdict.json` |
 | `ncc-line-loopback-` | `receiver.json`, `historical-events.jsonl`, `direct-reflector.json`, and `verdict.json` |

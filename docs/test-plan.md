@@ -137,6 +137,18 @@ Compose Gate 4J's character-oriented Network UNIX terminal with the accepted fou
 
 This gate proves one human-operated guest TELNET session before and after one simulated application-cable fault. It does not prove browser control, passive report reception, report-line identity, new topology or host-interface evidence, full-screen terminal behavior, a modern TELNET implementation, or historical identity for configured IMP numbers. The direct Gate 4J profile and formal NCC failover gate remain separate and unchanged.
 
+## Gate 4L: Persistent direct guest disks
+
+Use a named workspace seeded from the pinned direct ITS 106 media and a verified Network UNIX build receipt. Apply the direct historical terminal's ownership, input identity, terminal safety, application evidence when connected, and cleanup requirements. Accept persistent disk operation only after:
+
+1. Create a new file through each guest's own command or editor interface, save it inside that guest, and read back the expected content. Save and stop all simulators, start new processes from the published generation, and recover both files through guest commands. Modify both files, repeat save and restart, and recover both modifications. Open a new real guest TELNET connection and obtain remote `:TIME` after each restart.
+2. Each saved generation binds all seven media files by size and SHA-256, its selected parent, the exact originating result, and the matching shutdown-proof digest. The run's starting media hashes agree with the verified parent. ITS emits a new shutdown-completion observation; Network UNIX stops other writers, completes synchronization, and has no queued RL operation when the CPU is stopped. Both guest simulators exit successfully, controller cleanup passes with zero survivors, and the outer runtime records successful cleanup.
+3. No simulator attaches a saved generation directly. Fresh `make telnet` and formal smokes still use their original prepared-media sources. The original prepared inputs and build receipt remain unchanged, and the direct Gate 4H smoke passes.
+4. A concurrent writer or rollback is refused while the workspace is leased. A failed or interrupted run cannot publish its working disks. Interrupt publication before all disks have been copied and verify that the previous complete generation remains current and verifies successfully. Unproved process cleanup cannot release the lease; an old PID is never reclaimed automatically.
+5. Selecting a retained earlier generation verifies its complete media set, changes the current pointer under the same lease, and preserves every other complete generation. Corrupt or partial generations cannot be selected.
+
+This gate preserves disk contents that the guests saved. It does not preserve unsaved editor buffers, process memory, logged-in sessions, open TELNET connections, IMP routing state, or packets in transit. The [workspace contract](workspaces.md) owns operation and recovery; no NCC or failover persistence is implied.
+
 ## Gate 5: Payload anti-bypass
 
 Generate a unique printable-ASCII sentinel. Inject it only through host A's console or guest application, transfer it through guest NCP, and recover it only through host B's console or guest application. The controller must have no operation that copies the payload between guest workspaces.

@@ -44,6 +44,12 @@ The ITS receipt binds a clean pinned checkout, recursive submodule state, a curr
 
 The PDP-11 receipt binds the base images, staged TELNET and NCP-daemon sources, intermediate and final media, build logs, builder hashes, Network UNIX revision, IMP11-A revision, and PDP-11 executable. A smoke revalidates every path and digest before copying final media into its run.
 
+## Persistent disk workspaces
+
+The optional direct terminal workspace selects verified saved disks as the source for the same per-run isolation. `ncc.guest_workspace` owns complete generations, content verification, atomic publication and selection, and exclusive workspace leases. `scripts/workspace.py` verifies the pinned runtime and retained build receipt, launches the existing terminal, and permits publication only after this invocation's parent-media identities, guest shutdown proof, simulator exits, and both cleanup layers agree. `ncc.workspace_shutdown` owns the guest-console shutdown sequence; the original `guest/workspace-stop.c` is compiled inside Network UNIX and stops writers before synchronization.
+
+Saved generations are never attached in place. A failed run retains its working media and leaves the current generation unchanged. Missing cleanup evidence leaves the workspace leased; an old PID alone never authorizes reclamation. These records provide disk-save provenance, not live process, TELNET, or IMP memory state. [Persistent guest workspaces](workspaces.md) owns commands, storage, and the recovery boundary.
+
 ## Controller boundary
 
 Controllers distinguish guest execution from simulator prompt and process existence. They drive only known child consoles, record controller writes separately, and do not use a live PID or bound socket as guest readiness.
